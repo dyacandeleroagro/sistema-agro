@@ -1,86 +1,58 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 
-# ==========================================
-# CONFIGURACIÓN DE LA INTERFAZ
-# ==========================================
-st.set_page_config(page_title="D&A Candelero Agro", layout="wide", page_icon="🚜")
+# Configuración inicial
+st.set_page_config(page_title="D&A Candelero Agro", layout="wide")
 
-st.markdown("""
-    <style>
-    .header-container { padding: 20px; border-radius: 12px; border: 3px solid #1E4620; margin-bottom: 25px; }
-    .main-title { font-size: 30pt; font-weight: 900; color: #1E4620; }
-    .card-box { padding: 20px; border: 2px solid #1E4620; background-color: #f9f9f9; border-radius: 10px; }
-    .card-value { font-size: 20pt; font-weight: bold; color: #1E4620; }
-    </style>
-""", unsafe_allow_html=True)
+# Conexión a Google Sheets (usando el nombre 'gsheets')
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-# ==========================================
-# SEGURIDAD Y LOGIN
-# ==========================================
+# Seguridad y Login
 USUARIOS = {
-    "daniel": {"pass": "daniel2026", "rol": "Administrador", "nombre": "Daniel Candelero"},
-    "agustin": {"pass": "agustin2026", "rol": "Administrador", "nombre": "Agustin Candelero"},
-    "damian": {"pass": "damian123", "rol": "Operario", "nombre": "Damian Acosta"}
+    "daniel": {"pass": "daniel2026", "rol": "Admin", "nombre": "Daniel Candelero"},
+    "agustin": {"pass": "agustin2026", "rol": "Admin", "nombre": "Agustin Candelero"}
 }
 
 if "autenticado" not in st.session_state: st.session_state["autenticado"] = False
 
-def login():
-    st.markdown('<div class="header-container"><h1 style="text-align:center;">🔐 Acceso al Sistema</h1></div>', unsafe_allow_html=True)
+if not st.session_state["autenticado"]:
+    st.title("🔐 Acceso al Sistema")
     user = st.text_input("Usuario").lower()
     pwd = st.text_input("Contraseña", type="password")
     if st.button("Ingresar"):
         if user in USUARIOS and USUARIOS[user]["pass"] == pwd:
             st.session_state["autenticado"] = True
-            st.session_state["user"] = user
             st.session_state["nombre"] = USUARIOS[user]["nombre"]
-            st.session_state["rol"] = USUARIOS[user]["rol"]
             st.rerun()
         else:
-            st.error("Usuario o contraseña incorrectos")
-
-if not st.session_state["autenticado"]:
-    login()
+            st.error("Credenciales incorrectas")
     st.stop()
 
-# ==========================================
-# CONEXIÓN Y DATOS
-# ==========================================
-# Asegurate de que en Streamlit Cloud, en 'Secrets', tengas la configuración de 'gsheets'
-conn = st.connection("gsheets", type=GSheetsConnection)
+# Si está autenticado, mostramos el sistema completo
+st.title(f"Bienvenido, {st.session_state['nombre']}")
 
-def get_data(tab): return conn.read(worksheet=tab, ttl=0)
-
-# ==========================================
-# PANTALLA PRINCIPAL
-# ==========================================
-st.markdown(f'<div class="header-container"><div class="main-title">D&A CANDELERO AGRO</div><p>Bienvenido, {st.session_state["nombre"]}</p></div>', unsafe_allow_html=True)
-
-tab1, tab2, tab3 = st.tabs(["📊 Resumen", "🚜 Telemetría", "🧾 Gastos"])
+# Pestañas principales
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Resumen", "🧾 Facturas", "🚜 Lotes y Seguros", "👥 Empleados"])
 
 with tab1:
-    st.header("📊 Analíticas")
-    st.metric("Total Ingresos", "$ 0.00")
-
+    st.header("Resumen General")
+    st.write("Acá verás los datos de cosecha y gastos.")
+    # Aquí iría tu lógica de datos
 with tab2:
-    st.header("🚜 Carga de Telemetría")
-    with st.form("telemetria"):
-        lote = st.text_input("Lote")
-        has = st.number_input("Hectáreas")
-        if st.form_submit_button("Guardar"):
-            st.success(f"Datos de {lote} guardados")
-
-with tab3:
-    st.header("🧾 Gastos")
+    st.header("Gestión de Facturas")
     try:
-        df = get_data("datos_facturas")
+        df = conn.read(worksheet="datos_facturas", ttl=0)
         st.dataframe(df)
-    except Exception as e:
-        st.error("Error al cargar datos. Asegurate de que la hoja 'datos_facturas' exista en tu Google Sheet.")
+    except:
+        st.error("No se puede conectar a la hoja de Facturas. Configurá los 'Secrets'!")
+with tab3:
+    st.header("Lotes y Seguros")
+    st.write("Información sobre el estado de cada lote.")
+with tab4:
+    st.header("Empleados")
+    st.write("Registro y pago de personal.")
 
-if st.button("🚪 Cerrar Sesión"):
+if st.button("Cerrar Sesión"):
     st.session_state["autenticado"] = False
     st.rerun()
