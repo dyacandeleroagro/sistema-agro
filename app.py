@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
+
 # ==========================================
 # CONFIGURACIÓN DE LA INTERFAZ
 # ==========================================
@@ -11,8 +11,6 @@ st.markdown("""
     <style>
     .header-container { padding: 20px; border-radius: 12px; border: 3px solid #1E4620; margin-bottom: 25px; }
     .main-title { font-size: 30pt; font-weight: 900; color: #1E4620; }
-    .card-box { padding: 20px; border: 2px solid #1E4620; background-color: #f9f9f9; border-radius: 10px; }
-    .card-value { font-size: 20pt; font-weight: bold; color: #1E4620; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -46,11 +44,13 @@ if not st.session_state["autenticado"]:
     st.stop()
 
 # ==========================================
-# CONEXIÓN Y DATOS
+# CONEXIÓN A GOOGLE SHEETS
 # ==========================================
+# Esto crea la conexión usando el nombre 'gsheets' definido en la config de Streamlit
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-def get_data(tab): return conn.read(worksheet=tab, ttl=0)
+def get_data(worksheet_name):
+    return conn.read(worksheet=worksheet_name, ttl=0)
 
 # ==========================================
 # PANTALLA PRINCIPAL
@@ -61,21 +61,24 @@ tab1, tab2, tab3 = st.tabs(["📊 Resumen", "🚜 Telemetría", "🧾 Gastos"])
 
 with tab1:
     st.header("📊 Analíticas")
-    # Ejemplo de resumen
-    st.metric("Total Ingresos", "$ 0.00")
+    st.write("Panel principal de gestión agrícola.")
 
 with tab2:
     st.header("🚜 Carga de Telemetría")
     with st.form("telemetria"):
-        lote = st.text_input("Lote")
+        lote = st.text_input("Nombre del Lote")
         has = st.number_input("Hectáreas")
-        if st.form_submit_button("Guardar"):
-            st.success(f"Datos de {lote} guardados")
+        submit = st.form_submit_button("Guardar Datos")
+        if submit:
+            st.success(f"Datos del lote {lote} procesados correctamente.")
 
 with tab3:
     st.header("🧾 Gastos")
-    df = get_data("datos_facturas")
-    st.dataframe(df)
+    try:
+        df = get_data("datos_facturas")
+        st.dataframe(df)
+    except Exception as e:
+        st.error("No se pudieron cargar los datos de la planilla. Revisá que el nombre de la hoja sea correcto.")
 
 if st.button("🚪 Cerrar Sesión"):
     st.session_state["autenticado"] = False
