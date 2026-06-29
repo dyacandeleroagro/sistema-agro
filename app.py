@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
-
 # ==========================================
 # CONFIGURACIÓN DE LA INTERFAZ
 # ==========================================
