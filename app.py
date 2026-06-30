@@ -90,7 +90,17 @@ def formulario_login():
             btn_login = st.form_submit_button("Ingresar al Sistema")
             
             if btn_login:
-                if txt_user in USUARIOS_CREDENCIALES and USUARIOS_CREDENCIALES[txt_user]["password"] == txt_pass:
+               if btn_login:
+    nombre, rol = check_password(txt_user, txt_pass)
+    if nombre:
+        st.session_state["autenticado"] = True
+        st.session_state["usuario"] = txt_user
+        st.session_state["rol"] = rol
+        st.session_state["nombre_usuario"] = nombre
+        st.success(f"¡Bienvenido {nombre}!")
+        st.rerun()
+    else:
+        st.error("❌ Usuario o contraseña incorrectos.")
                     st.session_state["autenticado"] = True
                     st.session_state["usuario"] = txt_user
                     st.session_state["rol"] = USUARIOS_CREDENCIALES[txt_user]["rol"]
