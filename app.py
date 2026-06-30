@@ -1,22 +1,3 @@
-import streamlit as st
-import pandas as pd
-import os
-from datetime import datetime
-import psycopg2
-
-@st.cache_resource
-def get_conn():
-    return psycopg2.connect(**st.secrets["db"])
-
-def check_password(usuario, password):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password_hash = crypt(%s, password_hash)", (usuario, password))
-    result = cur.fetchone()
-    cur.close()
-    if result:
-        return result[0], result[1] # nombre, rol
-    return None, None
 
 # ==========================================
 # CONFIGURACIÓN DE LA INTERFAZ
