@@ -62,13 +62,31 @@ st.markdown("""
 # GESTIÓN DE USUARIOS REALES Y LOGIN
 # ==========================================
 # Diccionario actualizado con los dueños y los operarios de la tripulación
-USUARIOS_CREDENCIALES = {
-    "daniel": {"password": "daniel2026", "rol": "Administrador", "nombre": "Daniel Candelero"},
-    "agustin": {"password": "agustin2026", "rol": "Administrador", "nombre": "Agustin Candelero"},
-    "damian": {"password": "damianacostatractorista1", "rol": "Operario", "nombre": "Damian Acosta"},
-    "german": {"password": "germanpossetomaquinista", "rol": "Operario", "nombre": "German Posseto"},
-    "gonzalo": {"password": "gonzalovegatractorista2", "rol": "Operario", "nombre": "Gonzalo Vega"}
-}
+import streamlit as st
+import pandas as pd
+import os
+from datetime import datetime
+import psycopg2 # <-- AGREGAR ESTA LÍNEA
+
+@st.cache_resource # <-- PEGAR DESDE ACÁ
+def get_conn():
+    return psycopg2.connect(**st.secrets["db"])
+
+def check_password(usuario, password):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password_hash = crypt(%s, password_hash)", (usuario, password))
+    result = cur.fetchone()
+    cur.close()
+    if result:
+        return result[0], result[1]
+    return None, None
+# <-- HASTA ACÁ
+
+# ==========================================
+# CONFIGURACIÓN DE LA INTERFAZ
+# ==========================================
+st.set_page_config(...)
 
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = False
