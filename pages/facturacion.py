@@ -45,6 +45,61 @@ def pantalla_facturacion():
 
     st.subheader(f"TOTAL: ${total:,.2f}")
 
-    if st.button("Guardar Factura"):
+   if st.button("Guardar Factura"):
 
-        st.success("La siguiente etapa será guardar la factura en la base de datos.")
+    cur = conn.cursor()
+
+    # Obtener IDs
+    cliente_id = clientes.loc[
+        clientes["nombre"] == cliente,
+        "id"
+    ].iloc[0]
+
+    producto_id = productos.loc[
+        productos["nombre"] == producto,
+        "id"
+    ].iloc[0]
+
+    # Guardar factura
+    cur.execute("""
+        INSERT INTO facturas
+        (numero, cliente_id, usuario_id, total, estado)
+        VALUES (%s,%s,%s,%s,%s)
+        RETURNING id
+    """, (
+        "FAC-0001",
+        cliente_id,
+        1,
+        total,
+        "PENDIENTE"
+    ))
+
+    factura_id = cur.fetchone()[0]
+
+    # Guardar detalle
+    cur.execute("""
+        INSERT INTO detalle_factura
+        (factura_id, producto_id, cantidad, precio_unitario, subtotal)
+        VALUES (%s,%s,%s,%s,%s)
+    """, (
+        factura_id,
+        producto_id,
+        cantidad,
+        precio,
+        total
+    ))
+
+    # Descontar stock
+    cur.execute("""
+        UPDATE productos
+        SET stock = stock - %s
+        WHERE id = %s
+    """, (
+        cantidad,
+        producto_id
+    ))
+
+    conn.commit()
+
+    st.success("✅ Factura guardada correctamente")
+    st.rerun()
