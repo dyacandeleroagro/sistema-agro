@@ -22,11 +22,10 @@ def pantalla_clientes():
 
             cur = conn.cursor()
 
-            cur.execute("""
-                INSERT INTO clientes
-                (nombre,cuit,direccion,telefono,ema
-            """,(nombre,cuit,direccion,telefono,email))
-
+            cur.execute("""INSERT INTO clientes 
+            (nombre, cuit, direccion, telefono, email)
+            VALUES (%s, %s, %s, %s, %s)
+         """, (nombre, cuit, direccion, telefono, email))
             conn.commit()
 
             st.success("Cliente agregado correctamente")
