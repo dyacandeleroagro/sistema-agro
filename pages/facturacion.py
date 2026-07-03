@@ -61,18 +61,26 @@ def pantalla_facturacion():
         ].iloc[0]
 
         # Guardar factura
-        cur.execute("""
-            INSERT INTO facturas
-            (numero, cliente_id, usuario_id, total, estado)
-            VALUES (%s,%s,%s,%s,%s)
-            RETURNING id
-        """, (
-            "FAC-0001",
-            cliente_id,
-            1,
-            total,
-            "PENDIENTE"
-        ))
+        try:
+     cur.execute("""
+        INSERT INTO facturas
+        (numero, cliente_id, usuario_id, total, estado)
+        VALUES (%s,%s,%s,%s,%s)
+        RETURNING id
+     """, (
+        "FAC-0001",
+        cliente_id,
+        1,
+        total,
+        "PENDIENTE"
+     ))
+
+    factura_id = cur.fetchone()[0]
+
+except Exception as e:
+    st.exception(e)
+    conn.rollback()
+    st.stop()
 
         factura_id = cur.fetchone()[0]
 
