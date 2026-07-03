@@ -12,9 +12,7 @@ ddef check_password(usuario, password):
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute(
-        "SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password = %s",
-        (usuario, password)
+    cur.execute("SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password = %s",(usuario, password)
     )
 
     result = cur.fetchone()
