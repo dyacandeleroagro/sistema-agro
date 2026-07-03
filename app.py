@@ -4,9 +4,8 @@ import os
 from datetime import datetime
 import psycopg2
 
-@st.cache_resource
-def get_conn():
-    return psycopg2.connect(**st.secrets["db"])
+from pages.clientes import pantalla_clientes
+from database import get_conn
 
 def check_password(usuario, password):
     conn = get_conn()
@@ -176,6 +175,7 @@ if rol_actual == "Administrador":
     lista_tabs.append("👥 SISTEMA DE TRIPULACIÓN")
 
 lista_tabs.append("📋 RENDICIÓN POR OPERARIO")
+lista_tabs.append("👥 CLIENTES")
 
 if rol_actual == "Administrador":
     lista_tabs.append("🛡 SEGUROS Y COBERTURAS")
@@ -428,6 +428,11 @@ if t_rend:
                     st.dataframe(df_reintegros[["Fecha Pago", "Monto (ARS)", "Estado Pago", "Concepto"]], use_container_width=True)
                 else: st.write("No hay registros de reintegros o vales.")
             else: st.write("Sin movimientos.")
+t_clientes = obtener_tab("👥 CLIENTES")
+
+if t_clientes:
+    with t_clientes:
+        pantalla_clientes()
 
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
