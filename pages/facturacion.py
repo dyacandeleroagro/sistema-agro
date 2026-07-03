@@ -45,7 +45,7 @@ def pantalla_facturacion():
 
     st.subheader(f"TOTAL: ${total:,.2f}")
 
-   if st.button("Guardar Factura"):
+    if st.button("Guardar Factura"):
 
     cur = conn.cursor()
 
