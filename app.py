@@ -8,7 +8,7 @@ import psycopg2
 def get_conn():
     return psycopg2.connect(**st.secrets["db"])
 
-ddef check_password(usuario, password):
+def check_password(usuario, password):
     conn = get_conn()
     cur = conn.cursor()
 
