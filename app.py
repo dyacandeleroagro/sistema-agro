@@ -11,7 +11,7 @@ def get_conn():
 def check_password(usuario, password):
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute("SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password = crypt(%s, password_hash)", (usuario, password))
+cur.execute("SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password = %s",(usuario, password))
     result = cur.fetchone()
     cur.close()
     if result:
