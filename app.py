@@ -8,15 +8,21 @@ import psycopg2
 def get_conn():
     return psycopg2.connect(**st.secrets["db"])
 
-def check_password(usuario, password):
+ddef check_password(usuario, password):
     conn = get_conn()
     cur = conn.cursor()
-cur.execute("SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password = %s",(usuario, password)
-)
+
+    cur.execute(
+        "SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password = %s",
+        (usuario, password)
+    )
+
     result = cur.fetchone()
     cur.close()
+
     if result:
         return result[0], result[1]
+
     return None, None
 
 # ==========================================
