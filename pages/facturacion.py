@@ -43,7 +43,7 @@ def pantalla_facturacion():
 
     total = cantidad * precio
 
-        st.subheader(f"TOTAL: ${total:,.2f}")
+    st.subheader(f"TOTAL: ${total:,.2f}")
 
     if st.button("Guardar Factura"):
 
