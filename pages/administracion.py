@@ -49,7 +49,7 @@ def pantalla_administracion():
 
     st.subheader("Permisos")
 
-permisos = [
+    permisos = [
     "Administracion",
     "Clientes",
     "Facturacion",
