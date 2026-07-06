@@ -98,7 +98,6 @@ for permiso in permisos:
                     UPDATE usuarios
                     SET usuario=%s,
                         nombre=%s,
-                        rol=%s,
                         password=%s
                     WHERE id=%s
                 """, (
@@ -125,6 +124,20 @@ for permiso in permisos:
                 ))
 
             conn.commit()
+            cur.execute(
+    "DELETE FROM permisos WHERE usuario_id=%s",
+    (datos["id"],)
+)
+
+for permiso in seleccionados:
+
+    cur.execute(
+        """
+        INSERT INTO permisos(usuario_id, permiso)
+        VALUES(%s,%s)
+        """,
+        (datos["id"], permiso)
+    )
 
             st.success("✅ Usuario actualizado")
 
