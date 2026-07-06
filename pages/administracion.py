@@ -20,7 +20,6 @@ SELECT id,usuario,nombre,rol
 FROM usuarios
 ORDER BY nombre
 """, conn)
-
 usuario_sel = st.selectbox(
     "Seleccionar usuario",
     df["usuario"]
@@ -51,7 +50,7 @@ nueva_password = st.text_input(
 col1, col2 = st.columns(2)
 
 with col1:
-  st.write("Estoy en el editor")
+       st.write("Estoy en el editor")
     if st.button("💾 Guardar cambios"):
 
         cur = conn.cursor()
@@ -93,7 +92,7 @@ with col1:
         st.success("Usuario actualizado")
 
         st.rerun()
-        with col2:
+with col2:
 
     if st.button("🗑 Eliminar usuario"):
 
