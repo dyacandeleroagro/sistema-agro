@@ -51,7 +51,7 @@ nueva_password = st.text_input(
 col1, col2 = st.columns(2)
 
 with col1:
-
+  st.write("Estoy en el editor")
     if st.button("💾 Guardar cambios"):
 
         cur = conn.cursor()
