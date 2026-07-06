@@ -7,7 +7,7 @@ import psycopg2
 from pages.clientes import pantalla_clientes
 from pages.productos import pantalla_productos
 from pages.facturacion import pantalla_facturacion
-from pages.administracion import pantalla_administración
+from pages.administracion import pantalla_administracion
 from database import get_conn
 
 def check_password(usuario, password):
