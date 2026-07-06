@@ -450,9 +450,11 @@ if t_productos:
     with t_productos:
         pantalla_productos()
 
-if t_administración: 
-    with t_administración:
-        pantalla_administración()
+t_administracion = obtener_tab("⚙ ADMINISTRACIÓN")
+
+if t_administracion: 
+    with t_administracion:
+        pantalla_administracion()
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
