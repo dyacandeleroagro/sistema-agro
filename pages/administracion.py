@@ -112,7 +112,7 @@ def pantalla_administracion():
                         nuevo_usuario,
                         nuevo_nombre,
                         nuevo_rol,
-                        datos["id"]
+                        int(datos["id"])
                     ))
 
                 conn.commit()
