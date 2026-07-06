@@ -97,7 +97,7 @@ def pantalla_administracion():
                         nuevo_nombre,
                         nuevo_rol,
                         nueva_password,
-                        datos["id"]
+                        int(datos["id"])
                     ))
 
                 else:
