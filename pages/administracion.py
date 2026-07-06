@@ -77,7 +77,6 @@ for permiso in permisos:
         value=permiso in permisos_usuario
     ):
         seleccionados.append(permiso)
-    )
 
     nueva_password = st.text_input(
         "Nueva contraseña (opcional)",
@@ -103,7 +102,6 @@ for permiso in permisos:
                 """, (
                     nuevo_usuario,
                     nuevo_nombre,
-                    nuevo_rol,
                     nueva_password,
                     datos["id"]
                 ))
@@ -114,7 +112,6 @@ for permiso in permisos:
                     UPDATE usuarios
                     SET usuario=%s,
                         nombre=%s,
-                        rol=%s
                     WHERE id=%s
                 """, (
                     nuevo_usuario,
@@ -124,9 +121,9 @@ for permiso in permisos:
                 ))
 
             conn.commit()
-            cur.execute(
-    "DELETE FROM permisos WHERE usuario_id=%s",
-    (datos["id"],)
+    cur.execute(
+       "DELETE FROM permisos WHERE usuario_id=%s",
+        (datos["id"],)
 )
 
 for permiso in seleccionados:
