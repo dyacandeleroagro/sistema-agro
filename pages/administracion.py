@@ -135,7 +135,7 @@ def pantalla_administracion():
 
                 cur.execute(
                     "DELETE FROM usuarios WHERE id=%s",
-                    (datos["id"],)
+                    (int(datos["id"]),)
                 )
 
                 conn.commit()
