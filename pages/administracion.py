@@ -15,6 +15,100 @@ def pantalla_administracion():
     """, conn)
 
     st.subheader("Usuarios")
+    df = pd.read_sql("""
+SELECT id,usuario,nombre,rol
+FROM usuarios
+ORDER BY nombre
+""", conn)
+
+usuario_sel = st.selectbox(
+    "Seleccionar usuario",
+    df["usuario"]
+)
+
+datos = df[df["usuario"] == usuario_sel].iloc[0]
+
+nuevo_nombre = st.text_input(
+    "Nombre",
+    value=datos["nombre"]
+)
+
+nuevo_usuario = st.text_input(
+    "Usuario",
+    value=datos["usuario"]
+)
+
+nuevo_rol = st.selectbox(
+    "Rol",
+    ["Operario","Administrador","Dueño"],
+    index=["Operario","Administrador","Dueño"].index(datos["rol"])
+)
+
+nueva_password = st.text_input(
+    "Nueva contraseña",
+    type="password"
+)
+col1, col2 = st.columns(2)
+
+with col1:
+
+    if st.button("💾 Guardar cambios"):
+
+        cur = conn.cursor()
+
+        if nueva_password != "":
+
+            cur.execute("""
+            UPDATE usuarios
+            SET usuario=%s,
+                nombre=%s,
+                rol=%s,
+                password=%s
+            WHERE id=%s
+            """,(
+                nuevo_usuario,
+                nuevo_nombre,
+                nuevo_rol,
+                nueva_password,
+                datos["id"]
+            ))
+
+        else:
+
+            cur.execute("""
+            UPDATE usuarios
+            SET usuario=%s,
+                nombre=%s,
+                rol=%s
+            WHERE id=%s
+            """,(
+                nuevo_usuario,
+                nuevo_nombre,
+                nuevo_rol,
+                datos["id"]
+            ))
+
+        conn.commit()
+
+        st.success("Usuario actualizado")
+
+        st.rerun()
+        with col2:
+
+    if st.button("🗑 Eliminar usuario"):
+
+        cur = conn.cursor()
+
+        cur.execute("""
+        DELETE FROM usuarios
+        WHERE id=%s
+        """,(datos["id"],))
+
+        conn.commit()
+
+        st.success("Usuario eliminado")
+
+        st.rerun()
 
     st.dataframe(
         usuarios,
