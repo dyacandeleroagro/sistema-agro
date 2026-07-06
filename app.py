@@ -7,7 +7,7 @@ import psycopg2
 from pages.clientes import pantalla_clientes
 from pages.productos import pantalla_productos
 from pages.facturacion import pantalla_facturacion
-from pages.administracion import pantalla_administracion
+from pages.administracion import pantalla_administración
 from database import get_conn
 
 def check_password(usuario, password):
@@ -181,7 +181,7 @@ lista_tabs.append("📋 RENDICIÓN POR OPERARIO")
 lista_tabs.append("👥 CLIENTES")
 lista_tabs.append("🧾 FACTURACIÓN")
 lista_tabs.append("📦 PRODUCTOS")
-lista_tabs.append("⚙ Administración")
+lista_tabs.append("⚙ ADMINISTRACIÓN")
 
 if rol_actual == "Administrador":
     lista_tabs.append("🛡 SEGUROS Y COBERTURAS")
@@ -453,7 +453,6 @@ if t_productos:
 if t_administración: 
     with t_administración:
         pantalla_administración()
-
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
