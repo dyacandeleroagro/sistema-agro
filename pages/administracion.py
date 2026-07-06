@@ -47,10 +47,36 @@ def pantalla_administracion():
         value=datos["nombre"]
     )
 
-    nuevo_rol = st.selectbox(
-        "Rol",
-        ["Operario", "Administrador", "Dueño"],
-        index=["Operario", "Administrador", "Dueño"].index(datos["rol"])
+    st.subheader("Permisos")
+
+permisos = [
+    "Administracion",
+    "Clientes",
+    "Facturacion",
+    "Servicios",
+    "Merch",
+    "Ingresos",
+    "Labores",
+    "Analiticas",
+    "Control",
+    "Dueño"
+]
+
+permisos_usuario = pd.read_sql(
+    "SELECT permiso FROM permisos WHERE usuario_id=%s",
+    conn,
+    params=(datos["id"],)
+)["permiso"].tolist()
+
+seleccionados = []
+
+for permiso in permisos:
+
+    if st.checkbox(
+        permiso,
+        value=permiso in permisos_usuario
+    ):
+        seleccionados.append(permiso)
     )
 
     nueva_password = st.text_input(
