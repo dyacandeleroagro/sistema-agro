@@ -450,8 +450,9 @@ if t_productos:
     with t_productos:
         pantalla_productos()
 
-        if pagina == "⚙ Administración":
-    pantalla_administracion()
+if t_administracion: 
+    with t_administracion:
+        pantalla_administracion()
 
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
