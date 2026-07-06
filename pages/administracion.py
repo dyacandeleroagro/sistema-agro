@@ -107,19 +107,22 @@ def pantalla_administracion():
 
         if st.button("🗑 Eliminar usuario"):
 
-            cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-            cur.execute(
-                "DELETE FROM usuarios WHERE id=%s",
-                (datos["id"],)
-            )
+        cur.execute(
+            "DELETE FROM usuarios WHERE id=%s",
+            (datos["id"],)
+        )
 
-            conn.commit()
+        conn.commit()
 
-            st.success("✅ Usuario eliminado")
-            st.rerun()
+        st.success("✅ Usuario eliminado")
+        st.rerun()
 
-    st.divider()
+    except Exception as e:
+        conn.rollback()
+        st.error(str(e))
 
     # ==========================
     # NUEVO USUARIO
