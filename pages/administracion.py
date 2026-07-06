@@ -20,7 +20,11 @@ def pantalla_administracion():
     """, conn)
 
     st.subheader("Usuarios")
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
 
     st.divider()
 
@@ -52,10 +56,21 @@ def pantalla_administracion():
         type="password"
     )
 
+    roles = [
+        "Operario",
+        "Administrador",
+        "Contador",
+        "Dueño"
+    ]
+
+    indice = 0
+    if datos["rol"] in roles:
+        indice = roles.index(datos["rol"])
+
     nuevo_rol = st.selectbox(
         "Rol",
-        ["Operario", "Administrador", "Dueño"],
-        index=["Operario", "Administrador", "Dueño"].index(datos["rol"])
+        roles,
+        index=indice
     )
 
     col1, col2 = st.columns(2)
@@ -66,63 +81,74 @@ def pantalla_administracion():
 
             cur = conn.cursor()
 
-            if nueva_password:
+            try:
 
-                cur.execute("""
-                    UPDATE usuarios
-                    SET usuario=%s,
-                        nombre=%s,
-                        rol=%s,
-                        password=%s
-                    WHERE id=%s
-                """, (
-                    nuevo_usuario,
-                    nuevo_nombre,
-                    nuevo_rol,
-                    nueva_password,
-                    datos["id"]
-                ))
+                if nueva_password != "":
 
-            else:
+                    cur.execute("""
+                        UPDATE usuarios
+                        SET usuario=%s,
+                            nombre=%s,
+                            rol=%s,
+                            password=%s
+                        WHERE id=%s
+                    """, (
+                        nuevo_usuario,
+                        nuevo_nombre,
+                        nuevo_rol,
+                        nueva_password,
+                        datos["id"]
+                    ))
 
-                cur.execute("""
-                    UPDATE usuarios
-                    SET usuario=%s,
-                        nombre=%s,
-                        rol=%s
-                    WHERE id=%s
-                """, (
-                    nuevo_usuario,
-                    nuevo_nombre,
-                    nuevo_rol,
-                    datos["id"]
-                ))
+                else:
 
-            conn.commit()
+                    cur.execute("""
+                        UPDATE usuarios
+                        SET usuario=%s,
+                            nombre=%s,
+                            rol=%s
+                        WHERE id=%s
+                    """, (
+                        nuevo_usuario,
+                        nuevo_nombre,
+                        nuevo_rol,
+                        datos["id"]
+                    ))
 
-            st.success("✅ Usuario actualizado")
-            st.rerun()
+                conn.commit()
+
+                st.success("✅ Usuario actualizado")
+                st.rerun()
+
+            except Exception as e:
+
+                conn.rollback()
+                st.error(str(e))
 
     with col2:
 
         if st.button("🗑 Eliminar usuario"):
 
-    try:
-        cur = conn.cursor()
+            try:
 
-        cur.execute(
-            "DELETE FROM usuarios WHERE id=%s",
-            (datos["id"],)
-        )
+                cur = conn.cursor()
 
-        conn.commit()
+                cur.execute(
+                    "DELETE FROM usuarios WHERE id=%s",
+                    (datos["id"],)
+                )
 
-        st.success("✅ Usuario eliminado")
-        st.rerun()
+                conn.commit()
 
-    except Exception as e:
-        conn.rollback()
-        st.error(str(e))
+                st.success("✅ Usuario eliminado")
+                st.rerun()
+
+            except Exception as e:
+
+                conn.rollback()
+                st.error(str(e))
+
+    st.divider()
 
     # ==========================
     # NUEVO USUARIO
@@ -133,32 +159,44 @@ def pantalla_administracion():
     with st.form("nuevo_usuario"):
 
         usuario = st.text_input("Usuario")
-        password = st.text_input("Contraseña", type="password")
+        password = st.text_input(
+            "Contraseña",
+            type="password"
+        )
         nombre = st.text_input("Nombre completo")
 
         rol = st.selectbox(
             "Rol",
-            ["Operario", "Administrador", "Dueño"]
+            roles
         )
 
-        guardar = st.form_submit_button("Crear usuario")
+        guardar = st.form_submit_button(
+            "Crear usuario"
+        )
 
         if guardar:
 
-            cur = conn.cursor()
+            try:
 
-            cur.execute("""
-                INSERT INTO usuarios
-                (usuario, password, nombre, rol)
-                VALUES (%s, %s, %s, %s)
-            """, (
-                usuario,
-                password,
-                nombre,
-                rol
-            ))
+                cur = conn.cursor()
 
-            conn.commit()
+                cur.execute("""
+                    INSERT INTO usuarios
+                    (usuario,password,nombre,rol)
+                    VALUES (%s,%s,%s,%s)
+                """, (
+                    usuario,
+                    password,
+                    nombre,
+                    rol
+                ))
 
-            st.success("✅ Usuario creado correctamente")
-            st.rerun()
+                conn.commit()
+
+                st.success("✅ Usuario creado correctamente")
+                st.rerun()
+
+            except Exception as e:
+
+                conn.rollback()
+                st.error(str(e))
