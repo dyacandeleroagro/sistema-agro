@@ -47,40 +47,15 @@ def pantalla_administracion():
         value=datos["nombre"]
     )
 
-    st.subheader("Permisos")
-
-    permisos = [
-    "Administracion",
-    "Clientes",
-    "Facturacion",
-    "Servicios",
-    "Merch",
-    "Ingresos",
-    "Labores",
-    "Analiticas",
-    "Control",
-    "Dueño"
-]
-
-permisos_usuario = pd.read_sql(
-    "SELECT permiso FROM permisos WHERE usuario_id=%s",
-    conn,
-    params=(datos["id"],)
-)["permiso"].tolist()
-
-seleccionados = []
-
-for permiso in permisos:
-
-    if st.checkbox(
-        permiso,
-        value=permiso in permisos_usuario
-    ):
-        seleccionados.append(permiso)
-
     nueva_password = st.text_input(
         "Nueva contraseña (opcional)",
         type="password"
+    )
+
+    nuevo_rol = st.selectbox(
+        "Rol",
+        ["Operario", "Administrador", "Dueño"],
+        index=["Operario", "Administrador", "Dueño"].index(datos["rol"])
     )
 
     col1, col2 = st.columns(2)
@@ -97,11 +72,13 @@ for permiso in permisos:
                     UPDATE usuarios
                     SET usuario=%s,
                         nombre=%s,
+                        rol=%s,
                         password=%s
                     WHERE id=%s
                 """, (
                     nuevo_usuario,
                     nuevo_nombre,
+                    nuevo_rol,
                     nueva_password,
                     datos["id"]
                 ))
@@ -112,6 +89,7 @@ for permiso in permisos:
                     UPDATE usuarios
                     SET usuario=%s,
                         nombre=%s,
+                        rol=%s
                     WHERE id=%s
                 """, (
                     nuevo_usuario,
@@ -121,23 +99,8 @@ for permiso in permisos:
                 ))
 
             conn.commit()
-    cur.execute(
-       "DELETE FROM permisos WHERE usuario_id=%s",
-        (datos["id"],)
-)
-
-for permiso in seleccionados:
-
-    cur.execute(
-        """
-        INSERT INTO permisos(usuario_id, permiso)
-        VALUES(%s,%s)
-        """,
-        (datos["id"], permiso)
-    )
 
             st.success("✅ Usuario actualizado")
-
             st.rerun()
 
     with col2:
@@ -154,7 +117,6 @@ for permiso in seleccionados:
             conn.commit()
 
             st.success("✅ Usuario eliminado")
-
             st.rerun()
 
     st.divider()
@@ -196,5 +158,4 @@ for permiso in seleccionados:
             conn.commit()
 
             st.success("✅ Usuario creado correctamente")
-
             st.rerun()
