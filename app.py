@@ -449,8 +449,8 @@ if t_factura:
 if t_productos:
     with t_productos:
         pantalla_productos()
-        
-        elif pagina == "⚙ Administración":
+
+        if pagina == "⚙ Administración":
     pantalla_administracion()
 
 # ----------------------------------------------------
