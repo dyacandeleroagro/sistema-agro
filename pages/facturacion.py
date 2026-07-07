@@ -2,173 +2,112 @@ import streamlit as st
 import pandas as pd
 from database import get_conn
 
+def pantalla_facturacion():
 
-def pantalla_servicios():
-
-    st.title("🛠 Servicios")
+    st.title("🧾 Nueva Factura")
 
     conn = get_conn()
 
-    st.subheader("Servicios registrados")
-
-    df = pd.read_sql("""
-        SELECT id,nombre,descripcion,precio,activo
-        FROM servicios
-        ORDER BY nombre
-    """, conn)
-
-    st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True
+    clientes = pd.read_sql(
+        "SELECT id,nombre FROM clientes ORDER BY nombre",
+        conn
     )
 
-    st.divider()
+    productos = pd.read_sql(
+        "SELECT id,nombre,precio FROM productos ORDER BY nombre",
+        conn
+    )
 
-    st.subheader("Nuevo servicio")
+    cliente = st.selectbox(
+        "Cliente",
+        clientes["nombre"]
+    )
 
-    with st.form("nuevo_servicio"):
+    producto = st.selectbox(
+        "Producto",
+        productos["nombre"]
+    )
 
-        nombre = st.text_input("Nombre")
+    cantidad = st.number_input(
+        "Cantidad",
+        min_value=1.0,
+        value=1.0
+    )
 
-        descripcion = st.text_area("Descripción")
+    precio = productos.loc[
+        productos["nombre"] == producto,
+        "precio"
+    ].iloc[0]
 
-        precio = st.number_input(
-            "Precio",
-            min_value=0.0,
-            step=100.0
-        )
+    st.write(f"Precio: ${precio:,.2f}")
 
-        activo = st.checkbox(
-            "Servicio activo",
-            value=True
-        )
+    total = cantidad * precio
 
-        guardar = st.form_submit_button(
-            "Guardar servicio"
-        )
+    st.subheader(f"TOTAL: ${total:,.2f}")
 
-        if guardar:
+    if st.button("Guardar Factura"):
 
-            try:
+        cur = conn.cursor()
 
-                cur = conn.cursor()
+        # Obtener IDs
+        cliente_id = clientes.loc[
+            clientes["nombre"] == cliente,
+            "id"
+        ].iloc[0]
 
-                cur.execute("""
-                    INSERT INTO servicios
-                    (nombre,descripcion,precio,activo)
-                    VALUES(%s,%s,%s,%s)
-                """,(
-                    nombre,
-                    descripcion,
-                    precio,
-                    activo
-                ))
+        producto_id = productos.loc[
+            productos["nombre"] == producto,
+            "id"
+        ].iloc[0]
 
-                conn.commit()
+        # Guardar factura
+        try:
+     cur.execute("""
+        INSERT INTO facturas
+        (numero, cliente_id, usuario_id, total, estado)
+        VALUES (%s,%s,%s,%s,%s)
+        RETURNING id
+     """, (
+        "FAC-0001",
+        cliente_id,
+        1,
+        total,
+        "PENDIENTE"
+     ))
 
-                st.success("✅ Servicio agregado")
+    factura_id = cur.fetchone()[0]
 
-                st.rerun()
+except Exception as e:
+    st.exception(e)
+    conn.rollback()
+    st.stop()
 
-            except Exception as e:
+        factura_id = cur.fetchone()[0]
 
-                conn.rollback()
-                st.error(str(e))
+        # Guardar detalle
+        cur.execute("""
+            INSERT INTO detalle_factura
+            (factura_id, producto_id, cantidad, precio_unitario, subtotal)
+            VALUES (%s,%s,%s,%s,%s)
+        """, (
+            factura_id,
+            producto_id,
+            cantidad,
+            precio,
+            total
+        ))
 
-    st.divider()
+        # Descontar stock
+        cur.execute("""
+            UPDATE productos
+            SET stock = stock - %s
+            WHERE id = %s
+        """, (
+            cantidad,
+            producto_id
+        ))
 
-    st.subheader("Editar servicio")
+        conn.commit()
 
-    if len(df) > 0:
-
-        servicio = st.selectbox(
-            "Servicio",
-            df["nombre"]
-        )
-
-        datos = df[df["nombre"] == servicio].iloc[0]
-
-        nombre = st.text_input(
-            "Nombre del servicio",
-            value=datos["nombre"]
-        )
-
-        descripcion = st.text_area(
-            "Descripción",
-            value=datos["descripcion"]
-        )
-
-        precio = st.number_input(
-            "Precio",
-            value=float(datos["precio"])
-        )
-
-        activo = st.checkbox(
-            "Activo",
-            value=bool(datos["activo"])
-        )
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            if st.button("💾 Guardar cambios"):
-
-                try:
-
-                    cur = conn.cursor()
-
-                    cur.execute("""
-                        UPDATE servicios
-                        SET nombre=%s,
-                            descripcion=%s,
-                            precio=%s,
-                            activo=%s
-                        WHERE id=%s
-                    """,(
-                        nombre,
-                        descripcion,
-                        precio,
-                        activo,
-                        int(datos["id"])
-                    ))
-
-                    conn.commit()
-
-                    st.success("Servicio actualizado")
-
-                    st.rerun()
-
-                except Exception as e:
-
-                    conn.rollback()
-
-                    st.error(str(e))
-
-        with col2:
-
-            if st.button("🗑 Eliminar servicio"):
-
-                try:
-
-                    cur = conn.cursor()
-
-                    cur.execute("""
-                        DELETE FROM servicios
-                        WHERE id=%s
-                    """,(
-                        int(datos["id"]),
-                    ))
-
-                    conn.commit()
-
-                    st.success("Servicio eliminado")
-
-                    st.rerun()
-
-                except Exception as e:
-
-                    conn.rollback()
-
-                    st.error(str(e))
+        st.success("✅ Factura guardada correctamente")
+        st.rerun()
