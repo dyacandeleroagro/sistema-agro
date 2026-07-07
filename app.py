@@ -5,7 +5,7 @@ from datetime import datetime
 import psycopg2
 
 from pages.clientes import pantalla_clientes
-from pages.productos import pantalla_productos
+from pages.servicios import pantalla_servicios
 from pages.facturacion import pantalla_facturacion
 from pages.administracion import pantalla_administracion
 from database import get_conn
@@ -180,7 +180,7 @@ if rol_actual == "Administrador":
 lista_tabs.append("📋 RENDICIÓN POR OPERARIO")
 lista_tabs.append("👥 CLIENTES")
 lista_tabs.append("🧾 FACTURACIÓN")
-lista_tabs.append("📦 PRODUCTOS")
+lista_tabs.append("🛠 Servicios")
 lista_tabs.append("⚙ ADMINISTRACIÓN")
 
 if rol_actual == "Administrador":
@@ -444,11 +444,12 @@ if t_clientes:
 if t_factura:
     with t_factura:
         pantalla_facturacion()
-        t_productos = obtener_tab("📦 PRODUCTOS")
 
-if t_productos:
-    with t_productos:
-        pantalla_productos()
+t_servicios = obtener_tab("🛠 SERVICIOS")
+
+if t_servicios:
+    with t_servicios:
+        pantalla_servicios()
 
 t_administracion = obtener_tab("⚙ ADMINISTRACIÓN")
 

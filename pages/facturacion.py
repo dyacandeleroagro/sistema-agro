@@ -2,111 +2,173 @@ import streamlit as st
 import pandas as pd
 from database import get_conn
 
-def pantalla_facturacion():
 
-    st.title("🧾 Facturación")
+def pantalla_servicios():
+
+    st.title("🛠 Servicios")
 
     conn = get_conn()
 
-    clientes = pd.read_sql(
-        "SELECT id, nombre FROM clientes ORDER BY nombre",
-        conn
+    st.subheader("Servicios registrados")
+
+    df = pd.read_sql("""
+        SELECT id,nombre,descripcion,precio,activo
+        FROM servicios
+        ORDER BY nombre
+    """, conn)
+
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
     )
 
-    servicios = pd.read_sql(
-        "SELECT id, nombre, precio FROM productos ORDER BY nombre",
-        conn
-    )
+    st.divider()
 
-    if clientes.empty:
-        st.warning("No hay clientes cargados.")
-        return
+    st.subheader("Nuevo servicio")
 
-    if servicios.empty:
-        st.warning("No hay servicios cargados.")
-        return
+    with st.form("nuevo_servicio"):
 
-    cliente = st.selectbox(
-        "Cliente",
-        clientes["nombre"].tolist()
-    )
+        nombre = st.text_input("Nombre")
 
-    servicio = st.selectbox(
-        "Servicio",
-        servicios["nombre"].tolist()
-    )
+        descripcion = st.text_area("Descripción")
 
-    cantidad = st.number_input(
-        "Cantidad",
-        min_value=1.0,
-        value=1.0
-    )
+        precio = st.number_input(
+            "Precio",
+            min_value=0.0,
+            step=100.0
+        )
 
-    fila = servicios[servicios["nombre"] == servicio].iloc[0]
-    producto_id = int(fila["id"])
-    precio = float(fila["precio"])
+        activo = st.checkbox(
+            "Servicio activo",
+            value=True
+        )
 
-    total = cantidad * precio
+        guardar = st.form_submit_button(
+            "Guardar servicio"
+        )
 
-    st.write(f"Precio unitario: ${precio:,.2f}")
-    st.subheader(f"TOTAL: ${total:,.2f}")
+        if guardar:
 
-    if st.button("Guardar Factura"):
+            try:
 
-        try:
+                cur = conn.cursor()
 
-            cur = conn.cursor()
+                cur.execute("""
+                    INSERT INTO servicios
+                    (nombre,descripcion,precio,activo)
+                    VALUES(%s,%s,%s,%s)
+                """,(
+                    nombre,
+                    descripcion,
+                    precio,
+                    activo
+                ))
 
-            cliente_id = int(
-                clientes.loc[
-                    clientes["nombre"] == cliente,
-                    "id"
-                ].iloc[0]
-            )
+                conn.commit()
 
-            numero = f"FAC-{pd.Timestamp.now().strftime('%Y%m%d%H%M%S')}"
+                st.success("✅ Servicio agregado")
 
-            cur.execute("""
-                INSERT INTO facturas
-                (numero, cliente_id, usuario_id, total, estado)
-                VALUES (%s,%s,%s,%s,%s)
-                RETURNING id
-            """, (
-                numero,
-                cliente_id,
-                1,
-                total,
-                "PENDIENTE"
-            ))
+                st.rerun()
 
-            factura_id = cur.fetchone()[0]
+            except Exception as e:
 
-            cur.execute("""
-                INSERT INTO detalle_factura
-                (factura_id, producto_id, cantidad, precio_unitario, subtotal)
-                VALUES (%s,%s,%s,%s,%s)
-            """, (
-                factura_id,
-                producto_id,
-                cantidad,
-                precio,
-                total
-            ))
+                conn.rollback()
+                st.error(str(e))
 
-            cur.execute("""
-                UPDATE productos
-                SET stock = stock - %s
-                WHERE id = %s
-            """, (
-                cantidad,
-                producto_id
-            ))
+    st.divider()
 
-            conn.commit()
+    st.subheader("Editar servicio")
 
-            st.success("✅ Factura guardada correctamente")
+    if len(df) > 0:
 
-        except Exception as e:
+        servicio = st.selectbox(
+            "Servicio",
+            df["nombre"]
+        )
 
-            conn.rollback()
-            st.error(str(e))
+        datos = df[df["nombre"] == servicio].iloc[0]
+
+        nombre = st.text_input(
+            "Nombre del servicio",
+            value=datos["nombre"]
+        )
+
+        descripcion = st.text_area(
+            "Descripción",
+            value=datos["descripcion"]
+        )
+
+        precio = st.number_input(
+            "Precio",
+            value=float(datos["precio"])
+        )
+
+        activo = st.checkbox(
+            "Activo",
+            value=bool(datos["activo"])
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button("💾 Guardar cambios"):
+
+                try:
+
+                    cur = conn.cursor()
+
+                    cur.execute("""
+                        UPDATE servicios
+                        SET nombre=%s,
+                            descripcion=%s,
+                            precio=%s,
+                            activo=%s
+                        WHERE id=%s
+                    """,(
+                        nombre,
+                        descripcion,
+                        precio,
+                        activo,
+                        int(datos["id"])
+                    ))
+
+                    conn.commit()
+
+                    st.success("Servicio actualizado")
+
+                    st.rerun()
+
+                except Exception as e:
+
+                    conn.rollback()
+
+                    st.error(str(e))
+
+        with col2:
+
+            if st.button("🗑 Eliminar servicio"):
+
+                try:
+
+                    cur = conn.cursor()
+
+                    cur.execute("""
+                        DELETE FROM servicios
+                        WHERE id=%s
+                    """,(
+                        int(datos["id"]),
+                    ))
+
+                    conn.commit()
+
+                    st.success("Servicio eliminado")
+
+                    st.rerun()
+
+                except Exception as e:
+
+                    conn.rollback()
+
+                    st.error(str(e))
