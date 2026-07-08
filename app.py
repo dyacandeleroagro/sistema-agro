@@ -579,7 +579,10 @@ c1,c2 = st.columns(2)
 
 with c1:
 
-    if st.button("💾 Guardar cambios"):
+if st.button(
+    "💾 Guardar cambios",
+    key="guardar_gasto_edit"
+):
 
         df_facturas.loc[indice,"Proveedor"] = proveedor_edit
         df_facturas.loc[indice,"Categoría"] = categoria_edit
@@ -598,8 +601,10 @@ with c1:
 
 with c2:
 
-    if st.button("🗑 Eliminar comprobante"):
-
+    if st.button(
+    "🗑 Eliminar comprobante",
+    key="eliminar_gasto_edit"
+):
         df_facturas = df_facturas.drop(indice)
 
         df_facturas.to_csv(
