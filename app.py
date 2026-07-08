@@ -579,7 +579,8 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
 # ----------------------------------------------------
 # PESTAÑA SECRETA: CONTROL DE ERRORES (Solo Admin)
 # ----------------------------------------------------
-t_aud = obtener_tab("🗄 CONTROL DE ERRORES")
+if menu == "🗄 CONTROL DE ERRORES":
+
 if t_aud and rol_actual == "Administrador":
     with t_aud:
         st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
