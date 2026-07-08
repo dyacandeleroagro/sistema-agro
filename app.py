@@ -594,7 +594,7 @@ if menu == "🔍 CUENTAS PENDIENTES":
 # ----------------------------------------------------
 # PESTAÑA: SISTEMA DE TRIPULACIÓN
 # ----------------------------------------------------
- if menu == "👥 SISTEMA DE TRIPULACIÓN":
+if menu == "👥 SISTEMA DE TRIPULACIÓN":
         st.header("👤 Personal y Comisiones de la Tripulación")
         emp_col1, emp_col2 = st.columns(2)
         with emp_col1:
@@ -638,7 +638,7 @@ if menu == "🔍 CUENTAS PENDIENTES":
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO (Filtro de Privacidad Seguro)
 # ----------------------------------------------------
- if menu == "📋 RENDICIÓN POR OPERARIO":
+if menu == "📋 RENDICIÓN POR OPERARIO":
         st.header("📋 Historial de Cuenta por Operario")
 
         if rol_actual == "Operario":
@@ -668,24 +668,24 @@ if menu == "🔍 CUENTAS PENDIENTES":
                     st.dataframe(df_reintegros[["Fecha Pago", "Monto (ARS)", "Estado Pago", "Concepto"]], use_container_width=True)
                 else: st.write("No hay registros de reintegros o vales.")
             else: st.write("Sin movimientos.")
- if menu == "👥 CLIENTES":
+if menu == "👥 CLIENTES":
 
         pantalla_clientes()
- if menu == "🧾 FACTURACIÓN":
+if menu == "🧾 FACTURACIÓN":
 
         pantalla_facturacion()
 
- if menu == "🛠 SERVICIOS":
+if menu == "🛠 SERVICIOS":
 
         pantalla_servicios()
 
- if menu == "⚙ ADMINISTRACIÓN":
+if menu == "⚙ ADMINISTRACIÓN":
 
         pantalla_administracion()
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
- if menu == "🛡 SEGUROS Y COBERTURAS":
+if menu == "🛡 SEGUROS Y COBERTURAS":
         st.header("🛡 Control de Pólizas y Seguros")
         with st.form("form_seguros", clear_on_submit=True):
             s1, s2, s3 = st.columns(3)
@@ -712,7 +712,7 @@ if menu == "🔍 CUENTAS PENDIENTES":
 # ----------------------------------------------------
 # PESTAÑA SECRETA: CONTROL DE ERRORES (Solo Admin)
 # ----------------------------------------------------
- if menu == "🗄 CONTROL DE ERRORES":
+if menu == "🗄 CONTROL DE ERRORES":
 
         st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
         sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
