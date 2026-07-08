@@ -188,7 +188,7 @@ if rol_actual == "Dueño":
         "🗄 CONTROL DE ERRORES"
     ]
 
- elif rol_actual == "Administrador":
+elif rol_actual == "Administrador":
 
     opciones = [
         "📈 ANALÍTICAS CENTRALES",
