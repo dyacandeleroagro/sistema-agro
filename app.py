@@ -172,7 +172,7 @@ opciones_menu = []
 
 if rol_actual == "Dueño":
 
-    opciones_menu = [
+    opciones = [
         "📈 ANALÍTICAS CENTRALES",
         "🚜 LABORES Y LOTES",
         "💰 INGRESOS POR TRABAJOS",
@@ -188,9 +188,9 @@ if rol_actual == "Dueño":
         "🗄 CONTROL DE ERRORES"
     ]
 
-elif rol_actual == "Administrador":
+ elif rol_actual == "Administrador":
 
-    opciones_menu = [
+    opciones = [
         "📈 ANALÍTICAS CENTRALES",
         "🚜 LABORES Y LOTES",
         "💰 INGRESOS POR TRABAJOS",
@@ -201,25 +201,20 @@ elif rol_actual == "Administrador":
         "👥 CLIENTES",
         "🧾 FACTURACIÓN",
         "🛠 SERVICIOS",
+        "⚙ ADMINISTRACIÓN",
         "🛡 SEGUROS Y COBERTURAS"
     ]
 
-elif rol_actual == "Operario":
+ else:
 
-    opciones_menu = [
+    opciones = [
         "🚜 LABORES Y LOTES",
         "📋 RENDICIÓN POR OPERARIO"
     ]
 
-else:
-
-    opciones_menu = [
-        "📋 RENDICIÓN POR OPERARIO"
-    ]
-
-menu = st.sidebar.radio(
+ menu = st.sidebar.radio(
     "📂 Menú",
-    opciones_menu
+    opciones
 )
 
 # ----------------------------------------------------
