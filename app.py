@@ -435,7 +435,7 @@ if menu == "🧾 GASTOS COMERCIALES":
                 st.rerun()
         if not df_facturas.empty: st.dataframe(df_facturas, use_container_width=True)
                 st.divider()
-        st.subheader("✏️ Editar gasto comercial")
+                st.subheader("✏️ Editar gasto comercial")
 
         if not df_facturas.empty:
 
