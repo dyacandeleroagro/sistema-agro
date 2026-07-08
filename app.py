@@ -200,8 +200,6 @@ menu = st.sidebar.radio(
 if menu == "📈 ANALÍTICAS CENTRALES":
 
     st.header("Resumen General del Negocio")
-
-
         total_gasto_facturas = (
             df_facturas["Monto (ARS)"].sum()
             if not df_facturas.empty else 0.0
