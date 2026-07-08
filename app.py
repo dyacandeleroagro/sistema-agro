@@ -444,7 +444,7 @@ if menu == "🧾 GASTOS COMERCIALES":
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
-if menu == "🔍 CUENTAS PENDIENTES"
+if menu == "🔍 CUENTAS PENDIENTES":
         st.header("🔍 Cuentas Pendientes de Proveedores")
         df_solo_pendientes = df_facturas[df_facturas["Estado Pago"] == "Pendiente de Pago"]
         if not df_solo_pendientes.empty:
@@ -467,7 +467,7 @@ if menu == "🔍 CUENTAS PENDIENTES"
 # ----------------------------------------------------
 # PESTAÑA: SISTEMA DE TRIPULACIÓN
 # ----------------------------------------------------
-if menu == "👥 SISTEMA DE TRIPULACIÓN"
+if menu == "👥 SISTEMA DE TRIPULACIÓN":
         st.header("👤 Personal y Comisiones de la Tripulación")
         emp_col1, emp_col2 = st.columns(2)
         with emp_col1:
@@ -511,7 +511,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN"
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO (Filtro de Privacidad Seguro)
 # ----------------------------------------------------
-if menu == "📋 RENDICIÓN POR OPERARIO"
+if menu == "📋 RENDICIÓN POR OPERARIO":
         st.header("📋 Historial de Cuenta por Operario")
 
         if rol_actual == "Operario":
@@ -541,24 +541,24 @@ if menu == "📋 RENDICIÓN POR OPERARIO"
                     st.dataframe(df_reintegros[["Fecha Pago", "Monto (ARS)", "Estado Pago", "Concepto"]], use_container_width=True)
                 else: st.write("No hay registros de reintegros o vales.")
             else: st.write("Sin movimientos.")
-if menu == "👥 CLIENTES"
+if menu == "👥 CLIENTES":
 
 if t_clientes:
     with t_clientes:
         pantalla_clientes()
-if menu == "🧾 FACTURACIÓN"
+if menu == "🧾 FACTURACIÓN":
 
 if t_factura:
     with t_factura:
         pantalla_facturacion()
 
-if menu == "🛠 SERVICIOS"
+if menu == "🛠 SERVICIOS":
 
 if t_servicios:
     with t_servicios:
         pantalla_servicios()
 
-if menu == "⚙ ADMINISTRACIÓN"
+if menu == "⚙ ADMINISTRACIÓN":
 
 if t_administracion: 
     with t_administracion:
