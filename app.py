@@ -552,9 +552,7 @@ if menu == "⚙ ADMINISTRACIÓN":
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
-t_seg = obtener_tab("🛡 SEGUROS Y COBERTURAS")
-if t_seg:
-    with t_seg:
+if menu == "🛡 SEGUROS Y COBERTURAS":
         st.header("🛡 Control de Pólizas y Seguros")
         with st.form("form_seguros", clear_on_submit=True):
             s1, s2, s3 = st.columns(3)
