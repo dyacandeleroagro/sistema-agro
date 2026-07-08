@@ -168,63 +168,181 @@ st.markdown('</div>', unsafe_allow_html=True)
 rol_actual = st.session_state["rol"]
 nombre_actual = st.session_state["nombre_usuario"]
 
-lista_tabs = []
-if rol_actual == "Administrador":
-    lista_tabs.append("📈 ANALÍTICAS CENTRALES")
-    lista_tabs.append("🚜 LABORES Y LOTES")
-    lista_tabs.append("💰 INGRESOS POR TRABAJOS")
-    lista_tabs.append("🧾 GASTOS COMERCIALES")
-    lista_tabs.append("🔍 CUENTAS PENDIENTES")
-    lista_tabs.append("👥 SISTEMA DE TRIPULACIÓN")
+menu = st.sidebar.radio(
+    "📂 Menú",
+    [
+        "📊 Analíticas",
+        "🚜 Labores y Lotes",
+        "🛠 Servicios",
+        "🧾 Facturación",
+        "👥 Clientes",
+        "💰 Ingresos por Trabajos",
+        "🧾 Gastos Comerciales",
+        "🔍 Cuentas Pendientes",
+        "👥 Sistema de Tripulación",
+        "📋 Rendición por Operario",
+        "🛡 Seguros y Coberturas",
+        "⚙ Administración",
+        "🗄 Control de Errores"
+    ]
+)
+st.sidebar.title("🚜 D&A CANDELERO AGRO")
 
-lista_tabs.append("📋 RENDICIÓN POR OPERARIO")
-lista_tabs.append("👥 CLIENTES")
-lista_tabs.append("🧾 FACTURACIÓN")
-lista_tabs.append("🛠 Servicios")
-lista_tabs.append("⚙ ADMINISTRACIÓN")
-
-if rol_actual == "Administrador":
-    lista_tabs.append("🛡 SEGUROS Y COBERTURAS")
-    lista_tabs.append("🗄 CONTROL DE ERRORES")
-
-tabs_creadas = st.tabs(lista_tabs)
-
-def obtener_tab(nombre):
-    return tabs_creadas[lista_tabs.index(nombre)] if nombre in lista_tabs else None
+menu = st.sidebar.radio(
+    "Menú",
+    lista_tabs
+)
 
 # ----------------------------------------------------
 # PESTAÑA: ANALÍTICAS CENTRALES
 # ----------------------------------------------------
-t_dash = obtener_tab("📈 ANALÍTICAS CENTRALES")
-if t_dash:
-    with t_dash:
-        st.header("Resumen General del Negocio")
-        total_gasto_facturas = df_facturas["Monto (ARS)"].sum() if not df_facturas.empty else 0.0
-        total_pendiente_facturas = df_facturas[df_facturas["Estado Pago"].str.contains("Pendiente", case=False, na=False)]["Monto (ARS)"].sum() if not df_facturas.empty else 0.0
-        total_tripulacion_global = df_pagos_empleados["Monto (ARS)"].sum() if not df_pagos_empleados.empty else 0.0
-        total_ingresos_global = df_ingresos["Monto Total (ARS)"].sum() if not df_ingresos.empty else 0.0
 
-        total_has_global = df_telemetria["Has Trabajadas"].sum() if not df_telemetria.empty else 0.0
-        total_litros_global = df_telemetria["Gasoil Consumido (L)"].sum() if not df_telemetria.empty else 0.0
-        eficiencia_flota = total_litros_global / total_has_global if total_has_global > 0 else 0.0
+if menu == "📈 ANALÍTICAS CENTRALES":
+
+    st.header("Resumen General del Negocio")
+
+
+        total_gasto_facturas = (
+            df_facturas["Monto (ARS)"].sum()
+            if not df_facturas.empty else 0.0
+        )
+
+        total_pendiente_facturas = (
+            df_facturas[
+                df_facturas["Estado Pago"].str.contains(
+                    "Pendiente",
+                    case=False,
+                    na=False
+                )
+            ]["Monto (ARS)"].sum()
+            if not df_facturas.empty else 0.0
+        )
+
+        total_tripulacion_global = (
+            df_pagos_empleados["Monto (ARS)"].sum()
+            if not df_pagos_empleados.empty else 0.0
+        )
+
+        total_ingresos_global = (
+            df_ingresos["Monto Total (ARS)"].sum()
+            if not df_ingresos.empty else 0.0
+        )
+
+        total_has_global = (
+            df_telemetria["Has Trabajadas"].sum()
+            if not df_telemetria.empty else 0.0
+        )
+
+        total_litros_global = (
+            df_telemetria["Gasoil Consumido (L)"].sum()
+            if not df_telemetria.empty else 0.0
+        )
+
+        eficiencia_flota = (
+            total_litros_global / total_has_global
+            if total_has_global > 0 else 0.0
+        )
 
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.markdown(f'<div class="card-box"><div class="card-title-custom">💰 Facturación Total Ingresos</div><div class="card-value-custom">$ {total_ingresos_global:,.2f}</div></div>', unsafe_allow_html=True)
-        with c2: st.markdown(f'<div class="card-box"><div class="card-title-custom">🧾 Gastos Comerciales</div><div class="card-value-custom">$ {total_gasto_facturas:,.2f}</div></div>', unsafe_allow_html=True)
-        with c3: st.markdown(f'<div class="card-box"><div class="card-title-custom">👥 Total Costo Tripulación</div><div class="card-value-custom">$ {total_tripulacion_global:,.2f}</div></div>', unsafe_allow_html=True)
-        with c4: st.markdown(f'<div class="card-box"><div class="card-title-custom">🔴 Cuentas Proveedores Pendientes</div><div class="card-value-custom">$ {total_pendiente_facturas:,.2f}</div></div>', unsafe_allow_html=True)
+
+        with c1:
+            st.markdown(
+                f'''
+                <div class="card-box">
+                    <div class="card-title-custom">
+                        💰 Facturación Total Ingresos
+                    </div>
+                    <div class="card-value-custom">
+                        $ {total_ingresos_global:,.2f}
+                    </div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
+
+        with c2:
+            st.markdown(
+                f'''
+                <div class="card-box">
+                    <div class="card-title-custom">
+                        🧾 Gastos Comerciales
+                    </div>
+                    <div class="card-value-custom">
+                        $ {total_gasto_facturas:,.2f}
+                    </div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
+
+        with c3:
+            st.markdown(
+                f'''
+                <div class="card-box">
+                    <div class="card-title-custom">
+                        👥 Total Costo Tripulación
+                    </div>
+                    <div class="card-value-custom">
+                        $ {total_tripulacion_global:,.2f}
+                    </div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
+
+        with c4:
+            st.markdown(
+                f'''
+                <div class="card-box">
+                    <div class="card-title-custom">
+                        🔴 Cuentas Proveedores Pendientes
+                    </div>
+                    <div class="card-value-custom">
+                        $ {total_pendiente_facturas:,.2f}
+                    </div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
 
         st.markdown("<br>", unsafe_allow_html=True)
+
         c5, c6 = st.columns(2)
-        with c5: st.markdown(f'<div class="card-box"><div class="card-title-custom">Superficie Total Operada</div><div class="card-value-custom">{total_has_global:,.1f} Has</div></div>', unsafe_allow_html=True)
-        with c6: st.markdown(f'<div class="card-box"><div class="card-title-custom">Promedio Gasoil Flota</div><div class="card-value-custom">{eficiencia_flota:.2f} L/Ha</div></div>', unsafe_allow_html=True)
+
+        with c5:
+            st.markdown(
+                f'''
+                <div class="card-box">
+                    <div class="card-title-custom">
+                        Superficie Total Operada
+                    </div>
+                    <div class="card-value-custom">
+                        {total_has_global:,.1f} Has
+                    </div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
+
+        with c6:
+            st.markdown(
+                f'''
+                <div class="card-box">
+                    <div class="card-title-custom">
+                        Promedio Gasoil Flota
+                    </div>
+                    <div class="card-value-custom">
+                        {eficiencia_flota:.2f} L/Ha
+                    </div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
 
 # ----------------------------------------------------
 # PESTAÑA: LABORES Y LOTES
 # ----------------------------------------------------
-t_lab = obtener_tab("🚜 LABORES Y LOTES")
-if t_lab:
-    with t_lab:
+if menu == "🚜 LABORES Y LOTES":
         st.header("🚜 Partes Diarios de Labores")
         with st.form("form_labores"):
             col_la1, col_la2, col_la3 = st.columns(3)
@@ -254,9 +372,7 @@ if t_lab:
 # ----------------------------------------------------
 # PESTAÑA: INGRESOS POR TRABAJOS
 # ----------------------------------------------------
-t_ing = obtener_tab("💰 INGRESOS POR TRABAJOS")
-if t_ing:
-    with t_ing:
+if menu == "💰 INGRESOS POR TRABAJOS":
         st.header("💰 Registro de Facturación e Ingresos por Servicios")
         with st.form("form_ingresos", clear_on_submit=True):
             i1, i2, i3 = st.columns(3)
@@ -288,9 +404,7 @@ if t_ing:
 # ----------------------------------------------------
 # PESTAÑA: GASTOS COMERCIALES
 # ----------------------------------------------------
-t_fac = obtener_tab("🧾 GASTOS COMERCIALES")
-if t_fac:
-    with t_fac:
+if menu == ("🧾 GASTOS COMERCIALES")
         st.header("🧾 Archivo de Comprobantes Comerciales")
         with st.form("form_facturas", clear_on_submit=True):
             f1, f2, f3 = st.columns(3)
@@ -331,9 +445,7 @@ if t_fac:
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
-t_pen = obtener_tab("🔍 CUENTAS PENDIENTES")
-if t_pen:
-    with t_pen:
+if menu == ("🔍 CUENTAS PENDIENTES")
         st.header("🔍 Cuentas Pendientes de Proveedores")
         df_solo_pendientes = df_facturas[df_facturas["Estado Pago"] == "Pendiente de Pago"]
         if not df_solo_pendientes.empty:
@@ -356,9 +468,7 @@ if t_pen:
 # ----------------------------------------------------
 # PESTAÑA: SISTEMA DE TRIPULACIÓN
 # ----------------------------------------------------
-t_emp = obtener_tab("👥 SISTEMA DE TRIPULACIÓN")
-if t_emp:
-    with t_emp:
+if menu == ("👥 SISTEMA DE TRIPULACIÓN")
         st.header("👤 Personal y Comisiones de la Tripulación")
         emp_col1, emp_col2 = st.columns(2)
         with emp_col1:
@@ -402,9 +512,7 @@ if t_emp:
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO (Filtro de Privacidad Seguro)
 # ----------------------------------------------------
-t_rend = obtener_tab("📋 RENDICIÓN POR OPERARIO")
-if t_rend:
-    with t_rend:
+if menu == ("📋 RENDICIÓN POR OPERARIO")
         st.header("📋 Historial de Cuenta por Operario")
 
         if rol_actual == "Operario":
@@ -434,24 +542,24 @@ if t_rend:
                     st.dataframe(df_reintegros[["Fecha Pago", "Monto (ARS)", "Estado Pago", "Concepto"]], use_container_width=True)
                 else: st.write("No hay registros de reintegros o vales.")
             else: st.write("Sin movimientos.")
-t_clientes = obtener_tab("👥 CLIENTES")
+if menu == ("👥 CLIENTES")
 
 if t_clientes:
     with t_clientes:
         pantalla_clientes()
-        t_factura = obtener_tab("🧾 FACTURACIÓN")
+        if menu == ("🧾 FACTURACIÓN")
 
 if t_factura:
     with t_factura:
         pantalla_facturacion()
 
-t_servicios = obtener_tab("🛠 SERVICIOS")
+if menu == ("🛠 SERVICIOS")
 
 if t_servicios:
     with t_servicios:
         pantalla_servicios()
 
-t_administracion = obtener_tab("⚙ ADMINISTRACIÓN")
+if menu == ("⚙ ADMINISTRACIÓN")
 
 if t_administracion: 
     with t_administracion:
