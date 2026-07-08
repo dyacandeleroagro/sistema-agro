@@ -205,7 +205,7 @@ elif rol_actual == "Administrador":
         "🛡 SEGUROS Y COBERTURAS"
     ]
 
- else:
+else:
 
     opciones = [
         "🚜 LABORES Y LOTES",
