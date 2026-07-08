@@ -723,6 +723,9 @@ if menu == "⚙ ADMINISTRACIÓN":
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
 if menu == "🛡 SEGUROS Y COBERTURAS":
+ if rol_actual == "Operario":
+    st.error("No tiene permisos.")
+    st.stop()
         st.header("🛡 Control de Pólizas y Seguros")
         with st.form("form_seguros", clear_on_submit=True):
             s1, s2, s3 = st.columns(3)
@@ -750,6 +753,9 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
 # PESTAÑA SECRETA: CONTROL DE ERRORES (Solo Admin)
 # ----------------------------------------------------
 if menu == "🗄 CONTROL DE ERRORES":
+ if rol_actual != "Dueño":
+    st.error("Solo el dueño puede ingresar.")
+    st.stop()
 
         st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
         sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
