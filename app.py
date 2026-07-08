@@ -448,7 +448,7 @@ fila = df_facturas[
 
 indice = fila.name
 
- proveedor = st.text_input("Proveedor",
+proveedor = st.text_input("Proveedor",
     value=fila["Proveedor"]
 )
 
