@@ -581,8 +581,6 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
 # ----------------------------------------------------
 if menu == "🗄 CONTROL DE ERRORES":
 
-if t_aud and rol_actual == "Administrador":
-    with t_aud:
         st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
         sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
 
