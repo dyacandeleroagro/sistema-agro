@@ -435,35 +435,35 @@ if menu == "🧾 GASTOS COMERCIALES":
                 st.rerun()
         if not df_facturas.empty: st.dataframe(df_facturas, use_container_width=True)
         st.divider()
-st.subheader("✏️ Editar gasto comercial")
-gasto = st.selectbox(
+ st.subheader("✏️ Editar gasto comercial")
+ gasto = st.selectbox(
     "Seleccionar comprobante",
     df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]
-)
+ )
 
-fila = df_facturas[
+ fila = df_facturas[
     (df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]) == gasto
-].iloc[0]
+ ].iloc[0]
 
-indice = fila.name
+ indice = fila.name
 
-gasto_sel = st.selectbox(
+ gasto_sel = st.selectbox(
     "Seleccionar gasto",
     df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]
-)
+ )
 
-fila = df_facturas[
+ fila = df_facturas[
     (df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel
-].iloc[0]
+ ].iloc[0]
 
-indice = fila.name
+ indice = fila.name
 
-proveedor = st.text_input(
+ proveedor = st.text_input(
     "Proveedor",
     value=fila["Proveedor"]
-)
+ )
 
-categoria_edit = st.selectbox(
+ categoria_edit = st.selectbox(
     "Categoría",
     [
         "Repuestos y Talleres",
@@ -480,27 +480,27 @@ categoria_edit = st.selectbox(
         "Gastos Generales"
     ].index(fila["Categoría"]),
     key="editar_categoria_gasto"
-)
+ )
 
-lote = st.text_input(
+ lote = st.text_input(
     "Lote",
     value=fila["Lote Asignado"]
-)
+ )
 
-monto = st.number_input(
+ monto = st.number_input(
     "Monto",
     value=float(fila["Monto (ARS)"])
-)
+ )
 
-estado = st.selectbox(
+ estado = st.selectbox(
     "Estado",
     ["Pagado", "Pendiente de Pago"],
     index=0 if fila["Estado Pago"] == "Pagado" else 1
-)
+ )
 
-c1, c2 = st.columns(2)
+ c1, c2 = st.columns(2)
 
-with c1:
+ with c1:
 
     if st.button("💾 Guardar cambios"):
 
@@ -519,7 +519,7 @@ with c1:
 
         st.rerun()
 
-with c2:
+ with c2:
 
     if st.button("🗑 Eliminar gasto"):
 
@@ -537,9 +537,9 @@ with c2:
     "Proveedor",
     value=fila["Proveedor"],
     key="editar_proveedor"
-)
+ )
 
-categoria_edit = st.selectbox(
+ categoria_edit = st.selectbox(
     "Categoría",
     [
         "Repuestos y Talleres",
@@ -555,29 +555,29 @@ categoria_edit = st.selectbox(
         "Agroquímicos / Fertilizantes",
         "Gastos Generales"
     ].index(fila["Categoría"])
-)
+ )
 
-lote_edit = st.text_input(
+ lote_edit = st.text_input(
     "Lote",
     value=fila["Lote Asignado"],
     key="editar_lote"
-)
+ )
 
-estado_edit = st.selectbox(
+ estado_edit = st.selectbox(
     "Estado",
     ["Pagado","Pendiente de Pago"],
     index=0 if fila["Estado Pago"]=="Pagado" else 1,
     key="editar_estado"
-)
+ )
 
-monto_edit = st.number_input(
+ monto_edit = st.number_input(
     "Monto",
     value=float(fila["Monto (ARS)"]),
     key="editar_monto"
-)
-c1,c2 = st.columns(2)
+ )
+ c1,c2 = st.columns(2)
 
-with c1:
+ with c1:
 
  if st.button("💾 Guardar cambios",
     key="guardar_gasto_edit"
@@ -598,7 +598,7 @@ with c1:
 
         st.rerun()
 
-with c2:
+ with c2:
 
  if st.button("🗑 Eliminar comprobante",
     key="eliminar_gasto_edit"
@@ -617,7 +617,7 @@ with c2:
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
-if menu == "🔍 CUENTAS PENDIENTES":
+ if menu == "🔍 CUENTAS PENDIENTES":
         st.header("🔍 Cuentas Pendientes de Proveedores")
         df_solo_pendientes = df_facturas[df_facturas["Estado Pago"] == "Pendiente de Pago"]
         if not df_solo_pendientes.empty:
@@ -640,7 +640,7 @@ if menu == "🔍 CUENTAS PENDIENTES":
 # ----------------------------------------------------
 # PESTAÑA: SISTEMA DE TRIPULACIÓN
 # ----------------------------------------------------
-if menu == "👥 SISTEMA DE TRIPULACIÓN":
+ if menu == "👥 SISTEMA DE TRIPULACIÓN":
         st.header("👤 Personal y Comisiones de la Tripulación")
         emp_col1, emp_col2 = st.columns(2)
         with emp_col1:
@@ -684,7 +684,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO (Filtro de Privacidad Seguro)
 # ----------------------------------------------------
-if menu == "📋 RENDICIÓN POR OPERARIO":
+ if menu == "📋 RENDICIÓN POR OPERARIO":
         st.header("📋 Historial de Cuenta por Operario")
 
         if rol_actual == "Operario":
@@ -714,24 +714,24 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                     st.dataframe(df_reintegros[["Fecha Pago", "Monto (ARS)", "Estado Pago", "Concepto"]], use_container_width=True)
                 else: st.write("No hay registros de reintegros o vales.")
             else: st.write("Sin movimientos.")
-if menu == "👥 CLIENTES":
+ if menu == "👥 CLIENTES":
 
         pantalla_clientes()
-if menu == "🧾 FACTURACIÓN":
+ if menu == "🧾 FACTURACIÓN":
 
         pantalla_facturacion()
 
-if menu == "🛠 SERVICIOS":
+ if menu == "🛠 SERVICIOS":
 
         pantalla_servicios()
 
-if menu == "⚙ ADMINISTRACIÓN":
+ if menu == "⚙ ADMINISTRACIÓN":
 
         pantalla_administracion()
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
-if menu == "🛡 SEGUROS Y COBERTURAS":
+ if menu == "🛡 SEGUROS Y COBERTURAS":
         st.header("🛡 Control de Pólizas y Seguros")
         with st.form("form_seguros", clear_on_submit=True):
             s1, s2, s3 = st.columns(3)
@@ -758,7 +758,7 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
 # ----------------------------------------------------
 # PESTAÑA SECRETA: CONTROL DE ERRORES (Solo Admin)
 # ----------------------------------------------------
-if menu == "🗄 CONTROL DE ERRORES":
+ if menu == "🗄 CONTROL DE ERRORES":
 
         st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
         sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
