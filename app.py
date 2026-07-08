@@ -571,7 +571,7 @@ if menu == "🧾 GASTOS COMERCIALES":
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
- if menu == "🔍 CUENTAS PENDIENTES":
+if menu == "🔍 CUENTAS PENDIENTES":
         st.header("🔍 Cuentas Pendientes de Proveedores")
         df_solo_pendientes = df_facturas[df_facturas["Estado Pago"] == "Pendiente de Pago"]
         if not df_solo_pendientes.empty:
