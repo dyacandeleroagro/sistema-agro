@@ -171,7 +171,7 @@ nombre_actual = st.session_state["nombre_usuario"]
 menu = st.sidebar.radio(
     "📂 Menú",
     [
-        "📊 Analíticas",
+        "📈 Analíticas Centrales",
         "🚜 Labores y Lotes",
         "🛠 Servicios",
         "🧾 Facturación",
@@ -190,7 +190,6 @@ st.sidebar.title("🚜 D&A CANDELERO AGRO")
 
 menu = st.sidebar.radio(
     "Menú",
-    lista_tabs
 )
 
 # ----------------------------------------------------
