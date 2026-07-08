@@ -168,9 +168,11 @@ st.markdown('</div>', unsafe_allow_html=True)
 rol_actual = st.session_state["rol"]
 nombre_actual = st.session_state["nombre_usuario"]
 
-menu = st.sidebar.radio(
-    "📂 Menú",
-    [
+opciones_menu = []
+
+if rol_actual == "Dueño":
+
+    opciones_menu = [
         "📈 ANALÍTICAS CENTRALES",
         "🚜 LABORES Y LOTES",
         "💰 INGRESOS POR TRABAJOS",
@@ -185,6 +187,39 @@ menu = st.sidebar.radio(
         "🛡 SEGUROS Y COBERTURAS",
         "🗄 CONTROL DE ERRORES"
     ]
+
+elif rol_actual == "Administrador":
+
+    opciones_menu = [
+        "📈 ANALÍTICAS CENTRALES",
+        "🚜 LABORES Y LOTES",
+        "💰 INGRESOS POR TRABAJOS",
+        "🧾 GASTOS COMERCIALES",
+        "🔍 CUENTAS PENDIENTES",
+        "👥 SISTEMA DE TRIPULACIÓN",
+        "📋 RENDICIÓN POR OPERARIO",
+        "👥 CLIENTES",
+        "🧾 FACTURACIÓN",
+        "🛠 SERVICIOS",
+        "🛡 SEGUROS Y COBERTURAS"
+    ]
+
+elif rol_actual == "Operario":
+
+    opciones_menu = [
+        "🚜 LABORES Y LOTES",
+        "📋 RENDICIÓN POR OPERARIO"
+    ]
+
+else:
+
+    opciones_menu = [
+        "📋 RENDICIÓN POR OPERARIO"
+    ]
+
+menu = st.sidebar.radio(
+    "📂 Menú",
+    opciones_menu
 )
 
 # ----------------------------------------------------
