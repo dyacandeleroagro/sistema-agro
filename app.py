@@ -620,4 +620,4 @@ if menu == "🗄 CONTROL DE ERRORES":
                         if st.button("🗑 Borrar", key=f"b_seg_{fila['ID_Seguro']}_{idx}"):
                             df_seguros.drop(idx).to_csv("registro_seguros.csv", index=False)
                             st.rerun()
-    st.markdown("<br><br>", unsafe_allow_html=True)
+                            st.markdown("<br><br>", unsafe_allow_html=True)
