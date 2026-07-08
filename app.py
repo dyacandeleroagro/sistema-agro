@@ -543,25 +543,17 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
             else: st.write("Sin movimientos.")
 if menu == "👥 CLIENTES":
 
-if t_clientes:
-    with t_clientes:
         pantalla_clientes()
 if menu == "🧾 FACTURACIÓN":
 
-if t_factura:
-    with t_factura:
         pantalla_facturacion()
 
 if menu == "🛠 SERVICIOS":
 
-if t_servicios:
-    with t_servicios:
         pantalla_servicios()
 
 if menu == "⚙ ADMINISTRACIÓN":
 
-if t_administracion: 
-    with t_administracion:
         pantalla_administracion()
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
