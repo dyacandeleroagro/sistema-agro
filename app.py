@@ -442,9 +442,7 @@ if menu == "🧾 GASTOS COMERCIALES":
      key="seleccionar_gasto"
 )
 
- fila = df_facturas[
-    (df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel
-].iloc[0]
+ fila = df_facturas[(df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel].iloc[0]
 
  indice = fila.name
 
