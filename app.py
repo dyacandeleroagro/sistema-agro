@@ -212,7 +212,7 @@ else:
         "📋 RENDICIÓN POR OPERARIO"
     ]
 
- menu = st.sidebar.radio(
+menu = st.sidebar.radio(
     "📂 Menú",
     opciones
 )
