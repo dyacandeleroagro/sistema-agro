@@ -200,142 +200,143 @@ menu = st.sidebar.radio(
 if menu == "📈 ANALÍTICAS CENTRALES":
 
     st.header("Resumen General del Negocio")
-        total_gasto_facturas = (
-            df_facturas["Monto (ARS)"].sum()
-            if not df_facturas.empty else 0.0
-        )
 
-        total_pendiente_facturas = (
-            df_facturas[
-                df_facturas["Estado Pago"].str.contains(
-                    "Pendiente",
-                    case=False,
-                    na=False
-                )
-            ]["Monto (ARS)"].sum()
-            if not df_facturas.empty else 0.0
-        )
+    total_gasto_facturas = (
+        df_facturas["Monto (ARS)"].sum()
+        if not df_facturas.empty else 0.0
+    )
 
-        total_tripulacion_global = (
-            df_pagos_empleados["Monto (ARS)"].sum()
-            if not df_pagos_empleados.empty else 0.0
-        )
-
-        total_ingresos_global = (
-            df_ingresos["Monto Total (ARS)"].sum()
-            if not df_ingresos.empty else 0.0
-        )
-
-        total_has_global = (
-            df_telemetria["Has Trabajadas"].sum()
-            if not df_telemetria.empty else 0.0
-        )
-
-        total_litros_global = (
-            df_telemetria["Gasoil Consumido (L)"].sum()
-            if not df_telemetria.empty else 0.0
-        )
-
-        eficiencia_flota = (
-            total_litros_global / total_has_global
-            if total_has_global > 0 else 0.0
-        )
-
-        c1, c2, c3, c4 = st.columns(4)
-
-        with c1:
-            st.markdown(
-                f'''
-                <div class="card-box">
-                    <div class="card-title-custom">
-                        💰 Facturación Total Ingresos
-                    </div>
-                    <div class="card-value-custom">
-                        $ {total_ingresos_global:,.2f}
-                    </div>
-                </div>
-                ''',
-                unsafe_allow_html=True
+    total_pendiente_facturas = (
+        df_facturas[
+            df_facturas["Estado Pago"].str.contains(
+                "Pendiente",
+                case=False,
+                na=False
             )
+        ]["Monto (ARS)"].sum()
+        if not df_facturas.empty else 0.0
+    )
 
-        with c2:
-            st.markdown(
-                f'''
-                <div class="card-box">
-                    <div class="card-title-custom">
-                        🧾 Gastos Comerciales
-                    </div>
-                    <div class="card-value-custom">
-                        $ {total_gasto_facturas:,.2f}
-                    </div>
+    total_tripulacion_global = (
+        df_pagos_empleados["Monto (ARS)"].sum()
+        if not df_pagos_empleados.empty else 0.0
+    )
+
+    total_ingresos_global = (
+        df_ingresos["Monto Total (ARS)"].sum()
+        if not df_ingresos.empty else 0.0
+    )
+
+    total_has_global = (
+        df_telemetria["Has Trabajadas"].sum()
+        if not df_telemetria.empty else 0.0
+    )
+
+    total_litros_global = (
+        df_telemetria["Gasoil Consumido (L)"].sum()
+        if not df_telemetria.empty else 0.0
+    )
+
+    eficiencia_flota = (
+        total_litros_global / total_has_global
+        if total_has_global > 0 else 0.0
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">
+                    💰 Facturación Total Ingresos
                 </div>
-                ''',
-                unsafe_allow_html=True
-            )
-
-        with c3:
-            st.markdown(
-                f'''
-                <div class="card-box">
-                    <div class="card-title-custom">
-                        👥 Total Costo Tripulación
-                    </div>
-                    <div class="card-value-custom">
-                        $ {total_tripulacion_global:,.2f}
-                    </div>
+                <div class="card-value-custom">
+                    $ {total_ingresos_global:,.2f}
                 </div>
-                ''',
-                unsafe_allow_html=True
-            )
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        with c4:
-            st.markdown(
-                f'''
-                <div class="card-box">
-                    <div class="card-title-custom">
-                        🔴 Cuentas Proveedores Pendientes
-                    </div>
-                    <div class="card-value-custom">
-                        $ {total_pendiente_facturas:,.2f}
-                    </div>
+    with c2:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">
+                    🧾 Gastos Comerciales
                 </div>
-                ''',
-                unsafe_allow_html=True
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        c5, c6 = st.columns(2)
-
-        with c5:
-            st.markdown(
-                f'''
-                <div class="card-box">
-                    <div class="card-title-custom">
-                        Superficie Total Operada
-                    </div>
-                    <div class="card-value-custom">
-                        {total_has_global:,.1f} Has
-                    </div>
+                <div class="card-value-custom">
+                    $ {total_gasto_facturas:,.2f}
                 </div>
-                ''',
-                unsafe_allow_html=True
-            )
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-        with c6:
-            st.markdown(
-                f'''
-                <div class="card-box">
-                    <div class="card-title-custom">
-                        Promedio Gasoil Flota
-                    </div>
-                    <div class="card-value-custom">
-                        {eficiencia_flota:.2f} L/Ha
-                    </div>
+    with c3:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">
+                    👥 Total Costo Tripulación
                 </div>
-                ''',
-                unsafe_allow_html=True
-            )
+                <div class="card-value-custom">
+                    $ {total_tripulacion_global:,.2f}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c4:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">
+                    🔴 Cuentas Proveedores Pendientes
+                </div>
+                <div class="card-value-custom">
+                    $ {total_pendiente_facturas:,.2f}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    c5, c6 = st.columns(2)
+
+    with c5:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">
+                    🌾 Superficie Total Operada
+                </div>
+                <div class="card-value-custom">
+                    {total_has_global:,.1f} Has
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c6:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">
+                    ⛽ Promedio Gasoil Flota
+                </div>
+                <div class="card-value-custom">
+                    {eficiencia_flota:.2f} L/Ha
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # ----------------------------------------------------
 # PESTAÑA: LABORES Y LOTES
