@@ -434,6 +434,94 @@ if menu == "🧾 GASTOS COMERCIALES":
                 st.success("✔ ¡Gasto comercial registrado!")
                 st.rerun()
         if not df_facturas.empty: st.dataframe(df_facturas, use_container_width=True)
+        st.divider()
+st.subheader("✏️ Editar gasto comercial")
+
+gasto_sel = st.selectbox(
+    "Seleccionar gasto",
+    df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]
+)
+
+fila = df_facturas[
+    (df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel
+].iloc[0]
+
+indice = fila.name
+
+proveedor = st.text_input(
+    "Proveedor",
+    value=fila["Proveedor"]
+)
+
+categoria = st.selectbox(
+    "Categoría",
+    [
+        "Repuestos y Talleres",
+        "Combustibles",
+        "Semillas",
+        "Agroquímicos / Fertilizantes",
+        "Gastos Generales"
+    ],
+    index=[
+        "Repuestos y Talleres",
+        "Combustibles",
+        "Semillas",
+        "Agroquímicos / Fertilizantes",
+        "Gastos Generales"
+    ].index(fila["Categoría"])
+)
+
+lote = st.text_input(
+    "Lote",
+    value=fila["Lote Asignado"]
+)
+
+monto = st.number_input(
+    "Monto",
+    value=float(fila["Monto (ARS)"])
+)
+
+estado = st.selectbox(
+    "Estado",
+    ["Pagado", "Pendiente de Pago"],
+    index=0 if fila["Estado Pago"] == "Pagado" else 1
+)
+
+c1, c2 = st.columns(2)
+
+with c1:
+
+    if st.button("💾 Guardar cambios"):
+
+        df_facturas.loc[indice, "Proveedor"] = proveedor
+        df_facturas.loc[indice, "Categoría"] = categoria
+        df_facturas.loc[indice, "Lote Asignado"] = lote
+        df_facturas.loc[indice, "Monto (ARS)"] = monto
+        df_facturas.loc[indice, "Estado Pago"] = estado
+
+        df_facturas.to_csv(
+            "datos_facturas.csv",
+            index=False
+        )
+
+        st.success("✅ Gasto actualizado")
+
+        st.rerun()
+
+with c2:
+
+    if st.button("🗑 Eliminar gasto"):
+
+        df_facturas = df_facturas.drop(indice)
+
+        df_facturas.to_csv(
+            "datos_facturas.csv",
+            index=False
+        )
+
+        st.success("✅ Gasto eliminado")
+
+        st.rerun()
 
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
