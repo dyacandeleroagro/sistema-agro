@@ -335,7 +335,7 @@ if menu == "📈 ANALÍTICAS CENTRALES":
 # ----------------------------------------------------
 # PESTAÑA: LABORES Y LOTES
 # ----------------------------------------------------
-if menu == "🚜 LABORES Y LOTES":
+ if menu == "🚜 LABORES Y LOTES":
         st.header("🚜 Partes Diarios de Labores")
         with st.form("form_labores"):
             col_la1, col_la2, col_la3 = st.columns(3)
@@ -365,7 +365,7 @@ if menu == "🚜 LABORES Y LOTES":
 # ----------------------------------------------------
 # PESTAÑA: INGRESOS POR TRABAJOS
 # ----------------------------------------------------
-if menu == "💰 INGRESOS POR TRABAJOS":
+ if menu == "💰 INGRESOS POR TRABAJOS":
         st.header("💰 Registro de Facturación e Ingresos por Servicios")
         with st.form("form_ingresos", clear_on_submit=True):
             i1, i2, i3 = st.columns(3)
@@ -435,11 +435,11 @@ if menu == "🧾 GASTOS COMERCIALES":
                 st.rerun()
         if not df_facturas.empty: st.dataframe(df_facturas, use_container_width=True)
         st.divider()
- st.subheader("✏️ Editar gasto comercial")
- gasto = st.selectbox(
-    "Seleccionar comprobante",
-    df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]
- )
+        st.subheader("✏️ Editar gasto comercial")
+        gasto = st.selectbox(
+        "Seleccionar comprobante",
+     df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]
+)
 
  fila = df_facturas[
     (df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]) == gasto
@@ -450,7 +450,7 @@ if menu == "🧾 GASTOS COMERCIALES":
  gasto_sel = st.selectbox(
     "Seleccionar gasto",
     df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]
- )
+)
 
  fila = df_facturas[
     (df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel
@@ -461,7 +461,7 @@ if menu == "🧾 GASTOS COMERCIALES":
  proveedor = st.text_input(
     "Proveedor",
     value=fila["Proveedor"]
- )
+)
 
  categoria_edit = st.selectbox(
     "Categoría",
