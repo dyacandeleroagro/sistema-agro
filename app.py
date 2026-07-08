@@ -403,7 +403,7 @@ if menu == "💰 INGRESOS POR TRABAJOS":
 # ----------------------------------------------------
 # PESTAÑA: GASTOS COMERCIALES
 # ----------------------------------------------------
-if menu == "🧾 GASTOS COMERCIALES"
+if menu == "🧾 GASTOS COMERCIALES":
         st.header("🧾 Archivo de Comprobantes Comerciales")
         with st.form("form_facturas", clear_on_submit=True):
             f1, f2, f3 = st.columns(3)
