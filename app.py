@@ -601,7 +601,7 @@ if st.button(
 
 with c2:
 
-    if st.button(
+if st.button(
     "🗑 Eliminar comprobante",
     key="eliminar_gasto_edit"
 ):
