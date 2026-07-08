@@ -168,6 +168,28 @@ st.markdown('</div>', unsafe_allow_html=True)
 rol_actual = st.session_state["rol"]
 nombre_actual = st.session_state["nombre_usuario"]
 
+# ===============================
+# ROLES DEL USUARIO
+# ===============================
+
+roles_usuario = [
+    r.strip()
+    for r in rol_actual.split(",")
+    if r.strip()
+]
+
+def tiene_rol(*roles):
+    return any(r in roles_usuario for r in roles)
+
+# Si está deshabilitado y NO es dueño
+if (
+    "Deshabilitado" in roles_usuario
+    and
+    "Dueño" not in roles_usuario
+):
+    st.error("⛔ Este usuario está deshabilitado.")
+    st.stop()
+
 opciones_menu = []
 
 if rol_actual == "Dueño":
@@ -211,6 +233,47 @@ else:
         "🚜 LABORES Y LOTES",
         "📋 RENDICIÓN POR OPERARIO"
     ]
+
+opciones = []
+
+if tiene_rol("Dueño","Administrador","Contador"):
+    opciones.append("📈 ANALÍTICAS CENTRALES")
+
+if tiene_rol("Dueño","Administrador","Encargado","Operario","Maquinista"):
+    opciones.append("🚜 LABORES Y LOTES")
+
+if tiene_rol("Dueño","Administrador","Contador"):
+    opciones.append("💰 INGRESOS POR TRABAJOS")
+
+if tiene_rol("Dueño","Administrador","Contador"):
+    opciones.append("🧾 GASTOS COMERCIALES")
+
+if tiene_rol("Dueño","Administrador","Contador"):
+    opciones.append("🔍 CUENTAS PENDIENTES")
+
+if tiene_rol("Dueño","Administrador","Encargado"):
+    opciones.append("👥 SISTEMA DE TRIPULACIÓN")
+
+if tiene_rol("Dueño","Administrador","Encargado","Operario","Maquinista"):
+    opciones.append("📋 RENDICIÓN POR OPERARIO")
+
+if tiene_rol("Dueño","Administrador","Contador"):
+    opciones.append("👥 CLIENTES")
+
+if tiene_rol("Dueño","Administrador","Contador"):
+    opciones.append("🧾 FACTURACIÓN")
+
+if tiene_rol("Dueño","Administrador"):
+    opciones.append("🛠 SERVICIOS")
+
+if tiene_rol("Dueño","Administrador"):
+    opciones.append("⚙ ADMINISTRACIÓN")
+
+if tiene_rol("Dueño","Administrador"):
+    opciones.append("🛡 SEGUROS Y COBERTURAS")
+
+if tiene_rol("Dueño"):
+    opciones.append("🗄 CONTROL DE ERRORES")
 
 menu = st.sidebar.radio(
     "📂 Menú",

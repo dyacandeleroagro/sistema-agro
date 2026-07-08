@@ -165,10 +165,26 @@ def pantalla_administracion():
         )
         nombre = st.text_input("Nombre completo")
 
-        rol = st.selectbox(
-            "Rol",
-            roles
-        )
+        ROLES_DISPONIBLES = [
+    "Dueño",
+    "Administrador",
+    "Contador",
+    "Encargado",
+    "Operario",
+    "Maquinista",
+    "Deshabilitado"
+]
+
+roles_actuales = [
+    r.strip()
+    for r in rol.split(",")
+]
+
+roles_nuevos = st.multiselect(
+    "Roles",
+    ROLES_DISPONIBLES,
+    default=roles_actuales
+)
 
         guardar = st.form_submit_button(
             "Crear usuario"
