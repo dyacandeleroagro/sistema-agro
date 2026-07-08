@@ -171,25 +171,20 @@ nombre_actual = st.session_state["nombre_usuario"]
 menu = st.sidebar.radio(
     "📂 Menú",
     [
-        "📈 Analíticas Centrales",
-        "🚜 Labores y Lotes",
-        "🛠 Servicios",
-        "🧾 Facturación",
-        "👥 Clientes",
-        "💰 Ingresos por Trabajos",
-        "🧾 Gastos Comerciales",
-        "🔍 Cuentas Pendientes",
-        "👥 Sistema de Tripulación",
-        "📋 Rendición por Operario",
-        "🛡 Seguros y Coberturas",
-        "⚙ Administración",
-        "🗄 Control de Errores"
+        "📈 ANALÍTICAS CENTRALES",
+        "🚜 LABORES Y LOTES",
+        "💰 INGRESOS POR TRABAJOS",
+        "🧾 GASTOS COMERCIALES",
+        "🔍 CUENTAS PENDIENTES",
+        "👥 SISTEMA DE TRIPULACIÓN",
+        "📋 RENDICIÓN POR OPERARIO",
+        "👥 CLIENTES",
+        "🧾 FACTURACIÓN",
+        "🛠 SERVICIOS",
+        "⚙ ADMINISTRACIÓN",
+        "🛡 SEGUROS Y COBERTURAS",
+        "🗄 CONTROL DE ERRORES"
     ]
-)
-st.sidebar.title("🚜 D&A CANDELERO AGRO")
-
-menu = st.sidebar.radio(
-    "Menú",
 )
 
 # ----------------------------------------------------
