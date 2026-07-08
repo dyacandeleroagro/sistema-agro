@@ -463,7 +463,7 @@ proveedor = st.text_input(
     value=fila["Proveedor"]
 )
 
-categoria = st.selectbox(
+categoria_edit = st.selectbox(
     "Categoría",
     [
         "Repuestos y Talleres",
@@ -478,7 +478,8 @@ categoria = st.selectbox(
         "Semillas",
         "Agroquímicos / Fertilizantes",
         "Gastos Generales"
-    ].index(fila["Categoría"])
+    ].index(fila["Categoría"]),
+    key="editar_categoria_gasto"
 )
 
 lote = st.text_input(
