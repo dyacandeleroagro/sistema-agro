@@ -436,27 +436,17 @@ if menu == "🧾 GASTOS COMERCIALES":
         if not df_facturas.empty: st.dataframe(df_facturas, use_container_width=True)
         st.divider()
         st.subheader("✏️ Editar gasto comercial")
-        gasto = st.selectbox(
-        "Seleccionar comprobante",
-     df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]
-)
-
- fila = df_facturas[
-    (df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]) == gasto
- ].iloc[0]
-
- indice = fila.name
-
- gasto_sel = st.selectbox(
+        gasto_sel = st.selectbox(
     "Seleccionar gasto",
-    df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]
+    df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"],
+    key="seleccionar_gasto"
 )
 
- fila = df_facturas[
+fila = df_facturas[
     (df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel
- ].iloc[0]
+].iloc[0]
 
- indice = fila.name
+indice = fila.name
 
  proveedor = st.text_input(
     "Proveedor",
