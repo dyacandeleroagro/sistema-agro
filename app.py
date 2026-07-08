@@ -436,6 +436,16 @@ if menu == "🧾 GASTOS COMERCIALES":
         if not df_facturas.empty: st.dataframe(df_facturas, use_container_width=True)
         st.divider()
 st.subheader("✏️ Editar gasto comercial")
+gasto = st.selectbox(
+    "Seleccionar comprobante",
+    df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]
+)
+
+fila = df_facturas[
+    (df_facturas["Proveedor"] + " | " + df_facturas["Fecha Registro"]) == gasto
+].iloc[0]
+
+indice = fila.name
 
 gasto_sel = st.selectbox(
     "Seleccionar gasto",
@@ -520,6 +530,79 @@ with c2:
         )
 
         st.success("✅ Gasto eliminado")
+
+        st.rerun()
+        proveedor_edit = st.text_input(
+    "Proveedor",
+    value=fila["Proveedor"]
+)
+
+categoria_edit = st.selectbox(
+    "Categoría",
+    [
+        "Repuestos y Talleres",
+        "Combustibles",
+        "Semillas",
+        "Agroquímicos / Fertilizantes",
+        "Gastos Generales"
+    ],
+    index=[
+        "Repuestos y Talleres",
+        "Combustibles",
+        "Semillas",
+        "Agroquímicos / Fertilizantes",
+        "Gastos Generales"
+    ].index(fila["Categoría"])
+)
+
+lote_edit = st.text_input(
+    "Lote",
+    value=fila["Lote Asignado"]
+)
+
+estado_edit = st.selectbox(
+    "Estado",
+    ["Pagado","Pendiente de Pago"],
+    index=0 if fila["Estado Pago"]=="Pagado" else 1
+)
+
+monto_edit = st.number_input(
+    "Monto",
+    value=float(fila["Monto (ARS)"])
+)
+c1,c2 = st.columns(2)
+
+with c1:
+
+    if st.button("💾 Guardar cambios"):
+
+        df_facturas.loc[indice,"Proveedor"] = proveedor_edit
+        df_facturas.loc[indice,"Categoría"] = categoria_edit
+        df_facturas.loc[indice,"Lote Asignado"] = lote_edit
+        df_facturas.loc[indice,"Estado Pago"] = estado_edit
+        df_facturas.loc[indice,"Monto (ARS)"] = monto_edit
+
+        df_facturas.to_csv(
+            "datos_facturas.csv",
+            index=False
+        )
+
+        st.success("✅ Comprobante actualizado")
+
+        st.rerun()
+
+with c2:
+
+    if st.button("🗑 Eliminar comprobante"):
+
+        df_facturas = df_facturas.drop(indice)
+
+        df_facturas.to_csv(
+            "datos_facturas.csv",
+            index=False
+        )
+
+        st.success("✅ Comprobante eliminado")
 
         st.rerun()
 
