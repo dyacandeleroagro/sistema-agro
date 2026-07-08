@@ -535,7 +535,8 @@ with c2:
         st.rerun()
         proveedor_edit = st.text_input(
     "Proveedor",
-    value=fila["Proveedor"]
+    value=fila["Proveedor"],
+    key="editar_proveedor"
 )
 
 categoria_edit = st.selectbox(
@@ -558,18 +559,21 @@ categoria_edit = st.selectbox(
 
 lote_edit = st.text_input(
     "Lote",
-    value=fila["Lote Asignado"]
+    value=fila["Lote Asignado"],
+    key="editar_lote"
 )
 
 estado_edit = st.selectbox(
     "Estado",
     ["Pagado","Pendiente de Pago"],
-    index=0 if fila["Estado Pago"]=="Pagado" else 1
+    index=0 if fila["Estado Pago"]=="Pagado" else 1,
+    key="editar_estado"
 )
 
 monto_edit = st.number_input(
     "Monto",
-    value=float(fila["Monto (ARS)"])
+    value=float(fila["Monto (ARS)"]),
+    key="editar_monto"
 )
 c1,c2 = st.columns(2)
 
