@@ -9,8 +9,18 @@ def pantalla_administracion():
 
     conn = get_conn()
 
+    ROLES_DISPONIBLES = [
+        "Dueño",
+        "Administrador",
+        "Contador",
+        "Encargado",
+        "Operario",
+        "Maquinista",
+        "Deshabilitado"
+    ]
+
     # ==========================
-    # LISTA DE USUARIOS
+    # LISTA USUARIOS
     # ==========================
 
     df = pd.read_sql("""
@@ -20,6 +30,7 @@ def pantalla_administracion():
     """, conn)
 
     st.subheader("Usuarios")
+
     st.dataframe(
         df,
         use_container_width=True,
@@ -41,6 +52,7 @@ def pantalla_administracion():
 
     datos = df[df["usuario"] == usuario_sel].iloc[0]
 
+
     nuevo_usuario = st.text_input(
         "Usuario",
         value=datos["usuario"]
@@ -56,31 +68,25 @@ def pantalla_administracion():
         type="password"
     )
 
-   ROLES_DISPONIBLES = [
-    "Dueño",
-    "Administrador",
-    "Contador",
-    "Encargado",
-    "Operario",
-    "Maquinista",
-    "Deshabilitado"
-]
 
-roles_actuales = []
+    roles_actuales = []
 
-if pd.notna(datos["rol"]):
-    roles_actuales = [
-        r.strip()
-        for r in str(datos["rol"]).split(",")
-    ]
+    if pd.notna(datos["rol"]):
+        roles_actuales = [
+            r.strip()
+            for r in str(datos["rol"]).split(",")
+        ]
 
-nuevo_rol = st.multiselect(
-    "Roles",
-    ROLES_DISPONIBLES,
-    default=roles_actuales
-)
+
+    nuevo_rol = st.multiselect(
+        "Roles",
+        ROLES_DISPONIBLES,
+        default=roles_actuales
+    )
+
 
     col1, col2 = st.columns(2)
+
 
     with col1:
 
@@ -90,7 +96,9 @@ nuevo_rol = st.multiselect(
 
             try:
 
-                if nueva_password != "":
+                roles_texto = ",".join(nuevo_rol)
+
+                if nueva_password:
 
                     cur.execute("""
                         UPDATE usuarios
@@ -102,7 +110,7 @@ nuevo_rol = st.multiselect(
                     """, (
                         nuevo_usuario,
                         nuevo_nombre,
-                        nuevo_rol,
+                        roles_texto,
                         nueva_password,
                         int(datos["id"])
                     ))
@@ -118,19 +126,22 @@ nuevo_rol = st.multiselect(
                     """, (
                         nuevo_usuario,
                         nuevo_nombre,
-                        nuevo_rol,
+                        roles_texto,
                         int(datos["id"])
                     ))
+
 
                 conn.commit()
 
                 st.success("✅ Usuario actualizado")
                 st.rerun()
 
+
             except Exception as e:
 
                 conn.rollback()
                 st.error(str(e))
+
 
     with col2:
 
@@ -150,58 +161,56 @@ nuevo_rol = st.multiselect(
                 st.success("✅ Usuario eliminado")
                 st.rerun()
 
+
             except Exception as e:
 
                 conn.rollback()
                 st.error(str(e))
 
+
     st.divider()
 
+
     # ==========================
-    # NUEVO USUARIO
+    # CREAR USUARIO
     # ==========================
 
     st.subheader("Crear nuevo usuario")
 
+
     with st.form("nuevo_usuario"):
 
         usuario = st.text_input("Usuario")
+
         password = st.text_input(
             "Contraseña",
             type="password"
         )
-        nombre = st.text_input("Nombre completo")
 
-ROLES_DISPONIBLES = [
-    "Dueño",
-    "Administrador",
-    "Contador",
-    "Encargado",
-    "Operario",
-    "Maquinista",
-    "Deshabilitado"
-]
+        nombre = st.text_input(
+            "Nombre completo"
+        )
 
-roles_actuales = [
-    r.strip()
-    for r in rol.split(",")
-]
 
-roles_nuevos = st.multiselect(
-    "Roles",
-    ROLES_DISPONIBLES,
-    default=roles_actuales
-)
+        roles_nuevos = st.multiselect(
+            "Roles",
+            ROLES_DISPONIBLES
+        )
+
 
         guardar = st.form_submit_button(
             "Crear usuario"
         )
+
 
         if guardar:
 
             try:
 
                 cur = conn.cursor()
+
+                roles_texto = ",".join(roles_nuevos)
+
 
                 cur.execute("""
                     INSERT INTO usuarios
@@ -211,13 +220,18 @@ roles_nuevos = st.multiselect(
                     usuario,
                     password,
                     nombre,
-                    rol
+                    roles_texto
                 ))
+
 
                 conn.commit()
 
-                st.success("✅ Usuario creado correctamente")
+                st.success(
+                    "✅ Usuario creado correctamente"
+                )
+
                 st.rerun()
+
 
             except Exception as e:
 
