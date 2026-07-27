@@ -56,22 +56,29 @@ def pantalla_administracion():
         type="password"
     )
 
-    roles = [
-        "Operario",
-        "Administrador",
-        "Contador",
-        "Dueño"
+   ROLES_DISPONIBLES = [
+    "Dueño",
+    "Administrador",
+    "Contador",
+    "Encargado",
+    "Operario",
+    "Maquinista",
+    "Deshabilitado"
+]
+
+roles_actuales = []
+
+if pd.notna(datos["rol"]):
+    roles_actuales = [
+        r.strip()
+        for r in str(datos["rol"]).split(",")
     ]
 
-    indice = 0
-    if datos["rol"] in roles:
-        indice = roles.index(datos["rol"])
-
-    nuevo_rol = st.selectbox(
-        "Rol",
-        roles,
-        index=indice
-    )
+nuevo_rol = st.multiselect(
+    "Roles",
+    ROLES_DISPONIBLES,
+    default=roles_actuales
+)
 
     col1, col2 = st.columns(2)
 
@@ -165,7 +172,7 @@ def pantalla_administracion():
         )
         nombre = st.text_input("Nombre completo")
 
-        ROLES_DISPONIBLES = [
+ROLES_DISPONIBLES = [
     "Dueño",
     "Administrador",
     "Contador",
