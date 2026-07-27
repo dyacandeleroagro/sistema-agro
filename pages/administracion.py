@@ -172,7 +172,7 @@ nuevo_rol = st.multiselect(
         )
         nombre = st.text_input("Nombre completo")
 
- ROLES_DISPONIBLES = [
+ROLES_DISPONIBLES = [
     "Dueño",
     "Administrador",
     "Contador",
