@@ -117,7 +117,6 @@ def formulario_login():
 
 if activo is False:
     return None, "DESHABILITADO"
-
 # ==========================================
 # VERIFICACIÓN Y CARGA DE BASES DE DATOS (CSV)
 # ==========================================
