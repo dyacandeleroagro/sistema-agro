@@ -816,7 +816,8 @@ if menu == "🗄 CONTROL DE ERRORES":
     if rol_actual != "Dueño":
         st.error("Solo el dueño puede ingresar.")
         st.stop()
-        st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
+
+    st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
         sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
 
         with sub_g:
