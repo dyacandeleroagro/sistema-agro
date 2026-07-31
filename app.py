@@ -18,7 +18,7 @@ def check_password(usuario, password):
         SELECT nombre, rol, activo
         FROM usuarios
         WHERE usuario = %s
-        AND password = %s
+          AND password = %s
     """, (usuario, password))
 
     result = cur.fetchone()
@@ -26,13 +26,13 @@ def check_password(usuario, password):
     cur.close()
     conn.close()
 
-if result:
+    if result:
         nombre, rol, activo = result
 
-if not activo:
-    return None, "DESHABILITADO"
+        if not activo:
+            return None, "DESHABILITADO"
 
-    return nombre, rol.strip()
+        return nombre, rol.strip()
 
     return None, None
 
