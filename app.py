@@ -554,7 +554,7 @@ if menu == "🧾 GASTOS COMERCIALES":
 
         if not df_facturas.empty:
 
-                        gasto_sel = st.selectbox(
+            gasto_sel = st.selectbox(
                 "Seleccionar gasto",
                 df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"],
                 key="seleccionar_gasto"
