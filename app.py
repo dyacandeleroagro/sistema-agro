@@ -554,7 +554,7 @@ if menu == "🧾 GASTOS COMERCIALES":
 
         if not df_facturas.empty:
 
-            gasto_sel = st.selectbox(
+                        gasto_sel = st.selectbox(
                 "Seleccionar gasto",
                 df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"],
                 key="seleccionar_gasto"
@@ -612,20 +612,24 @@ if menu == "🧾 GASTOS COMERCIALES":
                 key="editar_estado"
             )
 
-           comprobante_actual = fila["Archivo Comprobante"]
+            comprobante_actual = str(
+                fila["Archivo Comprobante"]
+            ).strip()
 
-# Evitar errores cuando el comprobante está vacío
-if pd.isna(comprobante_actual) or comprobante_actual == "":
-    comprobante_actual = "N/A"
 
-st.write("### 📎 Comprobantes")
+            if pd.isna(comprobante_actual) or comprobante_actual == "":
+                comprobante_actual = "N/A"
 
-if comprobante_actual != "N/A":
 
-    ruta = os.path.join(
-        "comprobantes",
-        str(comprobante_actual)
-    )
+            st.write("### 📎 Comprobantes")
+
+
+            if comprobante_actual != "N/A":
+
+                ruta = os.path.join(
+                    "comprobantes",
+                    comprobante_actual
+                )
 
                 if os.path.exists(ruta):
                     with open(ruta, "rb") as archivo:
@@ -636,22 +640,30 @@ if comprobante_actual != "N/A":
                             key="descargar_comprobante"
                         )
 
+
             nuevo_pdf = st.file_uploader(
                 "Agregar otro comprobante",
                 type=["pdf", "png", "jpg", "jpeg"],
                 key="nuevo_pdf"
             )
 
+
             c1, c2 = st.columns(2)
 
+
             with c1:
-                if st.button("💾 Guardar cambios", key="guardar_gasto"):
+
+                if st.button(
+                    "💾 Guardar cambios",
+                    key="guardar_gasto"
+                ):
 
                     df_facturas.loc[indice, "Proveedor"] = proveedor_edit
                     df_facturas.loc[indice, "Categoría"] = categoria_edit
                     df_facturas.loc[indice, "Lote Asignado"] = lote_edit
                     df_facturas.loc[indice, "Monto (ARS)"] = monto_edit
                     df_facturas.loc[indice, "Estado Pago"] = estado_edit
+
 
                     if nuevo_pdf is not None:
 
@@ -663,12 +675,14 @@ if comprobante_actual != "N/A":
                         ) as f:
                             f.write(nuevo_pdf.getbuffer())
 
+
                         if comprobante_actual != "N/A":
                             df_facturas.loc[indice, "Archivo Comprobante"] = (
                                 comprobante_actual + ";" + nombre
                             )
                         else:
                             df_facturas.loc[indice, "Archivo Comprobante"] = nombre
+
 
                     df_facturas.to_csv(
                         "datos_facturas.csv",
@@ -678,8 +692,13 @@ if comprobante_actual != "N/A":
                     st.success("✅ Gasto actualizado")
                     st.rerun()
 
+
             with c2:
-                if st.button("🗑 Eliminar gasto", key="eliminar_gasto"):
+
+                if st.button(
+                    "🗑 Eliminar gasto",
+                    key="eliminar_gasto"
+                ):
 
                     df_facturas = df_facturas.drop(indice)
 
