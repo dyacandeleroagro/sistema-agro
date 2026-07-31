@@ -99,7 +99,7 @@ def formulario_login():
             if btn_login:
              nombre, rol = check_password(txt_user, txt_pass)
 
-    rol = rol if rol else ""
+             rol = rol if rol else ""
 
     if rol == "DESHABILITADO":
         st.error("⛔ Este usuario está deshabilitado. Contacte al administrador.")
