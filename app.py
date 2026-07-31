@@ -612,12 +612,20 @@ if menu == "🧾 GASTOS COMERCIALES":
                 key="editar_estado"
             )
 
-            comprobante_actual = fila["Archivo Comprobante"]
+           comprobante_actual = fila["Archivo Comprobante"]
 
-            st.write("### 📎 Comprobantes")
+# Evitar errores cuando el comprobante está vacío
+if pd.isna(comprobante_actual) or comprobante_actual == "":
+    comprobante_actual = "N/A"
 
-            if comprobante_actual != "N/A":
-                ruta = os.path.join("comprobantes", comprobante_actual)
+st.write("### 📎 Comprobantes")
+
+if comprobante_actual != "N/A":
+
+    ruta = os.path.join(
+        "comprobantes",
+        str(comprobante_actual)
+    )
 
                 if os.path.exists(ruta):
                     with open(ruta, "rb") as archivo:
