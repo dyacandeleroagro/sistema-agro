@@ -14,14 +14,25 @@ def check_password(usuario, password):
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("SELECT nombre, rol FROM usuarios WHERE usuario = %s AND password = %s",(usuario, password)
-    )
+    cur.execute("""
+        SELECT nombre, rol, activo
+        FROM usuarios
+        WHERE usuario = %s
+        AND password = %s
+    """, (usuario, password))
 
     result = cur.fetchone()
-    cur.close()
 
-    if result:
-        return result[0], result[1]
+    cur.close()
+    conn.close()
+
+if result:
+        nombre, rol, activo = result
+
+        if not activo:
+            return None, "DESHABILITADO"
+
+        return nombre, rol.strip()
 
     return None, None
 
