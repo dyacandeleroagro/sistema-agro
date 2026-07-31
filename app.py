@@ -168,12 +168,12 @@ with col_titulo:
     st.markdown(f'<div class="subtitle">Sesión iniciada: <b>{st.session_state["nombre_usuario"]}</b> ({st.session_state["rol"]})</div>', unsafe_allow_html=True)
 with col_user:
     st.markdown("<br>", unsafe_allow_html=True)
- if st.button("🚪 Cerrar Sesión", key="btn_logout"):
-    st.session_state["autenticado"] = False
-    st.session_state["usuario"] = ""
-    st.session_state["rol"] = ""
-    st.session_state["nombre_usuario"] = ""
-    st.rerun()
+    if st.button("🚪 Cerrar Sesión", key="btn_logout"):
+        st.session_state["autenticado"] = False
+        st.session_state["usuario"] = ""
+        st.session_state["rol"] = ""
+        st.session_state["nombre_usuario"] = ""
+        st.rerun()
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
