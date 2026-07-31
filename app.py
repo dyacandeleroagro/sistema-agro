@@ -560,7 +560,7 @@ if menu == "🧾 GASTOS COMERCIALES":
                 key="seleccionar_gasto"
             )
 
-            fila = df_facturas[
+                        fila = df_facturas[
                 (df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel
             ].iloc[0]
 
@@ -612,7 +612,7 @@ if menu == "🧾 GASTOS COMERCIALES":
                 key="editar_estado"
             )
 
-           comprobante_actual = fila["Archivo Comprobante"]
+            comprobante_actual = str(fila["Archivo Comprobante"]).strip()
 
 # Evitar errores cuando el comprobante está vacío
 if pd.isna(comprobante_actual) or comprobante_actual == "":
