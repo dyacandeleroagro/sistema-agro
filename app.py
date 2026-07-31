@@ -785,8 +785,9 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
     if rol_actual == "Operario":
         st.error("No tiene permisos.")
         st.stop()
-        st.header("🛡 Control de Pólizas y Seguros")
-        with st.form("form_seguros", clear_on_submit=True):
+
+    st.header("🛡 Control de Pólizas y Seguros")
+    with st.form("form_seguros", clear_on_submit=True):
             s1, s2, s3 = st.columns(3)
             with s1:
                 seg_comp = st.text_input("Compañía Aseguradora")
