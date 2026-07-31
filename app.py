@@ -113,6 +113,13 @@ def formulario_login():
                 else:
                     st.error("❌ Usuario o contraseña incorrectos.")
 # ==========================================
+# SI NO ESTA LOGUEADO MOSTRAR LOGIN
+# ==========================================
+
+if not st.session_state["autenticado"]:
+    formulario_login()
+    st.stop()
+# ==========================================
 # VERIFICACIÓN Y CARGA DE BASES DE DATOS (CSV)
 # ==========================================
 if not os.path.exists("comprobantes"):
