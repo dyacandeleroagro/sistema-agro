@@ -818,7 +818,7 @@ if menu == "🗄 CONTROL DE ERRORES":
         st.stop()
 
     st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
-        sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
+    sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
 
     with sub_g:
         if not df_facturas.empty:
