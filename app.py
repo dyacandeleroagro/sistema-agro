@@ -776,7 +776,8 @@ if menu == "⚙ ADMINISTRACIÓN":
  if rol_actual not in ["Dueño", "Administrador"]:
     st.error("No tiene permisos.")
     st.stop()
-    pantalla_administracion()
+
+ pantalla_administracion()
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
