@@ -763,10 +763,10 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
             else: st.write("Sin movimientos.")
 if menu == "👥 CLIENTES":
 
-        pantalla_clientes()
+    pantalla_clientes()
 if menu == "🧾 FACTURACIÓN":
 
-        pantalla_facturacion()
+    pantalla_facturacion()
 
 if menu == "🛠 SERVICIOS":
 
