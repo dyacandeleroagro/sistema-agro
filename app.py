@@ -97,17 +97,22 @@ def formulario_login():
             btn_login = st.form_submit_button("Ingresar al Sistema")
 
             if btn_login:
-                nombre, rol = check_password(txt_user, txt_pass)
-                if nombre:
-                    st.session_state["autenticado"] = True
-                    st.session_state["usuario"] = txt_user
-                    st.session_state["rol"] = rol
-                    st.session_state["nombre_usuario"] = nombre
-                    st.success(f"¡Bienvenido {nombre}!")
-                    st.rerun()
-                else:
-                    st.error("❌ Usuario o contraseña incorrectos.")
+    nombre, rol = check_password(txt_user, txt_pass)
 
+    if rol == "DESHABILITADO":
+        st.error("⛔ Este usuario está deshabilitado. Contacte al administrador.")
+
+    elif nombre:
+        st.session_state["autenticado"] = True
+        st.session_state["usuario"] = txt_user
+        st.session_state["rol"] = rol
+        st.session_state["nombre_usuario"] = nombre
+        st.success(f"¡Bienvenido {nombre}!")
+        st.rerun()
+
+    else:
+        st.error("❌ Usuario o contraseña incorrectos.")
+        
 if not st.session_state["autenticado"]:
     formulario_login()
     st.stop()
