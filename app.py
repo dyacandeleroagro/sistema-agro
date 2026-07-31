@@ -30,9 +30,9 @@ if result:
         nombre, rol, activo = result
 
 if not activo:
-        return None, "DESHABILITADO"
+    return None, "DESHABILITADO"
 
-        return nombre, rol.strip()
+    return nombre, rol.strip()
 
     return None, None
 
