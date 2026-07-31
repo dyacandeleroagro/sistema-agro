@@ -26,7 +26,7 @@ def check_password(usuario, password):
     cur.close()
     conn.close()
 
-if result:
+ if result:
         nombre, rol, activo = result
 
         if not activo:
