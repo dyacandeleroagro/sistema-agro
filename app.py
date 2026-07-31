@@ -820,40 +820,40 @@ if menu == "🗄 CONTROL DE ERRORES":
     st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
         sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
 
-        with sub_g:
-            if not df_facturas.empty:
-                for idx, fila in df_facturas.copy().iterrows():
-                    c_i, c_b = st.columns([6, 1])
-                    with c_i: st.write(f"📅 {fila['Fecha Registro']} | *{fila['Proveedor']}* | **{fila['Monto Original']}**")
-                    with c_b:
-                        if st.button("🗑 Borrar", key=f"b_fac_{fila['ID']}_{idx}"):
+    with sub_g:
+        if not df_facturas.empty:
+            for idx, fila in df_facturas.copy().iterrows():
+                c_i, c_b = st.columns([6, 1])
+            with c_i: st.write(f"📅 {fila['Fecha Registro']} | *{fila['Proveedor']}* | **{fila['Monto Original']}**")
+            with c_b:
+                if st.button("🗑 Borrar", key=f"b_fac_{fila['ID']}_{idx}"):
                             df_facturas.drop(idx).to_csv("datos_facturas.csv", index=False)
                             st.rerun()
-        with sub_i:
-            if not df_ingresos.empty:
-                for idx, fila in df_ingresos.copy().iterrows():
-                    c_i, c_b = st.columns([6, 1])
-                    with c_i: st.write(f"📅 {fila['Fecha']} | Cliente: *{fila['Cliente']}* | **$ {fila['Monto Total (ARS)']:,.2f}**")
-                    with c_b:
-                        if st.button("🗑 Borrar", key=f"b_ing_{fila['ID_Ingreso']}_{idx}"):
+    with sub_i:
+        if not df_ingresos.empty:
+            for idx, fila in df_ingresos.copy().iterrows():
+                c_i, c_b = st.columns([6, 1])
+                with c_i: st.write(f"📅 {fila['Fecha']} | Cliente: *{fila['Cliente']}* | **$ {fila['Monto Total (ARS)']:,.2f}**")
+                with c_b:
+                    if st.button("🗑 Borrar", key=f"b_ing_{fila['ID_Ingreso']}_{idx}"):
                             df_ingresos.drop(idx).to_csv("registro_ingresos.csv", index=False)
                             st.rerun()
-        with sub_p:
-            if not df_pagos_empleados.empty:
-                for idx, fila in df_pagos_empleados.copy().iterrows():
-                    c_i, c_b = st.columns([6, 1])
-                    with c_i: st.write(f"📅 {fila['Fecha Pago']} | Operario: *{fila['Nombre Empleado']}* | **$ {fila['Monto (ARS)']:,.2f}**")
-                    with c_b:
-                        if st.button("🗑 Borrar", key=f"b_emp_{fila['ID_Pago']}_{idx}"):
-                            df_pagos_empleados.drop(idx).to_csv("registro_pagos_empleados.csv", index=False)
-                            st.rerun()
-        with sub_s:
-            if not df_seguros.empty:
-                for idx, fila in df_seguros.copy().iterrows():
-                    c_i, c_b = st.columns([6, 1])
-                    with c_i: st.write(f"🛡 {fila['Compañía']} | Bien: *{fila['Bien Asegurado']}* | **$ {fila['Monto Prima (ARS)']:,.2f}**")
-                    with c_b:
-                        if st.button("🗑 Borrar", key=f"b_seg_{fila['ID_Seguro']}_{idx}"):
-                            df_seguros.drop(idx).to_csv("registro_seguros.csv", index=False)
-                            st.rerun()
-                            st.markdown("<br><br>", unsafe_allow_html=True)
+    with sub_p:
+        if not df_pagos_empleados.empty:
+            for idx, fila in df_pagos_empleados.copy().iterrows():
+                c_i, c_b = st.columns([6, 1])
+                with c_i: st.write(f"📅 {fila['Fecha Pago']} | Operario: *{fila['Nombre Empleado']}* | **$ {fila['Monto (ARS)']:,.2f}**")
+                with c_b:
+                    if st.button("🗑 Borrar", key=f"b_emp_{fila['ID_Pago']}_{idx}"):
+                        df_pagos_empleados.drop(idx).to_csv("registro_pagos_empleados.csv", index=False)
+                        st.rerun()
+    with sub_s:
+        if not df_seguros.empty:
+            for idx, fila in df_seguros.copy().iterrows():
+                c_i, c_b = st.columns([6, 1])
+                with c_i: st.write(f"🛡 {fila['Compañía']} | Bien: *{fila['Bien Asegurado']}* | **$ {fila['Monto Prima (ARS)']:,.2f}**")
+                with c_b:
+                    if st.button("🗑 Borrar", key=f"b_seg_{fila['ID_Seguro']}_{idx}"):
+                        df_seguros.drop(idx).to_csv("registro_seguros.csv", index=False)
+                        st.rerun()
+                        st.markdown("<br><br>", unsafe_allow_html=True)
