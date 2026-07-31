@@ -788,18 +788,18 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
 
     st.header("🛡 Control de Pólizas y Seguros")
     with st.form("form_seguros", clear_on_submit=True):
-            s1, s2, s3 = st.columns(3)
-            with s1:
-                seg_comp = st.text_input("Compañía Aseguradora")
-                seg_tipo = st.selectbox("Tipo Cobertura", ["Maquinaria Agrícola", "Granizo / Multiriesgo", "Responsabilidad Civil", "Otros"])
-            with s2:
-                seg_bien = st.text_input("Bien Asegurado")
-                seg_venc = st.date_input("Vencimiento", value=datetime.today())
-            with s3:
-                seg_monto = st.number_input("Monto Cuota ($ ARS)", min_value=0.0)
-                seg_estado = st.radio("Estado:", ["Pagado", "Pendiente"], horizontal=True)
-            btn_seguro = st.form_submit_button("💾 Archivar")
-            if btn_seguro and seg_comp and seg_monto > 0:
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            seg_comp = st.text_input("Compañía Aseguradora")
+            seg_tipo = st.selectbox("Tipo Cobertura", ["Maquinaria Agrícola", "Granizo / Multiriesgo", "Responsabilidad Civil", "Otros"])
+        with s2:
+            seg_bien = st.text_input("Bien Asegurado")
+            seg_venc = st.date_input("Vencimiento", value=datetime.today())
+        with s3:
+            seg_monto = st.number_input("Monto Cuota ($ ARS)", min_value=0.0)
+            seg_estado = st.radio("Estado:", ["Pagado", "Pendiente"], horizontal=True)
+        btn_seguro = st.form_submit_button("💾 Archivar")
+        if btn_seguro and seg_comp and seg_monto > 0:
                 nuevo_seg = {
                     "ID_Seguro": f"seg_{int(datetime.now().timestamp())}", "Compañía": seg_comp.strip(), "Tipo Cobertura": seg_tipo,
                     "Bien Asegurado": seg_bien.strip(), "Vencimiento": seg_venc.strftime("%Y-%m-%d"), "Monto Prima (ARS)": seg_monto, "Estado Pago": seg_estado
