@@ -470,8 +470,8 @@ if menu == "📈 ANALÍTICAS CENTRALES":
 # PESTAÑA: LABORES Y LOTES
 # ----------------------------------------------------
 if menu == "🚜 LABORES Y LOTES":
-        st.header("🚜 Partes Diarios de Labores")
-        with st.form("form_labores"):
+    st.header("🚜 Partes Diarios de Labores")
+    with st.form("form_labores"):
             col_la1, col_la2, col_la3 = st.columns(3)
             with col_la1:
                 fecha_labor = st.date_input("Fecha de Labor", value=datetime.today())
