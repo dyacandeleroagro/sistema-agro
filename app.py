@@ -7,6 +7,7 @@ import psycopg2
 from pages.clientes import pantalla_clientes
 from pages.servicios import pantalla_servicios
 from pages.facturacion import pantalla_facturacion
+from pages.mantenimiento import pantalla_mantenimiento
 from pages.administracion import pantalla_administracion
 from database import get_conn
 
@@ -286,6 +287,9 @@ if tiene_rol("Dueño","Administrador","Contador"):
 
 if tiene_rol("Dueño","Administrador"):
     opciones.append("🛠 SERVICIOS")
+
+if tiene_rol("Dueño","Administrador","Encargado"):
+    opciones.append("🔧 MANTENIMIENTO DE MAQUINARIA")
 
 if tiene_rol("Dueño","Administrador"):
     opciones.append("⚙ ADMINISTRACIÓN")
@@ -819,6 +823,10 @@ if menu == "🧾 FACTURACIÓN":
 if menu == "🛠 SERVICIOS":
 
         pantalla_servicios()
+        
+if menu == "🔧 MANTENIMIENTO DE MAQUINARIA":
+
+    pantalla_mantenimiento()
 
 if menu == "⚙ ADMINISTRACIÓN":
  if rol_actual not in ["Dueño", "Administrador"]:
