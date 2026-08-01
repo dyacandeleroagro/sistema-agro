@@ -498,7 +498,7 @@ if menu == "🚜 LABORES Y LOTES":
         st.divider()
         st.subheader("✏️ Editar parte diario")
 
- if not df_telemetria.empty:
+        if not df_telemetria.empty:
 
     labor = st.selectbox(
         "Seleccionar trabajo",
