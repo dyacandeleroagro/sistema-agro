@@ -552,7 +552,7 @@ if menu == "🚜 LABORES Y LOTES":
 
              c1, c2 = st.columns(2)
 
-             with c1:
+            with c1:
 
             if st.button("💾 Guardar cambios"):
 
@@ -571,10 +571,10 @@ if menu == "🚜 LABORES Y LOTES":
                 index=False
             )
 
-             st.success("✅ Parte diario actualizado")
-             st.rerun()
+            st.success("✅ Parte diario actualizado")
+            st.rerun()
 
-             with c2:
+            with c2:
 
             if st.button("🗑 Eliminar parte diario"):
 
@@ -585,8 +585,8 @@ if menu == "🚜 LABORES Y LOTES":
                 index=False
             )
 
-             st.success("✅ Parte eliminado")
-             st.rerun()
+            st.success("✅ Parte eliminado")
+            st.rerun()
 
 # ----------------------------------------------------
 # PESTAÑA: INGRESOS POR TRABAJOS
