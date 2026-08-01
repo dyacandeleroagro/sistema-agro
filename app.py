@@ -495,8 +495,8 @@ if menu == "🚜 LABORES Y LOTES":
                 st.success("✔ ¡Trabajo guardado!")
                 st.rerun()
             if not df_telemetria.empty: st.dataframe(df_telemetria, use_container_width=True)
-                st.divider()
-                st.subheader("✏️ Editar parte diario")
+            st.divider()
+            st.subheader("✏️ Editar parte diario")
 
             if not df_telemetria.empty:
 
