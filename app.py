@@ -496,7 +496,7 @@ if menu == "🚜 LABORES Y LOTES":
                 st.rerun()
         if not df_telemetria.empty: st.dataframe(df_telemetria, use_container_width=True)
         st.divider()
-st.subheader("✏️ Editar parte diario")
+        st.subheader("✏️ Editar parte diario")
 
 if not df_telemetria.empty:
 
@@ -587,7 +587,7 @@ if not df_telemetria.empty:
 
             st.success("✅ Parte eliminado")
             st.rerun()
-            
+
 # ----------------------------------------------------
 # PESTAÑA: INGRESOS POR TRABAJOS
 # ----------------------------------------------------
