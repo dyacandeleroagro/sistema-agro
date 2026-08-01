@@ -494,74 +494,74 @@ if menu == "🚜 LABORES Y LOTES":
                 df_telemetria.to_csv("registro_telemetria.csv", index=False)
                 st.success("✔ ¡Trabajo guardado!")
                 st.rerun()
-        if not df_telemetria.empty: st.dataframe(df_telemetria, use_container_width=True)
-        st.divider()
-        st.subheader("✏️ Editar parte diario")
+            if not df_telemetria.empty: st.dataframe(df_telemetria, use_container_width=True)
+                st.divider()
+                st.subheader("✏️ Editar parte diario")
 
-    if not df_telemetria.empty:
+            if not df_telemetria.empty:
 
-    labor = st.selectbox(
-        "Seleccionar trabajo",
-        df_telemetria.index,
-        format_func=lambda x: f"{df_telemetria.loc[x,'Fecha']} - {df_telemetria.loc[x,'Lote']}"
-    )
+             labor = st.selectbox(
+             "Seleccionar trabajo",
+             df_telemetria.index,
+             format_func=lambda x: f"{df_telemetria.loc[x,'Fecha']} - {df_telemetria.loc[x,'Lote']}"
+            )
 
-    fila = df_telemetria.loc[labor]
+             fila = df_telemetria.loc[labor]
 
-    fecha_edit = st.date_input(
-        "Fecha",
-        value=pd.to_datetime(fila["Fecha"])
-    )
+             fecha_edit = st.date_input(
+             "Fecha",
+             value=pd.to_datetime(fila["Fecha"])
+            )
 
-    maquina_edit = st.selectbox(
-        "Maquinaria",
-        [
-            "Cosechadora CR 7.90",
-            "Tractor Valtra",
-            "Pulverizadora",
-            "Camión"
-        ],
-        index=[
-            "Cosechadora CR 7.90",
-            "Tractor Valtra",
-            "Pulverizadora",
-            "Camión"
-        ].index(fila["Maquinaria"])
-        if fila["Maquinaria"] in [
-            "Cosechadora CR 7.90",
-            "Tractor Valtra",
-            "Pulverizadora",
-            "Camión"
-        ] else 0
-    )
+             maquina_edit = st.selectbox(
+             "Maquinaria",
+             [
+             "Cosechadora CR 7.90",
+             "Tractor Valtra",
+             "Pulverizadora",
+             "Camión"
+             ],
+             index=[
+             "Cosechadora CR 7.90",
+             "Tractor Valtra",
+             "Pulverizadora",
+             "Camión"
+             ].index(fila["Maquinaria"])
+            if fila["Maquinaria"] in [
+             "Cosechadora CR 7.90",
+             "Tractor Valtra",
+             "Pulverizadora",
+             "Camión"
+             ] else 0
+            )
 
-    lote_edit = st.text_input(
-        "Lote",
-        value=fila["Lote"]
-    )
+             lote_edit = st.text_input(
+             "Lote",
+             value=fila["Lote"]
+            )
 
-    has_edit = st.number_input(
-        "Hectáreas",
-        value=float(fila["Has Trabajadas"])
-    )
+             has_edit = st.number_input(
+             "Hectáreas",
+             value=float(fila["Has Trabajadas"])
+            )
 
-    eficiencia_edit = st.number_input(
-        "Litros por Ha",
-        value=float(fila["Eficiencia (L/Ha)"])
-    )
+             eficiencia_edit = st.number_input(
+             "Litros por Ha",
+             value=float(fila["Eficiencia (L/Ha)"])
+            )
 
-    c1, c2 = st.columns(2)
+             c1, c2 = st.columns(2)
 
-    with c1:
+             with c1:
 
-        if st.button("💾 Guardar cambios"):
+            if st.button("💾 Guardar cambios"):
 
-            df_telemetria.loc[labor, "Fecha"] = fecha_edit.strftime("%Y-%m-%d")
-            df_telemetria.loc[labor, "Maquinaria"] = maquina_edit
-            df_telemetria.loc[labor, "Lote"] = lote_edit
-            df_telemetria.loc[labor, "Has Trabajadas"] = has_edit
-            df_telemetria.loc[labor, "Eficiencia (L/Ha)"] = eficiencia_edit
-            df_telemetria.loc[labor, "Gasoil Consumido (L)"] = round(
+             df_telemetria.loc[labor, "Fecha"] = fecha_edit.strftime("%Y-%m-%d")
+             df_telemetria.loc[labor, "Maquinaria"] = maquina_edit
+             df_telemetria.loc[labor, "Lote"] = lote_edit
+             df_telemetria.loc[labor, "Has Trabajadas"] = has_edit
+             df_telemetria.loc[labor, "Eficiencia (L/Ha)"] = eficiencia_edit
+             df_telemetria.loc[labor, "Gasoil Consumido (L)"] = round(
                 has_edit * eficiencia_edit,
                 2
             )
@@ -571,22 +571,22 @@ if menu == "🚜 LABORES Y LOTES":
                 index=False
             )
 
-            st.success("✅ Parte diario actualizado")
-            st.rerun()
+             st.success("✅ Parte diario actualizado")
+             st.rerun()
 
-    with c2:
+             with c2:
 
-        if st.button("🗑 Eliminar parte diario"):
+            if st.button("🗑 Eliminar parte diario"):
 
-            df_telemetria = df_telemetria.drop(labor)
+             df_telemetria = df_telemetria.drop(labor)
 
-            df_telemetria.to_csv(
+             df_telemetria.to_csv(
                 "registro_telemetria.csv",
                 index=False
             )
 
-            st.success("✅ Parte eliminado")
-            st.rerun()
+             st.success("✅ Parte eliminado")
+             st.rerun()
 
 # ----------------------------------------------------
 # PESTAÑA: INGRESOS POR TRABAJOS
