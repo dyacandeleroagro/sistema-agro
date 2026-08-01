@@ -589,238 +589,298 @@ if menu == "🚜 LABORES Y LOTES":
             st.rerun()
 
 # ----------------------------------------------------
-# PESTAÑA: INGRESOS POR TRABAJOS
+# PESTAÑA: LABORES Y LOTES
 # ----------------------------------------------------
-if menu == "💰 INGRESOS POR TRABAJOS":
-        st.header("💰 Registro de Facturación e Ingresos por Servicios")
-        with st.form("form_ingresos", clear_on_submit=True):
-            i1, i2, i3 = st.columns(3)
-            with i1:
-                i_fecha = st.date_input("Fecha del Trabajo/Cobro", value=datetime.today())
-                i_cliente = st.text_input("Cliente / Productor")
-            with i2:
-                i_servicio = st.selectbox("Tipo de Servicio", ["Cosecha", "Siembra", "Pulverización", "Movimiento de Paja / Rollos", "Otros"])
-                i_lote = st.text_input("Establecimiento / Lote Destino")
-            with i3:
-                i_has = st.number_input("Cantidad de Hectáreas", min_value=0.0, step=1.0)
-                i_monto = st.number_input("Monto Cobrado/Facturado ($ ARS)", min_value=0.0, step=100.0)
-            i_detalle = st.text_input("Notas / Detalles del Pago")
-            btn_ingreso = st.form_submit_button("💾 Registrar Ingreso")
 
-            if btn_ingreso and i_cliente and i_monto > 0:
-                nuevo_id_ing = f"ing_{int(datetime.now().timestamp())}"
-                nuevo_ingreso = {
-                    "ID_Ingreso": nuevo_id_ing, "Fecha": i_fecha.strftime("%Y-%m-%d"), "Cliente": i_cliente.strip(),
-                    "Tipo Servicio": i_servicio, "Lote/Establecimiento": i_lote.strip(), "Hectáreas": i_has,
-                    "Monto Total (ARS)": i_monto, "Detalle": i_detalle
-                }
-                df_ingresos = pd.concat([df_ingresos, pd.DataFrame([nuevo_ingreso])], ignore_index=True)
-                df_ingresos.to_csv("registro_ingresos.csv", index=False)
-                st.success("✔ ¡Ingreso registrado!")
-                st.rerun()
-        if not df_ingresos.empty: st.dataframe(df_ingresos, use_container_width=True)
+if menu == "🚜 LABORES Y LOTES":
 
-# ----------------------------------------------------
-# PESTAÑA: GASTOS COMERCIALES
-# ----------------------------------------------------
-if menu == "🧾 GASTOS COMERCIALES":
-        st.header("🧾 Archivo de Comprobantes Comerciales")
-        with st.form("form_facturas", clear_on_submit=True):
-            f1, f2, f3 = st.columns(3)
-            with f1:
-                proveedor = st.text_input("Proveedor / Taller / Repuestera")
-                categoria = st.selectbox("Categoría de Compra", ["Repuestos y Talleres", "Combustibles", "Semillas", "Agroquímicos / Fertilizantes", "Gastos Generales"])
-                lote_asignado = st.text_input("Lote o Campo Destino")
-            with f2:
-                monto_orig = st.number_input("Monto del Comprobante", min_value=0.0)
-                moneda = st.radio("Moneda", ["Pesos ($ ARS)", "Dólares (USD)"], horizontal=True)
-                estado_pago = st.radio("Condición Inicial de la Factura:", ["Pagado", "Pendiente de Pago"], horizontal=True)
-            with f3:
-                archivo_adjunto = st.file_uploader("Subir Factura/Remito digital", type=["pdf", "png", "jpg", "jpeg"])
-                st.markdown("<br><br>", unsafe_allow_html=True)
-                btn_fac = st.form_submit_button("💾 Registrar Gasto")
+    st.header("🚜 Partes Diarios de Labores")
 
-            if btn_fac and proveedor and monto_orig > 0:
-                simbolo = "USD" if "Dólares" in moneda else "ARS"
-                monto_ars = monto_orig * TIPO_CAMBIO_OFICIAL if simbolo == "USD" else monto_orig
 
-                nombre_archivo_guardado = "N/A"
-                if archivo_adjunto is not None:
-                    nombre_archivo_guardado = f"{int(datetime.now().timestamp())}_{archivo_adjunto.name}"
-                    with open(os.path.join("comprobantes", nombre_archivo_guardado), "wb") as f:
-                        f.write(archivo_adjunto.getbuffer())
+    # ===============================
+    # NUEVO PARTE DIARIO
+    # ===============================
 
-                nuevo_id = str(int(datetime.now().timestamp()))
-                nueva_fac = {
-                    "ID": nuevo_id, "Fecha Registro": datetime.now().strftime("%Y-%m-%d %H:%M"), "Proveedor": proveedor, "Monto Original": f"{simbolo} {monto_orig:,.2f}",
-                    "Moneda": simbolo, "Monto (ARS)": monto_ars, "Categoría": categoria, "Lote Asignado": lote_asignado, "Estado Pago": estado_pago, "Archivo Comprobante": nombre_archivo_guardado
-                }
-                df_facturas = pd.concat([df_facturas, pd.DataFrame([nueva_fac])], ignore_index=True)
-                df_facturas.to_csv("datos_facturas.csv", index=False)
-                st.success("✔ ¡Gasto comercial registrado!")
-                st.rerun()
-        if not df_facturas.empty: 
-            st.dataframe(df_facturas, use_container_width=True)
-            st.divider()
-            st.subheader("✏️ Editar gasto comercial")
+    with st.form("form_labores"):
 
-        if not df_facturas.empty:
+        col_la1, col_la2, col_la3 = st.columns(3)
 
-            gasto_sel = st.selectbox(
-                "Seleccionar gasto",
-                df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"],
-                key="seleccionar_gasto"
+        with col_la1:
+
+            fecha_labor = st.date_input(
+                "Fecha de Labor",
+                value=datetime.today()
             )
 
-            fila = df_facturas[
-                (df_facturas["ID"].astype(str) + " - " + df_facturas["Proveedor"]) == gasto_sel
-            ].iloc[0]
-
-            indice = fila.name
-
-            proveedor_edit = st.text_input(
-                "Proveedor",
-                value=fila["Proveedor"],
-                key="editar_proveedor"
+            lote_labor = st.text_input(
+                "Nombre del Campo / Lote"
             )
 
-            categorias = [
-                "Repuestos y Talleres",
-                "Combustibles",
-                "Semillas",
-                "Agroquímicos / Fertilizantes",
-                "Gastos Generales"
-            ]
 
-            categoria_actual = (
-                fila["Categoría"]
-                if fila["Categoría"] in categorias
-                else categorias[0]
+        with col_la2:
+
+            maquina_labor = st.selectbox(
+                "Maquinaria Activa",
+                [
+                    "Cosechadora CR 7.90",
+                    "Tractor Valtra",
+                    "Pulverizadora",
+                    "Camión"
+                ]
             )
 
-            categoria_edit = st.selectbox(
-                "Categoría",
-                categorias,
-                index=categorias.index(categoria_actual),
-                key="editar_categoria"
+            has_labor = st.number_input(
+                "Hectáreas Trabajadas",
+                min_value=0.0,
+                step=1.0
             )
 
-            lote_edit = st.text_input(
-                "Lote",
-                value=fila["Lote Asignado"],
-                key="editar_lote"
+
+        with col_la3:
+
+            eficiencia_labor = st.number_input(
+                "Consumo Gasoil (Litros por Ha)",
+                min_value=0.0,
+                step=0.1
             )
 
-            monto_edit = st.number_input(
-                "Monto",
-                value=float(fila["Monto (ARS)"]),
-                key="editar_monto"
+
+        btn_lab = st.form_submit_button(
+            "💾 Guardar Trabajo"
+        )
+
+
+    if btn_lab and lote_labor and has_labor > 0:
+
+        litros_totales = round(
+            has_labor * eficiencia_labor,
+            2
+        )
+
+
+        nueva_labor = {
+
+            "Fecha": fecha_labor.strftime("%Y-%m-%d"),
+
+            "Maquinaria": maquina_labor,
+
+            "Lote": lote_labor.strip(),
+
+            "Has Trabajadas": has_labor,
+
+            "Gasoil Consumido (L)": litros_totales,
+
+            "Eficiencia (L/Ha)": round(
+                eficiencia_labor,
+                2
             )
+        }
 
-            estado_edit = st.selectbox(
-                "Estado",
-                ["Pagado", "Pendiente de Pago"],
-                index=0 if fila["Estado Pago"] == "Pagado" else 1,
-                key="editar_estado"
+
+        df_telemetria = pd.concat(
+            [
+                df_telemetria,
+                pd.DataFrame([nueva_labor])
+            ],
+            ignore_index=True
+        )
+
+
+        df_telemetria.to_csv(
+            "registro_telemetria.csv",
+            index=False
+        )
+
+
+        st.success(
+            "✅ Parte diario guardado"
+        )
+
+        st.rerun()
+
+
+
+    # ===============================
+    # LISTADO
+    # ===============================
+
+
+    st.divider()
+
+    st.subheader(
+        "📋 Partes diarios registrados"
+    )
+
+
+    if not df_telemetria.empty:
+
+        st.dataframe(
+            df_telemetria,
+            use_container_width=True
+        )
+
+
+    else:
+
+        st.info(
+            "No hay partes diarios cargados"
+        )
+
+
+
+    # ===============================
+    # EDITAR PARTE DIARIO
+    # ===============================
+
+
+    st.divider()
+
+    st.subheader(
+        "✏️ Editar parte diario"
+    )
+
+
+    if not df_telemetria.empty:
+
+
+        labor = st.selectbox(
+            "Seleccionar trabajo",
+            df_telemetria.index,
+            format_func=lambda x:
+                f"{df_telemetria.loc[x,'Fecha']} - {df_telemetria.loc[x,'Lote']}"
+        )
+
+
+        fila = df_telemetria.loc[labor]
+
+
+        fecha_edit = st.date_input(
+            "Fecha",
+            value=pd.to_datetime(
+                fila["Fecha"]
             )
-
-            comprobante_actual = str(
-                fila["Archivo Comprobante"]
-            ).strip()
+        )
 
 
-            if pd.isna(comprobante_actual) or comprobante_actual == "":
-                comprobante_actual = "N/A"
+        maquinas = [
+            "Cosechadora CR 7.90",
+            "Tractor Valtra",
+            "Pulverizadora",
+            "Camión"
+        ]
 
 
-            st.write("### 📎 Comprobantes")
+        maquina_edit = st.selectbox(
+            "Maquinaria",
+            maquinas,
+            index=(
+                maquinas.index(fila["Maquinaria"])
+                if fila["Maquinaria"] in maquinas
+                else 0
+            )
+        )
 
 
-            if comprobante_actual != "N/A":
+        lote_edit = st.text_input(
+            "Lote",
+            value=fila["Lote"]
+        )
 
-                ruta = os.path.join(
-                    "comprobantes",
-                    comprobante_actual
+
+        has_edit = st.number_input(
+            "Hectáreas",
+            value=float(
+                fila["Has Trabajadas"]
+            )
+        )
+
+
+        eficiencia_edit = st.number_input(
+            "Litros por Ha",
+            value=float(
+                fila["Eficiencia (L/Ha)"]
+            )
+        )
+
+
+        c1, c2 = st.columns(2)
+
+
+
+        with c1:
+
+
+            if st.button(
+                "💾 Guardar cambios",
+                key="guardar_parte"
+            ):
+
+
+                df_telemetria.loc[labor,"Fecha"] = (
+                    fecha_edit.strftime("%Y-%m-%d")
                 )
 
-                if os.path.exists(ruta):
-                    with open(ruta, "rb") as archivo:
-                        st.download_button(
-                            "📄 Ver / Descargar comprobante actual",
-                            archivo,
-                            file_name=comprobante_actual,
-                            key="descargar_comprobante"
-                        )
+                df_telemetria.loc[labor,"Maquinaria"] = (
+                    maquina_edit
+                )
+
+                df_telemetria.loc[labor,"Lote"] = (
+                    lote_edit
+                )
+
+                df_telemetria.loc[labor,"Has Trabajadas"] = (
+                    has_edit
+                )
+
+                df_telemetria.loc[labor,"Eficiencia (L/Ha)"] = (
+                    eficiencia_edit
+                )
+
+                df_telemetria.loc[labor,"Gasoil Consumido (L)"] = round(
+                    has_edit * eficiencia_edit,
+                    2
+                )
 
 
-            nuevo_pdf = st.file_uploader(
-                "Agregar otro comprobante",
-                type=["pdf", "png", "jpg", "jpeg"],
-                key="nuevo_pdf"
-            )
+                df_telemetria.to_csv(
+                    "registro_telemetria.csv",
+                    index=False
+                )
 
 
-            c1, c2 = st.columns(2)
+                st.success(
+                    "✅ Parte actualizado"
+                )
+
+                st.rerun()
 
 
-            with c1:
 
-                if st.button(
-                    "💾 Guardar cambios",
-                    key="guardar_gasto"
-                ):
-
-                    df_facturas.loc[indice, "Proveedor"] = proveedor_edit
-                    df_facturas.loc[indice, "Categoría"] = categoria_edit
-                    df_facturas.loc[indice, "Lote Asignado"] = lote_edit
-                    df_facturas.loc[indice, "Monto (ARS)"] = monto_edit
-                    df_facturas.loc[indice, "Estado Pago"] = estado_edit
+        with c2:
 
 
-                    if nuevo_pdf is not None:
-
-                        nombre = f"{int(datetime.now().timestamp())}_{nuevo_pdf.name}"
-
-                        with open(
-                            os.path.join("comprobantes", nombre),
-                            "wb"
-                        ) as f:
-                            f.write(nuevo_pdf.getbuffer())
+            if st.button(
+                "🗑 Eliminar parte diario",
+                key="eliminar_parte"
+            ):
 
 
-                        if comprobante_actual != "N/A":
-                            df_facturas.loc[indice, "Archivo Comprobante"] = (
-                                comprobante_actual + ";" + nombre
-                            )
-                        else:
-                            df_facturas.loc[indice, "Archivo Comprobante"] = nombre
+                df_telemetria = df_telemetria.drop(
+                    labor
+                )
 
 
-                    df_facturas.to_csv(
-                        "datos_facturas.csv",
-                        index=False
-                    )
-
-                    st.success("✅ Gasto actualizado")
-                    st.rerun()
+                df_telemetria.to_csv(
+                    "registro_telemetria.csv",
+                    index=False
+                )
 
 
-            with c2:
+                st.success(
+                    "✅ Parte eliminado"
+                )
 
-                if st.button(
-                    "🗑 Eliminar gasto",
-                    key="eliminar_gasto"
-                ):
-
-                    df_facturas = df_facturas.drop(indice)
-
-                    df_facturas.to_csv(
-                        "datos_facturas.csv",
-                        index=False
-                    )
-
-                    st.success("✅ Gasto eliminado")
-                    st.rerun()
+                st.rerun()
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
