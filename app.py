@@ -596,11 +596,6 @@ if menu == "🚜 LABORES Y LOTES":
 
     st.header("🚜 Partes Diarios de Labores")
 
-
-    # ===============================
-    # NUEVO PARTE DIARIO
-    # ===============================
-
     with st.form("form_labores"):
 
         col_la1, col_la2, col_la3 = st.columns(3)
@@ -615,7 +610,6 @@ if menu == "🚜 LABORES Y LOTES":
             lote_labor = st.text_input(
                 "Nombre del Campo / Lote"
             )
-
 
         with col_la2:
 
@@ -635,7 +629,6 @@ if menu == "🚜 LABORES Y LOTES":
                 step=1.0
             )
 
-
         with col_la3:
 
             eficiencia_labor = st.number_input(
@@ -644,10 +637,9 @@ if menu == "🚜 LABORES Y LOTES":
                 step=0.1
             )
 
-
-        btn_lab = st.form_submit_button(
-            "💾 Guardar Trabajo"
-        )
+            btn_lab = st.form_submit_button(
+                "💾 Guardar Trabajo"
+            )
 
 
     if btn_lab and lote_labor and has_labor > 0:
@@ -656,7 +648,6 @@ if menu == "🚜 LABORES Y LOTES":
             has_labor * eficiencia_labor,
             2
         )
-
 
         nueva_labor = {
 
@@ -693,19 +684,15 @@ if menu == "🚜 LABORES Y LOTES":
 
 
         st.success(
-            "✅ Parte diario guardado"
+            "✅ Trabajo guardado correctamente"
         )
 
         st.rerun()
 
 
 
-    # ===============================
-    # LISTADO
-    # ===============================
-
-
     st.divider()
+
 
     st.subheader(
         "📋 Partes diarios registrados"
@@ -720,34 +707,23 @@ if menu == "🚜 LABORES Y LOTES":
         )
 
 
-    else:
+        st.divider()
 
-        st.info(
-            "No hay partes diarios cargados"
+
+        st.subheader(
+            "✏️ Editar o eliminar parte diario"
         )
 
 
-
-    # ===============================
-    # EDITAR PARTE DIARIO
-    # ===============================
-
-
-    st.divider()
-
-    st.subheader(
-        "✏️ Editar parte diario"
-    )
-
-
-    if not df_telemetria.empty:
-
-
         labor = st.selectbox(
+
             "Seleccionar trabajo",
+
             df_telemetria.index,
+
             format_func=lambda x:
                 f"{df_telemetria.loc[x,'Fecha']} - {df_telemetria.loc[x,'Lote']}"
+
         )
 
 
@@ -755,88 +731,121 @@ if menu == "🚜 LABORES Y LOTES":
 
 
         fecha_edit = st.date_input(
+
             "Fecha",
+
             value=pd.to_datetime(
                 fila["Fecha"]
             )
+
         )
 
 
         maquinas = [
+
             "Cosechadora CR 7.90",
+
             "Tractor Valtra",
+
             "Pulverizadora",
+
             "Camión"
+
         ]
 
 
         maquina_edit = st.selectbox(
+
             "Maquinaria",
+
             maquinas,
-            index=(
-                maquinas.index(fila["Maquinaria"])
-                if fila["Maquinaria"] in maquinas
-                else 0
+
+            index=maquinas.index(
+                fila["Maquinaria"]
             )
+            if fila["Maquinaria"] in maquinas
+            else 0
+
         )
 
 
         lote_edit = st.text_input(
+
             "Lote",
+
             value=fila["Lote"]
+
         )
 
 
         has_edit = st.number_input(
+
             "Hectáreas",
+
             value=float(
                 fila["Has Trabajadas"]
             )
+
         )
 
 
         eficiencia_edit = st.number_input(
+
             "Litros por Ha",
+
             value=float(
                 fila["Eficiencia (L/Ha)"]
             )
+
         )
 
 
-        c1, c2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
 
-
-        with c1:
+        with col1:
 
 
             if st.button(
                 "💾 Guardar cambios",
-                key="guardar_parte"
+                key="guardar_parte_diario"
             ):
 
 
-                df_telemetria.loc[labor,"Fecha"] = (
-                    fecha_edit.strftime("%Y-%m-%d")
-                )
+                df_telemetria.loc[
+                    labor,
+                    "Fecha"
+                ] = fecha_edit.strftime("%Y-%m-%d")
 
-                df_telemetria.loc[labor,"Maquinaria"] = (
-                    maquina_edit
-                )
 
-                df_telemetria.loc[labor,"Lote"] = (
-                    lote_edit
-                )
+                df_telemetria.loc[
+                    labor,
+                    "Maquinaria"
+                ] = maquina_edit
 
-                df_telemetria.loc[labor,"Has Trabajadas"] = (
-                    has_edit
-                )
 
-                df_telemetria.loc[labor,"Eficiencia (L/Ha)"] = (
-                    eficiencia_edit
-                )
+                df_telemetria.loc[
+                    labor,
+                    "Lote"
+                ] = lote_edit
 
-                df_telemetria.loc[labor,"Gasoil Consumido (L)"] = round(
+
+                df_telemetria.loc[
+                    labor,
+                    "Has Trabajadas"
+                ] = has_edit
+
+
+                df_telemetria.loc[
+                    labor,
+                    "Eficiencia (L/Ha)"
+                ] = eficiencia_edit
+
+
+                df_telemetria.loc[
+                    labor,
+                    "Gasoil Consumido (L)"
+                ] = round(
                     has_edit * eficiencia_edit,
                     2
                 )
@@ -849,19 +858,19 @@ if menu == "🚜 LABORES Y LOTES":
 
 
                 st.success(
-                    "✅ Parte actualizado"
+                    "✅ Parte diario actualizado"
                 )
 
                 st.rerun()
 
 
 
-        with c2:
+        with col2:
 
 
             if st.button(
                 "🗑 Eliminar parte diario",
-                key="eliminar_parte"
+                key="eliminar_parte_diario"
             ):
 
 
@@ -877,10 +886,17 @@ if menu == "🚜 LABORES Y LOTES":
 
 
                 st.success(
-                    "✅ Parte eliminado"
+                    "✅ Parte diario eliminado"
                 )
 
                 st.rerun()
+
+
+    else:
+
+        st.info(
+            "Todavía no hay partes diarios cargados"
+        )
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
