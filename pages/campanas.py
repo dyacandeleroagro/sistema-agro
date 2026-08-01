@@ -132,7 +132,7 @@ def pantalla_campanas():
         st.info(
             "Todavía no hay campañas cargadas"
         )
-        
+
 st.divider()
 
 if not df.empty:
@@ -171,5 +171,98 @@ if not df.empty:
             "🚜 Lotes",
             datos["lotes"] if datos["lotes"] else "-"
         )
+        st.divider()
+
+st.subheader("✏️ Editar campaña")
+
+if not df.empty:
+
+    campana_editar = st.selectbox(
+        "Campaña a editar",
+        df["nombre"],
+        key="editar_campana"
+    )
+
+    fila = df[df["nombre"] == campana_editar].iloc[0]
+
+    nombre_edit = st.text_input(
+        "Nombre",
+        value=fila["nombre"]
+    )
+
+    cultivo_edit = st.selectbox(
+        "Cultivo",
+        ["Soja","Maíz","Trigo","Otro"],
+        index=["Soja","Maíz","Trigo","Otro"].index(fila["cultivo"])
+        if fila["cultivo"] in ["Soja","Maíz","Trigo","Otro"]
+        else 0
+    )
+
+    hectareas_edit = st.number_input(
+        "Hectáreas",
+        value=float(fila["hectareas"])
+    )
+
+    lotes_edit = st.text_input(
+        "Lotes",
+        value=fila["lotes"]
+    )
+
+    estado_edit = st.selectbox(
+        "Estado",
+        ["Planificada","En curso","Finalizada"],
+        index=["Planificada","En curso","Finalizada"].index(fila["estado"])
+    )
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        if st.button("💾 Guardar cambios"):
+
+            cur = conn.cursor()
+
+            cur.execute("""
+                UPDATE campanas
+                SET nombre=%s,
+                    cultivo=%s,
+                    hectareas=%s,
+                    lotes=%s,
+                    estado=%s
+                WHERE id=%s
+            """,
+            (
+                nombre_edit,
+                cultivo_edit,
+                hectareas_edit,
+                lotes_edit,
+                estado_edit,
+                int(fila["id"])
+            ))
+
+            conn.commit()
+            cur.close()
+
+            st.success("✅ Campaña actualizada")
+
+            st.rerun()
+
+    with c2:
+
+        if st.button("🗑 Eliminar campaña"):
+
+            cur = conn.cursor()
+
+            cur.execute(
+                "DELETE FROM campanas WHERE id=%s",
+                (int(fila["id"]),)
+            )
+
+            conn.commit()
+            cur.close()
+
+            st.success("✅ Campaña eliminada")
+
+            st.rerun()
 
     conn.close()
