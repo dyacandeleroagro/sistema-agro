@@ -11,6 +11,7 @@ from pages.agenda import pantalla_agenda
 from pages.facturacion import pantalla_facturacion
 from pages.mantenimiento import pantalla_mantenimiento
 from pages.administracion import pantalla_administracion
+from pages.panel_dueno import pantalla_panel_dueno
 from database import get_conn
 
 def check_password(usuario, password):
@@ -307,6 +308,14 @@ if tiene_rol("Dueño","Administrador"):
 
 if tiene_rol("Dueño"):
     opciones.append("🗄 CONTROL DE ERRORES")
+
+if menu == "👑 PANEL DEL DUEÑO":
+
+    if rol_actual != "Dueño":
+        st.error("Solo acceso del dueño")
+        st.stop()
+
+    pantalla_panel_dueno()
 
 menu = st.sidebar.radio(
     "📂 Menú",
