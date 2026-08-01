@@ -132,6 +132,44 @@ def pantalla_campanas():
         st.info(
             "Todavía no hay campañas cargadas"
         )
+        
+st.divider()
 
+if not df.empty:
+
+    st.subheader("📊 Resumen de la campaña")
+
+    campana = st.selectbox(
+        "Seleccionar campaña",
+        df["nombre"]
+    )
+
+    datos = df[df["nombre"] == campana].iloc[0]
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.metric(
+            "🌱 Cultivo",
+            datos["cultivo"]
+        )
+
+    with c2:
+        st.metric(
+            "🌾 Hectáreas",
+            f"{datos['hectareas']}"
+        )
+
+    with c3:
+        st.metric(
+            "📍 Estado",
+            datos["estado"]
+        )
+
+    with c4:
+        st.metric(
+            "🚜 Lotes",
+            datos["lotes"] if datos["lotes"] else "-"
+        )
 
     conn.close()
