@@ -495,6 +495,97 @@ if menu == "🚜 LABORES Y LOTES":
                 st.success("✔ ¡Trabajo guardado!")
                 st.rerun()
         if not df_telemetria.empty: st.dataframe(df_telemetria, use_container_width=True)
+        st.divider()
+
+st.subheader("✏️ Editar trabajo")
+
+if not df_telemetria.empty:
+
+    trabajo = st.selectbox(
+        "Seleccionar trabajo",
+        df_telemetria.index,
+        format_func=lambda x:
+            f"{df_telemetria.loc[x,'Fecha']} - {df_telemetria.loc[x,'Lote']}",
+        key="editar_labor"
+    )
+
+    fila = df_telemetria.loc[trabajo]
+
+    fecha_edit = st.date_input(
+        "Fecha",
+        value=pd.to_datetime(fila["Fecha"])
+    )
+
+    maquina_edit = st.selectbox(
+        "Maquinaria",
+        [
+            "Cosechadora CR 7.90",
+            "Tractor Valtra",
+            "Pulverizadora",
+            "Camión"
+        ],
+        index=[
+            "Cosechadora CR 7.90",
+            "Tractor Valtra",
+            "Pulverizadora",
+            "Camión"
+        ].index(fila["Maquinaria"])
+    )
+
+    lote_edit = st.text_input(
+        "Lote",
+        value=fila["Lote"]
+    )
+
+    has_edit = st.number_input(
+        "Hectáreas",
+        value=float(fila["Has Trabajadas"])
+    )
+
+    eficiencia_edit = st.number_input(
+        "Litros por Ha",
+        value=float(fila["Eficiencia (L/Ha)"])
+    )
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+
+        if st.button("💾 Guardar cambios"):
+
+            litros = round(
+                has_edit * eficiencia_edit,
+                1
+            )
+
+            df_telemetria.loc[trabajo, "Fecha"] = fecha_edit.strftime("%Y-%m-%d")
+            df_telemetria.loc[trabajo, "Maquinaria"] = maquina_edit
+            df_telemetria.loc[trabajo, "Lote"] = lote_edit
+            df_telemetria.loc[trabajo, "Has Trabajadas"] = has_edit
+            df_telemetria.loc[trabajo, "Gasoil Consumido (L)"] = litros
+            df_telemetria.loc[trabajo, "Eficiencia (L/Ha)"] = eficiencia_edit
+
+            df_telemetria.to_csv(
+                "registro_telemetria.csv",
+                index=False
+            )
+
+            st.success("✅ Trabajo actualizado")
+            st.rerun()
+
+    with c2:
+
+        if st.button("🗑 Eliminar trabajo"):
+
+            df_telemetria = df_telemetria.drop(trabajo)
+
+            df_telemetria.to_csv(
+                "registro_telemetria.csv",
+                index=False
+            )
+
+            st.success("✅ Trabajo eliminado")
+            st.rerun()
 
 # ----------------------------------------------------
 # PESTAÑA: INGRESOS POR TRABAJOS
