@@ -552,7 +552,7 @@ if menu == "🚜 LABORES Y LOTES":
 
              c1, c2 = st.columns(2)
 
-            with c1:
+        with c1:
 
             if st.button("💾 Guardar cambios"):
 
@@ -574,7 +574,7 @@ if menu == "🚜 LABORES Y LOTES":
             st.success("✅ Parte diario actualizado")
             st.rerun()
 
-            with c2:
+        with c2:
 
             if st.button("🗑 Eliminar parte diario"):
 
