@@ -309,13 +309,8 @@ if tiene_rol("Dueño","Administrador"):
 if tiene_rol("Dueño"):
     opciones.append("🗄 CONTROL DE ERRORES")
 
-if menu == "👑 PANEL DEL DUEÑO":
-
-    if rol_actual != "Dueño":
-        st.error("Solo acceso del dueño")
-        st.stop()
-
-    pantalla_panel_dueno()
+if tiene_rol("Dueño"):
+    opciones.append("👑 PANEL DEL DUEÑO")
 
 menu = st.sidebar.radio(
     "📂 Menú",
@@ -859,6 +854,14 @@ if menu == "⚙ ADMINISTRACIÓN":
     st.stop()
 
  pantalla_administracion()
+
+if menu == "👑 PANEL DEL DUEÑO":
+
+    if rol_actual != "Dueño":
+        st.error("Solo acceso del dueño")
+        st.stop()
+
+    pantalla_panel_dueno()
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
