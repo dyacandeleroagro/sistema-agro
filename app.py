@@ -6,6 +6,7 @@ import psycopg2
 
 from pages.clientes import pantalla_clientes
 from pages.servicios import pantalla_servicios
+from pages.campanas import pantalla_campanas
 from pages.combustible import pantalla_combustible
 from pages.agenda import pantalla_agenda
 from pages.facturacion import pantalla_facturacion
@@ -290,6 +291,9 @@ if tiene_rol("Dueño","Administrador","Contador"):
 
 if tiene_rol("Dueño","Administrador"):
     opciones.append("🛠 SERVICIOS")
+
+if tiene_rol("Dueño","Administrador","Encargado"):
+    opciones.append("🌱 CAMPAÑAS AGRÍCOLAS")
 
 if tiene_rol("Dueño","Administrador","Encargado"):
     opciones.append("🔧 MANTENIMIENTO DE MAQUINARIA")
@@ -835,6 +839,9 @@ if menu == "🧾 FACTURACIÓN":
 if menu == "🛠 SERVICIOS":
 
         pantalla_servicios()
+
+if menu == "🌱 CAMPAÑAS AGRÍCOLAS":
+    pantalla_campanas()
 
 if menu == "🔧 MANTENIMIENTO DE MAQUINARIA":
 
