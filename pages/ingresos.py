@@ -1,6 +1,6 @@
-import os
 import streamlit as st
 import pandas as pd
+import os
 from datetime import datetime
 
 
@@ -12,20 +12,15 @@ def pantalla_ingresos():
     st.header("💰 Ingresos por Trabajos")
 
 
-    # ==========================
-    # CREAR CSV SI NO EXISTE
-    # ==========================
-
     if not os.path.exists(ARCHIVO):
-
         pd.DataFrame(columns=[
             "ID",
             "Fecha",
             "Cliente",
-            "Tipo Servicio",
-            "Lote/Establecimiento",
+            "Servicio",
+            "Lote",
             "Hectáreas",
-            "Monto Total (ARS)",
+            "Monto",
             "Detalle"
         ]).to_csv(
             ARCHIVO,
@@ -36,50 +31,23 @@ def pantalla_ingresos():
     df = pd.read_csv(ARCHIVO)
 
 
-    # ==========================
-    # NUEVO INGRESO
-    # ==========================
-
     st.subheader("➕ Nuevo ingreso")
 
 
-    with st.form("form_ingreso"):
+    with st.form("nuevo_ingreso"):
 
-        col1, col2 = st.columns(2)
+        cliente = st.text_input("Cliente")
+        servicio = st.text_input("Servicio")
+        lote = st.text_input("Lote / Campo")
+        hectareas = st.number_input(
+            "Hectáreas",
+            min_value=0.0
+        )
 
-
-        with col1:
-
-            fecha = st.date_input(
-                "Fecha",
-                datetime.today()
-            )
-
-            cliente = st.text_input(
-                "Cliente"
-            )
-
-            servicio = st.text_input(
-                "Servicio realizado"
-            )
-
-
-        with col2:
-
-            lote = st.text_input(
-                "Campo / Establecimiento"
-            )
-
-            hectareas = st.number_input(
-                "Hectáreas trabajadas",
-                min_value=0.0
-            )
-
-            monto = st.number_input(
-                "Monto cobrado ($)",
-                min_value=0.0
-            )
-
+        monto = st.number_input(
+            "Monto",
+            min_value=0.0
+        )
 
         detalle = st.text_area(
             "Detalle"
@@ -87,74 +55,49 @@ def pantalla_ingresos():
 
 
         guardar = st.form_submit_button(
-            "💾 Guardar ingreso"
+            "💾 Guardar"
         )
 
 
     if guardar:
 
-        if cliente and monto > 0:
+        nuevo = {
+            "ID": int(datetime.now().timestamp()),
+            "Fecha": datetime.today().strftime("%Y-%m-%d"),
+            "Cliente": cliente,
+            "Servicio": servicio,
+            "Lote": lote,
+            "Hectáreas": hectareas,
+            "Monto": monto,
+            "Detalle": detalle
+        }
 
 
-            nuevo_ingreso = {
-
-                "ID": int(datetime.now().timestamp()),
-
-                "Fecha": fecha.strftime("%Y-%m-%d"),
-
-                "Cliente": cliente,
-
-                "Tipo Servicio": servicio,
-
-                "Lote/Establecimiento": lote,
-
-                "Hectáreas": hectareas,
-
-                "Monto Total (ARS)": monto,
-
-                "Detalle": detalle
-            }
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame([nuevo])
+            ],
+            ignore_index=True
+        )
 
 
-            df = pd.concat(
-                [
-                    df,
-                    pd.DataFrame([nuevo_ingreso])
-                ],
-                ignore_index=True
-            )
+        df.to_csv(
+            ARCHIVO,
+            index=False
+        )
 
 
-            df.to_csv(
-                ARCHIVO,
-                index=False
-            )
+        st.success(
+            "Ingreso guardado"
+        )
 
-
-            st.success(
-                "✅ Ingreso guardado correctamente"
-            )
-
-            st.rerun()
-
-
-        else:
-
-            st.warning(
-                "Complete cliente y monto"
-            )
+        st.rerun()
 
 
     st.divider()
 
-
-    # ==========================
-    # LISTADO
-    # ==========================
-
-    st.subheader(
-        "📋 Ingresos registrados"
-    )
+    st.subheader("📋 Ingresos registrados")
 
 
     if not df.empty:
