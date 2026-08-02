@@ -776,6 +776,111 @@ if menu == "🚜 LABORES Y LOTES":
             "Todavía no hay partes diarios cargados"
         )
 # ----------------------------------------------------
+# PESTAÑA: INGRESOS POR TRABAJOS
+# ----------------------------------------------------
+if menu == "💰 INGRESOS POR TRABAJOS":
+
+    st.header("💰 Ingresos por Trabajos")
+
+    with st.form("form_ingresos"):
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            fecha = st.date_input(
+                "Fecha",
+                value=datetime.today()
+            )
+
+            cliente = st.text_input(
+                "Cliente"
+            )
+
+            servicio = st.text_input(
+                "Servicio realizado"
+            )
+
+            lote = st.text_input(
+                "Lote / Establecimiento"
+            )
+
+        with c2:
+
+            hectareas = st.number_input(
+                "Hectáreas",
+                min_value=0.0,
+                step=1.0
+            )
+
+            monto = st.number_input(
+                "Monto ($)",
+                min_value=0.0,
+                step=1000.0
+            )
+
+            detalle = st.text_area(
+                "Detalle"
+            )
+
+        guardar = st.form_submit_button(
+            "💾 Guardar ingreso"
+        )
+
+    if guardar:
+
+        nuevo = {
+
+            "ID_Ingreso": str(int(datetime.now().timestamp())),
+
+            "Fecha": fecha.strftime("%Y-%m-%d"),
+
+            "Cliente": cliente,
+
+            "Tipo Servicio": servicio,
+
+            "Lote/Establecimiento": lote,
+
+            "Hectáreas": hectareas,
+
+            "Monto Total (ARS)": monto,
+
+            "Detalle": detalle
+
+        }
+
+        df_ingresos = pd.concat(
+            [
+                df_ingresos,
+                pd.DataFrame([nuevo])
+            ],
+            ignore_index=True
+        )
+
+        df_ingresos.to_csv(
+            "registro_ingresos.csv",
+            index=False
+        )
+
+        st.success("Ingreso guardado correctamente")
+
+        st.rerun()
+
+    st.divider()
+
+    st.subheader("📋 Historial de ingresos")
+
+    if not df_ingresos.empty:
+
+        st.dataframe(
+            df_ingresos,
+            use_container_width=True
+        )
+
+    else:
+
+        st.info("Todavía no hay ingresos cargados.")
+# ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
 if menu == "🔍 CUENTAS PENDIENTES":
