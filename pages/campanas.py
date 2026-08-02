@@ -133,9 +133,9 @@ def pantalla_campanas():
             "Todavía no hay campañas cargadas"
         )
 
-st.divider()
+    st.divider()
 
-if not df.empty:
+    if not df.empty:
 
     st.subheader("📊 Resumen de la campaña")
 
@@ -173,9 +173,9 @@ if not df.empty:
         )
         st.divider()
 
-st.subheader("✏️ Editar campaña")
+    st.subheader("✏️ Editar campaña")
 
-if not df.empty:
+    if not df.empty:
 
     campana_editar = st.selectbox(
         "Campaña a editar",
