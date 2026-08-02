@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -72,53 +73,55 @@ def pantalla_ingresos():
 
         if guardar:
 
-            if cliente and monto > 0:
+    if cliente and monto > 0:
 
-                cur = conn.cursor()
+        nuevo_ingreso = {
 
+            "ID": int(datetime.now().timestamp()),
 
-                cur.execute("""
-                    INSERT INTO ingresos
-                    (
-                    fecha,
-                    cliente,
-                    servicio,
-                    lote,
-                    hectareas,
-                    monto,
-                    detalle
-                    )
+            "Fecha": fecha.strftime("%Y-%m-%d"),
 
-                    VALUES
-                    (%s,%s,%s,%s,%s,%s,%s)
+            "Cliente": cliente,
 
-                """,
-                (
-                    fecha,
-                    cliente,
-                    servicio,
-                    lote,
-                    hectareas,
-                    monto,
-                    detalle
-                ))
+            "Tipo Servicio": servicio,
+
+            "Lote/Establecimiento": lote,
+
+            "Hectáreas": hectareas,
+
+            "Monto Total (ARS)": monto,
+
+            "Detalle": detalle
+        }
 
 
-                conn.commit()
-                cur.close()
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame([nuevo_ingreso])
+            ],
+            ignore_index=True
+        )
 
 
-                st.success(
-                    "✅ Ingreso guardado"
-                )
+        df.to_csv(
+            "registro_ingresos.csv",
+            index=False
+        )
 
-                st.rerun()
 
-            else:
+        st.success(
+            "✅ Ingreso guardado correctamente"
+        )
 
-                st.warning(
-                    "Complete cliente y monto"
-                )
+        st.rerun()
+
+
+    else:
+
+        st.warning(
+            "Complete cliente y monto"
+        )
 
 
 
