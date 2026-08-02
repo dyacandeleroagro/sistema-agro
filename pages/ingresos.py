@@ -2,25 +2,51 @@ import os
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from database import get_conn
+
+
+ARCHIVO = "registro_ingresos.csv"
 
 
 def pantalla_ingresos():
 
     st.header("💰 Ingresos por Trabajos")
 
-    conn = get_conn()
+
+    # ==========================
+    # CREAR CSV SI NO EXISTE
+    # ==========================
+
+    if not os.path.exists(ARCHIVO):
+
+        pd.DataFrame(columns=[
+            "ID",
+            "Fecha",
+            "Cliente",
+            "Tipo Servicio",
+            "Lote/Establecimiento",
+            "Hectáreas",
+            "Monto Total (ARS)",
+            "Detalle"
+        ]).to_csv(
+            ARCHIVO,
+            index=False
+        )
+
+
+    df = pd.read_csv(ARCHIVO)
 
 
     # ==========================
-    # CREAR INGRESO
+    # NUEVO INGRESO
     # ==========================
 
     st.subheader("➕ Nuevo ingreso")
 
+
     with st.form("form_ingreso"):
 
         col1, col2 = st.columns(2)
+
 
         with col1:
 
@@ -60,69 +86,63 @@ def pantalla_ingresos():
         )
 
 
-        archivo = st.file_uploader(
-            "Adjuntar comprobante",
-            type=["pdf","png","jpg","jpeg"]
-        )
-
-
         guardar = st.form_submit_button(
             "💾 Guardar ingreso"
         )
 
 
-        if guardar:
+    if guardar:
 
-    if cliente and monto > 0:
-
-        nuevo_ingreso = {
-
-            "ID": int(datetime.now().timestamp()),
-
-            "Fecha": fecha.strftime("%Y-%m-%d"),
-
-            "Cliente": cliente,
-
-            "Tipo Servicio": servicio,
-
-            "Lote/Establecimiento": lote,
-
-            "Hectáreas": hectareas,
-
-            "Monto Total (ARS)": monto,
-
-            "Detalle": detalle
-        }
+        if cliente and monto > 0:
 
 
-        df = pd.concat(
-            [
-                df,
-                pd.DataFrame([nuevo_ingreso])
-            ],
-            ignore_index=True
-        )
+            nuevo_ingreso = {
+
+                "ID": int(datetime.now().timestamp()),
+
+                "Fecha": fecha.strftime("%Y-%m-%d"),
+
+                "Cliente": cliente,
+
+                "Tipo Servicio": servicio,
+
+                "Lote/Establecimiento": lote,
+
+                "Hectáreas": hectareas,
+
+                "Monto Total (ARS)": monto,
+
+                "Detalle": detalle
+            }
 
 
-        df.to_csv(
-            "registro_ingresos.csv",
-            index=False
-        )
+            df = pd.concat(
+                [
+                    df,
+                    pd.DataFrame([nuevo_ingreso])
+                ],
+                ignore_index=True
+            )
 
 
-        st.success(
-            "✅ Ingreso guardado correctamente"
-        )
+            df.to_csv(
+                ARCHIVO,
+                index=False
+            )
 
-        st.rerun()
+
+            st.success(
+                "✅ Ingreso guardado correctamente"
+            )
+
+            st.rerun()
 
 
-    else:
+        else:
 
-        st.warning(
-            "Complete cliente y monto"
-        )
-
+            st.warning(
+                "Complete cliente y monto"
+            )
 
 
     st.divider()
@@ -137,24 +157,7 @@ def pantalla_ingresos():
     )
 
 
-if not os.path.exists("registro_ingresos.csv"):
-    pd.DataFrame(columns=[
-        "ID",
-        "Fecha",
-        "Cliente",
-        "Tipo Servicio",
-        "Lote/Establecimiento",
-        "Hectáreas",
-        "Monto Total (ARS)",
-        "Detalle"
-    ]).to_csv("registro_ingresos.csv", index=False)
-
-
-df = pd.read_csv("registro_ingresos.csv")
-
-
-
-if not df.empty:
+    if not df.empty:
 
         st.dataframe(
             df,
@@ -166,6 +169,3 @@ if not df.empty:
         st.info(
             "No hay ingresos cargados"
         )
-
-
-    conn.close()
