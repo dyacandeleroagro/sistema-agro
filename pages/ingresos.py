@@ -134,15 +134,24 @@ def pantalla_ingresos():
     )
 
 
-    df = pd.read_sql("""
-        SELECT *
-        FROM ingresos
-        ORDER BY id DESC
-    """, conn)
+if not os.path.exists("registro_ingresos.csv"):
+    pd.DataFrame(columns=[
+        "ID",
+        "Fecha",
+        "Cliente",
+        "Tipo Servicio",
+        "Lote/Establecimiento",
+        "Hectáreas",
+        "Monto Total (ARS)",
+        "Detalle"
+    ]).to_csv("registro_ingresos.csv", index=False)
+
+
+df = pd.read_csv("registro_ingresos.csv")
 
 
 
-    if not df.empty:
+if not df.empty:
 
         st.dataframe(
             df,
