@@ -112,3 +112,4 @@ def pantalla_ingresos():
         st.info(
             "No hay ingresos cargados"
         )
+    st.divider()
