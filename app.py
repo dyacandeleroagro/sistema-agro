@@ -881,6 +881,141 @@ if menu == "💰 INGRESOS POR TRABAJOS":
 
         st.info("Todavía no hay ingresos cargados.")
 # ----------------------------------------------------
+# PESTAÑA: GASTOS COMERCIALES
+# ----------------------------------------------------
+if menu == "🧾 GASTOS COMERCIALES":
+
+    st.header("🧾 Gastos Comerciales")
+
+    with st.form("form_gastos"):
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+
+            fecha = st.date_input(
+                "Fecha",
+                value=datetime.today()
+            )
+
+            proveedor = st.text_input(
+                "Proveedor"
+            )
+
+            categoria = st.selectbox(
+                "Categoría",
+                [
+                    "Combustible",
+                    "Repuestos",
+                    "Insumos",
+                    "Servicios",
+                    "Impuestos",
+                    "Otros"
+                ]
+            )
+
+        with c2:
+
+            monto = st.number_input(
+                "Monto ($)",
+                min_value=0.0,
+                step=1000.0
+            )
+
+            estado = st.selectbox(
+                "Estado",
+                [
+                    "Pendiente de Pago",
+                    "Pagado"
+                ]
+            )
+
+            lote = st.text_input(
+                "Lote / Destino"
+            )
+
+        guardar = st.form_submit_button(
+            "💾 Guardar gasto"
+        )
+
+    if guardar:
+
+        nuevo = {
+
+            "ID": str(int(datetime.now().timestamp())),
+
+            "Fecha Registro": fecha.strftime("%Y-%m-%d"),
+
+            "Proveedor": proveedor,
+
+            "Monto Original": monto,
+
+            "Moneda": "ARS",
+
+            "Monto (ARS)": monto,
+
+            "Categoría": categoria,
+
+            "Lote Asignado": lote,
+
+            "Estado Pago": estado,
+
+            "Archivo Comprobante": ""
+
+        }
+
+        df_facturas = pd.concat(
+            [
+                df_facturas,
+                pd.DataFrame([nuevo])
+            ],
+            ignore_index=True
+        )
+
+        df_facturas.to_csv(
+            "datos_facturas.csv",
+            index=False
+        )
+
+        st.success("Gasto guardado correctamente")
+
+        st.rerun()
+
+    st.divider()
+
+    st.subheader("📋 Gastos registrados")
+
+    if not df_facturas.empty:
+
+        st.dataframe(
+            df_facturas,
+            use_container_width=True
+        )
+
+        total = df_facturas["Monto (ARS)"].sum()
+
+        pendientes = df_facturas[
+            df_facturas["Estado Pago"] == "Pendiente de Pago"
+        ]["Monto (ARS)"].sum()
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.metric(
+                "💰 Total Gastos",
+                f"$ {total:,.2f}"
+            )
+
+        with c2:
+            st.metric(
+                "🔴 Pendiente de Pago",
+                f"$ {pendientes:,.2f}"
+            )
+
+    else:
+
+        st.info("Todavía no hay gastos cargados.")        
+# ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
 if menu == "🔍 CUENTAS PENDIENTES":
