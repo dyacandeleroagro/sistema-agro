@@ -989,31 +989,117 @@ if menu == "🔍 CUENTAS PENDIENTES":
 # ----------------------------------------------------
 # PESTAÑA: SISTEMA DE TRIPULACIÓN
 # ----------------------------------------------------
+
 if menu == "👥 SISTEMA DE TRIPULACIÓN":
-        st.header("👤 Personal y Comisiones de la Tripulación")
-        emp_col1, emp_col2 = st.columns(2)
-        with emp_col1:
-            st.subheader("1. Gestión del Personal Fijo")
-            if not df_empleados.empty:
-                st.dataframe(df_empleados, use_container_width=True)
 
-            st.markdown("---")
-            st.subheader("Agregar Nuevo Integrante (si ingresa alguien nuevo)")
-            with st.form("form_alta_empleado"):
-                n_nombre = st.text_input("Nombre Completo (Ej: Juan Perez)")
-                n_puesto = st.selectbox("Rol", ["Maquinista Cosechadora", "Tractorista", "Ayudante / Mecánico"])
-                n_porcentaje = st.number_input("Comisión (%)", min_value=0.0, max_value=100.0, step=0.1, value=0.0)
-                btn_alta_emp = st.form_submit_button("💾 Guardar Nuevo Operario")
-                if btn_alta_emp and n_nombre:
-                    nuevo_emp = {"Nombre": n_nombre.strip(), "Puesto": n_puesto, "Porcentaje (%)": n_porcentaje}
-                    df_empleados = pd.concat([df_empleados, pd.DataFrame([nuevo_emp])], ignore_index=True)
-                    df_empleados.to_csv("registro_empleados.csv", index=False)
-                    st.rerun()
+    st.header("👤 Personal y Comisiones de la Tripulación")
 
+    emp_col1, emp_col2 = st.columns(2)
 
-            st.subheader("2. Cargar Movimiento de Cuenta")
+    # ==================================================
+    # COLUMNA 1 - PERSONAL
+    # ==================================================
 
-            with st.form("form_pago_empleado"):
+    with emp_col1:
+
+        st.subheader("1. Gestión del Personal Fijo")
+
+        if not df_empleados.empty:
+
+            st.dataframe(
+                df_empleados,
+                use_container_width=True
+            )
+
+        st.markdown("---")
+
+        st.subheader(
+            "Agregar Nuevo Integrante "
+            "(si ingresa alguien nuevo)"
+        )
+
+        with st.form("form_alta_empleado"):
+
+            n_nombre = st.text_input(
+                "Nombre Completo (Ej: Juan Perez)"
+            )
+
+            n_puesto = st.selectbox(
+                "Rol",
+                [
+                    "Maquinista Cosechadora",
+                    "Tractorista",
+                    "Ayudante / Mecánico"
+                ]
+            )
+
+            n_porcentaje = st.number_input(
+                "Comisión (%)",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.1,
+                value=0.0
+            )
+
+            btn_alta_emp = st.form_submit_button(
+                "💾 Guardar Nuevo Operario"
+            )
+
+            if btn_alta_emp and n_nombre:
+
+                nuevo_emp = {
+                    "Nombre": n_nombre.strip(),
+                    "Puesto": n_puesto,
+                    "Porcentaje (%)": n_porcentaje
+                }
+
+                df_empleados = pd.concat(
+                    [
+                        df_empleados,
+                        pd.DataFrame([nuevo_emp])
+                    ],
+                    ignore_index=True
+                )
+
+                df_empleados.to_csv(
+                    "registro_empleados.csv",
+                    index=False
+                )
+
+                st.success(
+                    "✔ Operario agregado correctamente."
+                )
+
+                st.rerun()
+
+    # ==================================================
+    # COLUMNA 2 - MOVIMIENTOS DE CUENTA
+    # ==================================================
+
+    with emp_col2:
+
+        st.subheader(
+            "2. Cargar Movimiento de Cuenta"
+        )
+
+        tipo_carga = st.radio(
+            "Tipo de carga:",
+            [
+                "🕐 Jornada por día",
+                "📋 Liquidación por horas totales"
+            ],
+            horizontal=True
+        )
+
+        # ==================================================
+        # JORNADA POR DÍA
+        # ==================================================
+
+        if tipo_carga == "🕐 Jornada por día":
+
+            with st.form(
+                "form_pago_empleado_diario"
+            ):
 
                 if not df_empleados.empty:
 
@@ -1030,11 +1116,9 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         ]
                     )
 
-                    # ==========================================
-                    # DATOS DE LA JORNADA
-                    # ==========================================
-
-                    st.markdown("### 🕐 Jornada trabajada")
+                    st.markdown(
+                        "### 🕐 Jornada trabajada"
+                    )
 
                     p_fecha_trabajo = st.date_input(
                         "📅 Día trabajado",
@@ -1055,20 +1139,12 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             "🔴 Hora de salida"
                         )
 
-                    # ==========================================
-                    # VALOR POR HORA
-                    # ==========================================
-
                     p_valor_hora = st.number_input(
                         "💰 Valor por hora ($ ARS)",
                         min_value=0.0,
                         step=100.0,
                         value=0.0
                     )
-
-                    # ==========================================
-                    # CALCULO AUTOMÁTICO DE HORAS
-                    # ==========================================
 
                     entrada_minutos = (
                         p_hora_entrada.hour * 60
@@ -1083,12 +1159,12 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     if salida_minutos >= entrada_minutos:
 
                         minutos_trabajados = (
-                            salida_minutos - entrada_minutos
+                            salida_minutos
+                            - entrada_minutos
                         )
 
                     else:
 
-                        # Permite jornadas que pasan de medianoche
                         minutos_trabajados = (
                             (24 * 60 - entrada_minutos)
                             + salida_minutos
@@ -1099,12 +1175,9 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     )
 
                     monto_calculado = (
-                        horas_trabajadas * p_valor_hora
+                        horas_trabajadas
+                        * p_valor_hora
                     )
-
-                    # ==========================================
-                    # MOSTRAR CALCULO
-                    # ==========================================
 
                     st.info(
                         f"⏱️ Horas trabajadas: "
@@ -1127,43 +1200,89 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         value="Jornada trabajada"
                     )
 
+                    p_comprobante = st.file_uploader(
+                        "📎 Comprobante de pago (opcional)",
+                        type=[
+                            "pdf",
+                            "png",
+                            "jpg",
+                            "jpeg",
+                            "webp"
+                        ]
+                    )
+
                     btn_pago_emp = st.form_submit_button(
                         "💳 Guardar Movimiento"
                     )
-
-                    # ==========================================
-                    # GUARDAR
-                    # ==========================================
 
                     if btn_pago_emp:
 
                         if p_valor_hora <= 0:
 
                             st.error(
-                                "❌ Tenés que ingresar un valor por hora."
+                                "❌ Tenés que ingresar "
+                                "un valor por hora."
                             )
 
                         elif minutos_trabajados <= 0:
 
                             st.error(
-                                "❌ La hora de salida debe ser "
-                                "posterior a la entrada."
+                                "❌ La hora de salida debe "
+                                "ser posterior a la entrada."
                             )
 
                         else:
 
+                            nuevo_id = str(
+                                int(
+                                    datetime.now().timestamp()
+                                    * 1000
+                                )
+                            )
+
+                            nombre_comprobante = ""
+
+                            if p_comprobante is not None:
+
+                                carpeta = (
+                                    "comprobantes_pagos"
+                                )
+
+                                os.makedirs(
+                                    carpeta,
+                                    exist_ok=True
+                                )
+
+                                extension = os.path.splitext(
+                                    p_comprobante.name
+                                )[1]
+
+                                nombre_comprobante = (
+                                    f"{nuevo_id}{extension}"
+                                )
+
+                                ruta_comprobante = os.path.join(
+                                    carpeta,
+                                    nombre_comprobante
+                                )
+
+                                with open(
+                                    ruta_comprobante,
+                                    "wb"
+                                ) as archivo:
+
+                                    archivo.write(
+                                        p_comprobante.getbuffer()
+                                    )
+
                             nuevo_pago = {
 
-                                "ID_Pago": str(
-                                    int(
-                                        datetime.now().timestamp()
-                                        * 1000
-                                    )
-                                ),
+                                "ID_Pago": nuevo_id,
 
-                                "Fecha Pago": datetime.now().strftime(
-                                    "%Y-%m-%d"
-                                ),
+                                "Fecha Pago":
+                                    datetime.now().strftime(
+                                        "%Y-%m-%d"
+                                    ),
 
                                 "Nombre Empleado":
                                     emp_seleccionado,
@@ -1211,6 +1330,13 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     p_concepto
                             }
 
+                            if nombre_comprobante:
+
+                                nuevo_pago["Concepto"] += (
+                                    f" | Comprobante: "
+                                    f"{nombre_comprobante}"
+                                )
+
                             df_pagos_empleados = pd.concat(
                                 [
                                     df_pagos_empleados,
@@ -1225,69 +1351,425 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             )
 
                             st.success(
-                                "✔ Movimiento registrado correctamente."
+                                "✔ Movimiento registrado "
+                                "correctamente."
                             )
 
                             st.rerun()
 
-# PESTAÑA: RENDICIÓN POR OPERARIO (Filtro de Privacidad Seguro)
-# ----------------------------------------------------
-if menu == "📋 RENDICIÓN POR OPERARIO":
-        st.header("📋 Historial de Cuenta por Operario")
+                else:
 
-        if rol_actual == "Operario":
-            lista_para_filtrar = [nombre_actual]
-            st.info(f"Visualizando la cuenta de: **{nombre_actual}**")
+                    st.warning(
+                        "No hay operarios registrados."
+                    )
+
+        # ==================================================
+        # LIQUIDACIÓN ESPECIAL
+        # ==================================================
+
         else:
-            lista_para_filtrar = df_empleados["Nombre"].tolist() if not df_empleados.empty else ["No hay personal registrado"]
 
-        op_filtro = st.selectbox("Seleccionar Operario para revisar:", lista_para_filtrar)
-        df_op = df_pagos_empleados[df_pagos_empleados["Nombre Empleado"] == op_filtro] if not df_pagos_empleados.empty else pd.DataFrame()
+            st.markdown(
+                "### 📋 Liquidación especial"
+            )
 
-        col_r1, col_r2 = st.columns(2)
-        with col_r1:
-            st.markdown("### 💰 LIQUIDACIONES Y PAGOS EN EFECTIVO")
-            if not df_op.empty:
-                df_pagos = df_op[df_op["Tipo Registro"] == "Liquidación / Pago"]
-                if not df_pagos.empty:
-                    st.dataframe(
-    df_pagos[
-        [
-            "Fecha Trabajo",
-            "Hora Entrada",
-            "Hora Salida",
-            "Horas Trabajadas",
-            "Valor Hora",
-            "Monto (ARS)",
-            "Estado Pago",
-            "Concepto"
+            st.info(
+                "Usá esta opción cuando quieras cargar "
+                "un mes completo sin ingresar cada día."
+            )
+
+            with st.form(
+                "form_liquidacion_especial"
+            ):
+
+                if not df_empleados.empty:
+
+                    emp_liquidacion = st.selectbox(
+                        "👤 Seleccionar Operario",
+                        df_empleados["Nombre"].tolist()
+                    )
+
+                    fecha_liquidacion = st.date_input(
+                        "📅 Fecha de pago",
+                        value=datetime.today()
+                    )
+
+                    horas_totales = st.number_input(
+                        "⏱️ Horas totales trabajadas",
+                        min_value=0.0,
+                        step=0.5,
+                        value=0.0
+                    )
+
+                    valor_hora_total = st.number_input(
+                        "💰 Valor por hora ($ ARS)",
+                        min_value=0.0,
+                        step=100.0,
+                        value=0.0
+                    )
+
+                    total_liquidacion = (
+                        horas_totales
+                        * valor_hora_total
+                    )
+
+                    st.success(
+                        f"💰 Total de la liquidación: "
+                        f"**$ {total_liquidacion:,.2f}**"
+                    )
+
+                    tipo_liquidacion = st.radio(
+                        "💳 Tipo de pago:",
+                        [
+                            "Liquidación / Pago",
+                            "Reintegro / Devolución"
+                        ],
+                        horizontal=True
+                    )
+
+                    estado_liquidacion = st.radio(
+                        "📌 Estado:",
+                        [
+                            "Pagado",
+                            "Pendiente"
+                        ],
+                        horizontal=True
+                    )
+
+                    concepto_liquidacion = st.text_input(
+                        "📝 Concepto",
+                        value="Liquidación mensual"
+                    )
+
+                    comprobante_liquidacion = st.file_uploader(
+                        "📎 Adjuntar comprobante de pago",
+                        type=[
+                            "pdf",
+                            "png",
+                            "jpg",
+                            "jpeg",
+                            "webp"
+                        ]
+                    )
+
+                    guardar_liquidacion = st.form_submit_button(
+                        "💳 Guardar Liquidación"
+                    )
+
+                    if guardar_liquidacion:
+
+                        if horas_totales <= 0:
+
+                            st.error(
+                                "❌ Tenés que ingresar "
+                                "las horas totales."
+                            )
+
+                        elif valor_hora_total <= 0:
+
+                            st.error(
+                                "❌ Tenés que ingresar "
+                                "el valor por hora."
+                            )
+
+                        else:
+
+                            nuevo_id = str(
+                                int(
+                                    datetime.now().timestamp()
+                                    * 1000
+                                )
+                            )
+
+                            nombre_comprobante = ""
+
+                            if comprobante_liquidacion is not None:
+
+                                carpeta = (
+                                    "comprobantes_pagos"
+                                )
+
+                                os.makedirs(
+                                    carpeta,
+                                    exist_ok=True
+                                )
+
+                                extension = os.path.splitext(
+                                    comprobante_liquidacion.name
+                                )[1]
+
+                                nombre_comprobante = (
+                                    f"{nuevo_id}{extension}"
+                                )
+
+                                ruta_comprobante = os.path.join(
+                                    carpeta,
+                                    nombre_comprobante
+                                )
+
+                                with open(
+                                    ruta_comprobante,
+                                    "wb"
+                                ) as archivo:
+
+                                    archivo.write(
+                                        comprobante_liquidacion
+                                        .getbuffer()
+                                    )
+
+                            nuevo_pago = {
+
+                                "ID_Pago": nuevo_id,
+
+                                "Fecha Pago":
+                                    fecha_liquidacion.strftime(
+                                        "%Y-%m-%d"
+                                    ),
+
+                                "Nombre Empleado":
+                                    emp_liquidacion,
+
+                                "Fecha Trabajo":
+                                    fecha_liquidacion.strftime(
+                                        "%Y-%m-%d"
+                                    ),
+
+                                "Hora Entrada": "",
+
+                                "Hora Salida": "",
+
+                                "Horas Trabajadas":
+                                    round(
+                                        horas_totales,
+                                        2
+                                    ),
+
+                                "Valor Hora":
+                                    round(
+                                        valor_hora_total,
+                                        2
+                                    ),
+
+                                "Monto (ARS)":
+                                    round(
+                                        total_liquidacion,
+                                        2
+                                    ),
+
+                                "Tipo Registro":
+                                    tipo_liquidacion,
+
+                                "Estado Pago":
+                                    estado_liquidacion,
+
+                                "Concepto":
+                                    concepto_liquidacion
+                            }
+
+                            if nombre_comprobante:
+
+                                nuevo_pago["Concepto"] += (
+                                    f" | Comprobante: "
+                                    f"{nombre_comprobante}"
+                                )
+
+                            df_pagos_empleados = pd.concat(
+                                [
+                                    df_pagos_empleados,
+                                    pd.DataFrame([nuevo_pago])
+                                ],
+                                ignore_index=True
+                            )
+
+                            df_pagos_empleados.to_csv(
+                                "registro_pagos_empleados.csv",
+                                index=False
+                            )
+
+                            st.success(
+                                "✔ Liquidación registrada "
+                                "correctamente."
+                            )
+
+                            st.rerun()
+
+                else:
+
+                    st.warning(
+                        "No hay operarios registrados."
+                    )
+# ----------------------------------------------------
+# PESTAÑA: RENDICIÓN POR OPERARIO
+# ----------------------------------------------------
+
+if menu == "📋 RENDICIÓN POR OPERARIO":
+
+    st.header("📋 Historial de Cuenta por Operario")
+
+    # ==========================================
+    # FILTRO DE PRIVACIDAD
+    # ==========================================
+
+    # Un operario solamente puede ver su propia cuenta.
+    # Dueño, Administrador, Encargado y Contador
+    # pueden seleccionar cualquier operario.
+
+    if tiene_rol("Operario") and not tiene_rol(
+        "Dueño",
+        "Administrador",
+        "Encargado",
+        "Contador"
+    ):
+
+        lista_para_filtrar = [nombre_actual]
+
+        st.info(
+            f"👤 Visualizando la cuenta de: **{nombre_actual}**"
+        )
+
+    else:
+
+        lista_para_filtrar = (
+            df_empleados["Nombre"].tolist()
+            if not df_empleados.empty
+            else ["No hay personal registrado"]
+        )
+
+    # ==========================================
+    # SELECCIONAR OPERARIO
+    # ==========================================
+
+    op_filtro = st.selectbox(
+        "Seleccionar Operario para revisar:",
+        lista_para_filtrar
+    )
+
+    # ==========================================
+    # FILTRAR MOVIMIENTOS
+    # ==========================================
+
+    if not df_pagos_empleados.empty:
+
+        df_op = df_pagos_empleados[
+            df_pagos_empleados["Nombre Empleado"] == op_filtro
         ]
-    ],
-    use_container_width=True,
-    hide_index=True
-)
-                else: st.write("No hay registros de pagos para este operario.")
-            else: st.write("Sin movimientos.")
 
-        with col_r2:
-            st.markdown("### 🔧 VALES Y REINTEGROS (GASTOS A RENDIR)")
-            if not df_op.empty:
-                df_reintegros = df_op[df_op["Tipo Registro"] == "Reintegro / Devolución"]
-                if not df_reintegros.empty:
-                    st.dataframe(
-    df_reintegros[
-        [
-            "Fecha Pago",
-            "Monto (ARS)",
-            "Estado Pago",
-            "Concepto"
-        ]
-    ],
-    use_container_width=True,
-    hide_index=True
-)
-                else: st.write("No hay registros de reintegros o vales.")
-            else: st.write("Sin movimientos.")
+    else:
+
+        df_op = pd.DataFrame()
+
+    # ==========================================
+    # COLUMNAS
+    # ==========================================
+
+    col_r1, col_r2 = st.columns(2)
+
+    # ==========================================
+    # LIQUIDACIONES Y PAGOS
+    # ==========================================
+
+    with col_r1:
+
+        st.markdown(
+            "### 💰 LIQUIDACIONES Y PAGOS EN EFECTIVO"
+        )
+
+        if not df_op.empty:
+
+            df_pagos = df_op[
+                df_op["Tipo Registro"] == "Liquidación / Pago"
+            ]
+
+            if not df_pagos.empty:
+
+                st.dataframe(
+                    df_pagos[
+                        [
+                            "Fecha Trabajo",
+                            "Hora Entrada",
+                            "Hora Salida",
+                            "Horas Trabajadas",
+                            "Valor Hora",
+                            "Monto (ARS)",
+                            "Estado Pago",
+                            "Concepto"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                # Total de pagos
+                total_pagos = df_pagos[
+                    "Monto (ARS)"
+                ].sum()
+
+                st.metric(
+                    "💰 Total Liquidaciones",
+                    f"$ {total_pagos:,.2f}"
+                )
+
+            else:
+
+                st.info(
+                    "No hay registros de pagos para este operario."
+                )
+
+        else:
+
+            st.info("Sin movimientos.")
+
+    # ==========================================
+    # VALES Y REINTEGROS
+    # ==========================================
+
+    with col_r2:
+
+        st.markdown(
+            "### 🔧 VALES Y REINTEGROS (GASTOS A RENDIR)"
+        )
+
+        if not df_op.empty:
+
+            df_reintegros = df_op[
+                df_op["Tipo Registro"]
+                == "Reintegro / Devolución"
+            ]
+
+            if not df_reintegros.empty:
+
+                st.dataframe(
+                    df_reintegros[
+                        [
+                            "Fecha Pago",
+                            "Monto (ARS)",
+                            "Estado Pago",
+                            "Concepto"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                # Total de reintegros
+                total_reintegros = df_reintegros[
+                    "Monto (ARS)"
+                ].sum()
+
+                st.metric(
+                    "🔧 Total Reintegros",
+                    f"$ {total_reintegros:,.2f}"
+                )
+
+            else:
+
+                st.info(
+                    "No hay registros de reintegros o vales."
+                )
+
+        else:
+
+            st.info("Sin movimientos.")
 if menu == "💰 INGRESOS POR TRABAJOS":
 
     pantalla_ingresos()
@@ -1319,16 +1801,21 @@ if menu == "📅 AGENDA Y VENCIMIENTOS":
     pantalla_agenda()
 
 if menu == "⚙ ADMINISTRACIÓN":
- if rol_actual not in ["Dueño", "Administrador"]:
-    st.error("No tiene permisos.")
-    st.stop()
 
- pantalla_administracion()
+    if not tiene_rol("Dueño", "Administrador"):
+
+        st.error("No tiene permisos.")
+
+        st.stop()
+
+    pantalla_administracion()
 
 if menu == "👑 PANEL DEL DUEÑO":
 
-    if rol_actual != "Dueño":
+    if not tiene_rol("Dueño"):
+
         st.error("Solo acceso del dueño")
+
         st.stop()
 
     pantalla_panel_dueno()
@@ -1336,7 +1823,7 @@ if menu == "👑 PANEL DEL DUEÑO":
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
 if menu == "🛡 SEGUROS Y COBERTURAS":
-    if rol_actual == "Operario":
+    if not tiene_rol("Dueño", "Administrador"):
         st.error("No tiene permisos.")
         st.stop()
 
@@ -1364,51 +1851,186 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
         if not df_seguros.empty: st.dataframe(df_seguros, use_container_width=True)
 
 # ----------------------------------------------------
-# PESTAÑA SECRETA: CONTROL DE ERRORES (Solo Admin)
+# PESTAÑA SECRETA: CONTROL DE ERRORES
 # ----------------------------------------------------
+
 if menu == "🗄 CONTROL DE ERRORES":
-    if rol_actual != "Dueño":
+
+    if not tiene_rol("Dueño"):
         st.error("Solo el dueño puede ingresar.")
         st.stop()
 
-    st.header("🗄 Panel exclusivo de borrado (Solo Administrador)")
+    st.header("🗄 Panel exclusivo de borrado (Solo Dueño)")
 
-    sub_g, sub_i, sub_p, sub_s = st.tabs(["Gastos", "Ingresos", "Pagos Personal", "Seguros"])
+    sub_g, sub_i, sub_p, sub_s = st.tabs(
+        [
+            "Gastos",
+            "Ingresos",
+            "Pagos Personal",
+            "Seguros"
+        ]
+    )
+
+    # ==========================================
+    # GASTOS
+    # ==========================================
 
     with sub_g:
+
         if not df_facturas.empty:
+
             for idx, fila in df_facturas.copy().iterrows():
+
                 c_i, c_b = st.columns([6, 1])
-            with c_i: st.write(f"📅 {fila['Fecha Registro']} | *{fila['Proveedor']}* | **{fila['Monto Original']}**")
-            with c_b:
-                if st.button("🗑 Borrar", key=f"b_fac_{fila['ID']}_{idx}"):
-                            df_facturas.drop(idx).to_csv("datos_facturas.csv", index=False)
-                            st.rerun()
+
+                with c_i:
+
+                    st.write(
+                        f"📅 {fila['Fecha Registro']} | "
+                        f"*{fila['Proveedor']}* | "
+                        f"**$ {fila['Monto Original']:,.2f}**"
+                    )
+
+                with c_b:
+
+                    if st.button(
+                        "🗑 Borrar",
+                        key=f"b_fac_{fila['ID']}_{idx}"
+                    ):
+
+                        df_facturas = df_facturas.drop(idx)
+
+                        df_facturas.to_csv(
+                            "datos_facturas.csv",
+                            index=False
+                        )
+
+                        st.success("Gasto eliminado.")
+
+                        st.rerun()
+
+        else:
+
+            st.info("No hay gastos registrados.")
+
+    # ==========================================
+    # INGRESOS
+    # ==========================================
+
     with sub_i:
+
         if not df_ingresos.empty:
+
             for idx, fila in df_ingresos.copy().iterrows():
+
                 c_i, c_b = st.columns([6, 1])
-                with c_i: st.write(f"📅 {fila['Fecha']} | Cliente: *{fila['Cliente']}* | **$ {fila['Monto Total (ARS)']:,.2f}**")
+
+                with c_i:
+
+                    st.write(
+                        f"📅 {fila['Fecha']} | "
+                        f"Cliente: *{fila['Cliente']}* | "
+                        f"**$ {fila['Monto Total (ARS)']:,.2f}**"
+                    )
+
                 with c_b:
-                    if st.button("🗑 Borrar", key=f"b_ing_{fila['ID_Ingreso']}_{idx}"):
-                            df_ingresos.drop(idx).to_csv("registro_ingresos.csv", index=False)
-                            st.rerun()
+
+                    if st.button(
+                        "🗑 Borrar",
+                        key=f"b_ing_{fila['ID_Ingreso']}_{idx}"
+                    ):
+
+                        df_ingresos = df_ingresos.drop(idx)
+
+                        df_ingresos.to_csv(
+                            "registro_ingresos.csv",
+                            index=False
+                        )
+
+                        st.success("Ingreso eliminado.")
+
+                        st.rerun()
+
+        else:
+
+            st.info("No hay ingresos registrados.")
+
+    # ==========================================
+    # PAGOS PERSONAL
+    # ==========================================
+
     with sub_p:
+
         if not df_pagos_empleados.empty:
+
             for idx, fila in df_pagos_empleados.copy().iterrows():
+
                 c_i, c_b = st.columns([6, 1])
-                with c_i: st.write(f"📅 {fila['Fecha Pago']} | Operario: *{fila['Nombre Empleado']}* | **$ {fila['Monto (ARS)']:,.2f}**")
+
+                with c_i:
+
+                    st.write(
+                        f"📅 {fila['Fecha Pago']} | "
+                        f"Operario: *{fila['Nombre Empleado']}* | "
+                        f"**$ {fila['Monto (ARS)']:,.2f}**"
+                    )
+
                 with c_b:
-                    if st.button("🗑 Borrar", key=f"b_emp_{fila['ID_Pago']}_{idx}"):
-                        df_pagos_empleados.drop(idx).to_csv("registro_pagos_empleados.csv", index=False)
+
+                    if st.button(
+                        "🗑 Borrar",
+                        key=f"b_emp_{fila['ID_Pago']}_{idx}"
+                    ):
+
+                        df_pagos_empleados = df_pagos_empleados.drop(idx)
+
+                        df_pagos_empleados.to_csv(
+                            "registro_pagos_empleados.csv",
+                            index=False
+                        )
+
+                        st.success("Movimiento de personal eliminado.")
+
                         st.rerun()
+
+        else:
+
+            st.info("No hay movimientos de personal.")
+
+    # ==========================================
+    # SEGUROS
+    # ==========================================
+
     with sub_s:
+
         if not df_seguros.empty:
+
             for idx, fila in df_seguros.copy().iterrows():
+
                 c_i, c_b = st.columns([6, 1])
-                with c_i: st.write(f"🛡 {fila['Compañía']} | Bien: *{fila['Bien Asegurado']}* | **$ {fila['Monto Prima (ARS)']:,.2f}**")
+
+                with c_i:
+
+                    st.write(
+                        f"🛡 {fila['Compañía']} | "
+                        f"Bien: *{fila['Bien Asegurado']}* | "
+                        f"**$ {fila['Monto Prima (ARS)']:,.2f}**"
+                    )
+
                 with c_b:
-                    if st.button("🗑 Borrar", key=f"b_seg_{fila['ID_Seguro']}_{idx}"):
-                        df_seguros.drop(idx).to_csv("registro_seguros.csv", index=False)
+
+                    if st.button(
+                        "🗑 Borrar",
+                        key=f"b_seg_{fila['ID_Seguro']}_{idx}"
+                    ):
+
+                        df_seguros = df_seguros.drop(idx)
+
+                        df_seguros.to_csv(
+                            "registro_seguros.csv",
+                            index=False
+                        )
+
+                        st.success("Seguro eliminado.")
+
                         st.rerun()
-                        st.markdown("<br><br>", unsafe_allow_html=True)
