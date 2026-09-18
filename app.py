@@ -1010,8 +1010,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     df_empleados.to_csv("registro_empleados.csv", index=False)
                     st.rerun()
 
-        ```python
-        with emp_col2:
 
             st.subheader("2. Cargar Movimiento de Cuenta")
 
@@ -1231,9 +1229,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             )
 
                             st.rerun()
-```
 
-# ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO (Filtro de Privacidad Seguro)
 # ----------------------------------------------------
 if menu == "📋 RENDICIÓN POR OPERARIO":
