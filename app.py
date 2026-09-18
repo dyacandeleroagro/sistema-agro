@@ -151,11 +151,63 @@ if not os.path.exists("registro_empleados.csv"):
 df_empleados = pd.read_csv("registro_empleados.csv")
 
 if not os.path.exists("registro_pagos_empleados.csv"):
-    pd.DataFrame(columns=["ID_Pago", "Fecha Pago", "Nombre Empleado", "Monto (ARS)", "Tipo Registro", "Estado Pago", "Concepto"]).to_csv("registro_pagos_empleados.csv", index=False)
-df_pagos_empleados = pd.read_csv("registro_pagos_empleados.csv")
-if "ID_Pago" not in df_pagos_empleados.columns: df_pagos_empleados["ID_Pago"] = [str(int(datetime.now().timestamp()) + i + 500) for i in range(len(df_pagos_empleados))]
-df_pagos_empleados["ID_Pago"] = df_pagos_empleados["ID_Pago"].astype(str)
 
+    pd.DataFrame(columns=[
+        "ID_Pago",
+        "Fecha Pago",
+        "Nombre Empleado",
+        "Fecha Trabajo",
+        "Hora Entrada",
+        "Hora Salida",
+        "Horas Trabajadas",
+        "Valor Hora",
+        "Monto (ARS)",
+        "Tipo Registro",
+        "Estado Pago",
+        "Concepto"
+    ]).to_csv(
+        "registro_pagos_empleados.csv",
+        index=False
+    )
+
+
+df_pagos_empleados = pd.read_csv(
+    "registro_pagos_empleados.csv"
+)
+
+
+# Agregar columnas nuevas si el archivo ya existía
+
+columnas_pagos = {
+    "ID_Pago": "",
+    "Fecha Pago": "",
+    "Nombre Empleado": "",
+    "Fecha Trabajo": "",
+    "Hora Entrada": "",
+    "Hora Salida": "",
+    "Horas Trabajadas": 0.0,
+    "Valor Hora": 0.0,
+    "Monto (ARS)": 0.0,
+    "Tipo Registro": "",
+    "Estado Pago": "",
+    "Concepto": ""
+}
+
+
+for columna, valor in columnas_pagos.items():
+
+    if columna not in df_pagos_empleados.columns:
+
+        df_pagos_empleados[columna] = valor
+
+
+# Asegurar que los ID sean texto
+
+df_pagos_empleados["ID_Pago"] = (
+    df_pagos_empleados["ID_Pago"]
+    .fillna("")
+    .astype(str)
+)
 if not os.path.exists("registro_ingresos.csv"):
     pd.DataFrame(columns=["ID_Ingreso", "Fecha", "Cliente", "Tipo Servicio", "Lote/Establecimiento", "Hectáreas", "Monto Total (ARS)", "Detalle"]).to_csv("registro_ingresos.csv", index=False)
 df_ingresos = pd.read_csv("registro_ingresos.csv")
@@ -958,25 +1010,228 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     df_empleados.to_csv("registro_empleados.csv", index=False)
                     st.rerun()
 
+        ```python
         with emp_col2:
+
             st.subheader("2. Cargar Movimiento de Cuenta")
+
             with st.form("form_pago_empleado"):
+
                 if not df_empleados.empty:
-                    emp_seleccionado = st.selectbox("Seleccionar Operario", df_empleados["Nombre"].tolist())
-                    tipo_registro = st.radio("Tipo:", ["Liquidación / Pago", "Reintegro / Devolución"])
-                    p_monto = st.number_input("Monto ($ ARS)", min_value=0.0)
-                    p_estado = st.radio("Estado:", ["Pagado", "Pendiente"], horizontal=True)
-                    p_concepto = st.text_input("Detalle (Ej: Entrega quincena, Compra de repuesto)")
-                    btn_pago_emp = st.form_submit_button("💳 Guardar Movimiento")
-                    if btn_pago_emp and p_monto > 0:
-                        nuevo_pago = {
-                            "ID_Pago": str(int(datetime.now().timestamp())), "Fecha Pago": datetime.now().strftime("%Y-%m-%d"),
-                            "Nombre Empleado": emp_seleccionado, "Monto (ARS)": p_monto, "Tipo Registro": tipo_registro, "Estado Pago": p_estado, "Concepto": p_concepto
-                        }
-                        df_pagos_empleados = pd.concat([df_pagos_empleados, pd.DataFrame([nuevo_pago])], ignore_index=True)
-                        df_pagos_empleados.to_csv("registro_pagos_empleados.csv", index=False)
-                        st.success("✔ Movimiento registrado con éxito.")
-                        st.rerun()
+
+                    emp_seleccionado = st.selectbox(
+                        "Seleccionar Operario",
+                        df_empleados["Nombre"].tolist()
+                    )
+
+                    tipo_registro = st.radio(
+                        "Tipo:",
+                        [
+                            "Liquidación / Pago",
+                            "Reintegro / Devolución"
+                        ]
+                    )
+
+                    # ==========================================
+                    # DATOS DE LA JORNADA
+                    # ==========================================
+
+                    st.markdown("### 🕐 Jornada trabajada")
+
+                    p_fecha_trabajo = st.date_input(
+                        "📅 Día trabajado",
+                        value=datetime.today()
+                    )
+
+                    col_hora1, col_hora2 = st.columns(2)
+
+                    with col_hora1:
+
+                        p_hora_entrada = st.time_input(
+                            "🟢 Hora de entrada"
+                        )
+
+                    with col_hora2:
+
+                        p_hora_salida = st.time_input(
+                            "🔴 Hora de salida"
+                        )
+
+                    # ==========================================
+                    # VALOR POR HORA
+                    # ==========================================
+
+                    p_valor_hora = st.number_input(
+                        "💰 Valor por hora ($ ARS)",
+                        min_value=0.0,
+                        step=100.0,
+                        value=0.0
+                    )
+
+                    # ==========================================
+                    # CALCULO AUTOMÁTICO DE HORAS
+                    # ==========================================
+
+                    entrada_minutos = (
+                        p_hora_entrada.hour * 60
+                        + p_hora_entrada.minute
+                    )
+
+                    salida_minutos = (
+                        p_hora_salida.hour * 60
+                        + p_hora_salida.minute
+                    )
+
+                    if salida_minutos >= entrada_minutos:
+
+                        minutos_trabajados = (
+                            salida_minutos - entrada_minutos
+                        )
+
+                    else:
+
+                        # Permite jornadas que pasan de medianoche
+                        minutos_trabajados = (
+                            (24 * 60 - entrada_minutos)
+                            + salida_minutos
+                        )
+
+                    horas_trabajadas = (
+                        minutos_trabajados / 60
+                    )
+
+                    monto_calculado = (
+                        horas_trabajadas * p_valor_hora
+                    )
+
+                    # ==========================================
+                    # MOSTRAR CALCULO
+                    # ==========================================
+
+                    st.info(
+                        f"⏱️ Horas trabajadas: "
+                        f"**{horas_trabajadas:.2f} h**\n\n"
+                        f"💰 Total calculado: "
+                        f"**$ {monto_calculado:,.2f}**"
+                    )
+
+                    p_estado = st.radio(
+                        "Estado:",
+                        [
+                            "Pagado",
+                            "Pendiente"
+                        ],
+                        horizontal=True
+                    )
+
+                    p_concepto = st.text_input(
+                        "Detalle",
+                        value="Jornada trabajada"
+                    )
+
+                    btn_pago_emp = st.form_submit_button(
+                        "💳 Guardar Movimiento"
+                    )
+
+                    # ==========================================
+                    # GUARDAR
+                    # ==========================================
+
+                    if btn_pago_emp:
+
+                        if p_valor_hora <= 0:
+
+                            st.error(
+                                "❌ Tenés que ingresar un valor por hora."
+                            )
+
+                        elif minutos_trabajados <= 0:
+
+                            st.error(
+                                "❌ La hora de salida debe ser "
+                                "posterior a la entrada."
+                            )
+
+                        else:
+
+                            nuevo_pago = {
+
+                                "ID_Pago": str(
+                                    int(
+                                        datetime.now().timestamp()
+                                        * 1000
+                                    )
+                                ),
+
+                                "Fecha Pago": datetime.now().strftime(
+                                    "%Y-%m-%d"
+                                ),
+
+                                "Nombre Empleado":
+                                    emp_seleccionado,
+
+                                "Fecha Trabajo":
+                                    p_fecha_trabajo.strftime(
+                                        "%Y-%m-%d"
+                                    ),
+
+                                "Hora Entrada":
+                                    p_hora_entrada.strftime(
+                                        "%H:%M"
+                                    ),
+
+                                "Hora Salida":
+                                    p_hora_salida.strftime(
+                                        "%H:%M"
+                                    ),
+
+                                "Horas Trabajadas":
+                                    round(
+                                        horas_trabajadas,
+                                        2
+                                    ),
+
+                                "Valor Hora":
+                                    round(
+                                        p_valor_hora,
+                                        2
+                                    ),
+
+                                "Monto (ARS)":
+                                    round(
+                                        monto_calculado,
+                                        2
+                                    ),
+
+                                "Tipo Registro":
+                                    tipo_registro,
+
+                                "Estado Pago":
+                                    p_estado,
+
+                                "Concepto":
+                                    p_concepto
+                            }
+
+                            df_pagos_empleados = pd.concat(
+                                [
+                                    df_pagos_empleados,
+                                    pd.DataFrame([nuevo_pago])
+                                ],
+                                ignore_index=True
+                            )
+
+                            df_pagos_empleados.to_csv(
+                                "registro_pagos_empleados.csv",
+                                index=False
+                            )
+
+                            st.success(
+                                "✔ Movimiento registrado correctamente."
+                            )
+
+                            st.rerun()
+```
 
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO (Filtro de Privacidad Seguro)
@@ -999,7 +1254,22 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
             if not df_op.empty:
                 df_pagos = df_op[df_op["Tipo Registro"] == "Liquidación / Pago"]
                 if not df_pagos.empty:
-                    st.dataframe(df_pagos[["Fecha Pago", "Monto (ARS)", "Estado Pago", "Concepto"]], use_container_width=True)
+                    st.dataframe(
+    df_pagos[
+        [
+            "Fecha Trabajo",
+            "Hora Entrada",
+            "Hora Salida",
+            "Horas Trabajadas",
+            "Valor Hora",
+            "Monto (ARS)",
+            "Estado Pago",
+            "Concepto"
+        ]
+    ],
+    use_container_width=True,
+    hide_index=True
+)
                 else: st.write("No hay registros de pagos para este operario.")
             else: st.write("Sin movimientos.")
 
@@ -1008,7 +1278,18 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
             if not df_op.empty:
                 df_reintegros = df_op[df_op["Tipo Registro"] == "Reintegro / Devolución"]
                 if not df_reintegros.empty:
-                    st.dataframe(df_reintegros[["Fecha Pago", "Monto (ARS)", "Estado Pago", "Concepto"]], use_container_width=True)
+                    st.dataframe(
+    df_reintegros[
+        [
+            "Fecha Pago",
+            "Monto (ARS)",
+            "Estado Pago",
+            "Concepto"
+        ]
+    ],
+    use_container_width=True,
+    hide_index=True
+)
                 else: st.write("No hay registros de reintegros o vales.")
             else: st.write("Sin movimientos.")
 if menu == "💰 INGRESOS POR TRABAJOS":
