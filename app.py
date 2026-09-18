@@ -3,6 +3,22 @@ import pandas as pd
 import os
 from datetime import datetime
 import psycopg2
+import os
+import re
+import hashlib
+import time
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Paragraph,
+    Spacer
+)
 
 from pages.ingresos import pantalla_ingresos
 from pages.clientes import pantalla_clientes
@@ -190,16 +206,25 @@ columnas_pagos = {
     "Monto (ARS)": 0.0,
     "Tipo Registro": "",
     "Estado Pago": "",
-    "Concepto": ""
+    "Concepto": "",
+
+    # NUEVAS COLUMNAS
+    "Porcentaje Bonificacion": 0.0,
+    "Monto Bonificacion (ARS)": 0.0,
+    "Monto Trabajado (ARS)": 0.0,
+    "Monto Pagado (ARS)": 0.0,
+    "Monto Final Trabajo (ARS)": 0.0,
+    "Adelanto Generado (ARS)": 0.0,
+    "Monto Compensado (ARS)": 0.0,
+    "Saldo Adelanto (ARS)": 0.0,
+    "Comprobantes": "",
+    "PDF Liquidacion": ""
 }
 
 
 for columna, valor in columnas_pagos.items():
-
     if columna not in df_pagos_empleados.columns:
-
         df_pagos_empleados[columna] = valor
-
 
 # Asegurar que los ID sean texto
 
@@ -985,6 +1010,315 @@ if menu == "🔍 CUENTAS PENDIENTES":
                             st.success("¡Liquidado!")
                             st.rerun()
         else: st.success("👌 ¡Ningún gasto pendiente!")
+# ============================================================
+# FUNCIONES PARA LIQUIDACIONES
+# ============================================================
+
+def obtener_saldo_adelanto(df_pagos, empleado):
+
+    if df_pagos.empty:
+        return 0.0
+
+    df_emp = df_pagos[
+        df_pagos["Nombre Empleado"] == empleado
+    ].copy()
+
+    if df_emp.empty:
+        return 0.0
+
+    if "Adelanto Generado (ARS)" not in df_emp.columns:
+        return 0.0
+
+    if "Monto Compensado (ARS)" not in df_emp.columns:
+        return 0.0
+
+    adelantos = pd.to_numeric(
+        df_emp["Adelanto Generado (ARS)"],
+        errors="coerce"
+    ).fillna(0).sum()
+
+    compensados = pd.to_numeric(
+        df_emp["Monto Compensado (ARS)"],
+        errors="coerce"
+    ).fillna(0).sum()
+
+    return max(adelantos - compensados, 0.0)
+
+
+def guardar_comprobantes(comprobantes, id_liquidacion):
+
+    if not comprobantes:
+        return []
+
+    carpeta = os.path.join(
+        "comprobantes_pagos",
+        str(id_liquidacion)
+    )
+
+    os.makedirs(carpeta, exist_ok=True)
+
+    nombres = []
+
+    for numero, archivo in enumerate(comprobantes, 1):
+
+        nombre_original = os.path.basename(
+            archivo.name
+        )
+
+        nombre_limpio = re.sub(
+            r"[^a-zA-Z0-9._-]",
+            "_",
+            nombre_original
+        )
+
+        nombre_final = (
+            f"{numero}_{nombre_limpio}"
+        )
+
+        ruta = os.path.join(
+            carpeta,
+            nombre_final
+        )
+
+        with open(ruta, "wb") as f:
+            f.write(
+                archivo.getbuffer()
+            )
+
+        nombres.append(nombre_final)
+
+    return nombres
+
+
+def generar_pdf_liquidacion(
+    id_liquidacion,
+    empleado,
+    fecha,
+    horas,
+    valor_hora,
+    monto_base,
+    porcentaje,
+    monto_bonificacion,
+    monto_final,
+    adelanto_anterior,
+    monto_compensado,
+    monto_neto,
+    monto_pagado,
+    adelanto_nuevo,
+    saldo_adelanto,
+    tipo_pago,
+    estado,
+    concepto,
+    comprobantes
+):
+
+    carpeta = "liquidaciones_pdf"
+
+    os.makedirs(
+        carpeta,
+        exist_ok=True
+    )
+
+    ruta_pdf = os.path.join(
+        carpeta,
+        f"liquidacion_{id_liquidacion}.pdf"
+    )
+
+    doc = SimpleDocTemplate(
+        ruta_pdf,
+        pagesize=A4,
+        rightMargin=15 * mm,
+        leftMargin=15 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm
+    )
+
+    estilos = getSampleStyleSheet()
+
+    elementos = []
+
+    elementos.append(
+        Paragraph(
+            "<b>D&A CANDELERO AGRO</b>",
+            estilos["Title"]
+        )
+    )
+
+    elementos.append(
+        Spacer(1, 8)
+    )
+
+    elementos.append(
+        Paragraph(
+            "<b>LIQUIDACIÓN DE PERSONAL</b>",
+            estilos["Heading2"]
+        )
+    )
+
+    elementos.append(
+        Spacer(1, 10)
+    )
+
+    datos_principales = [
+        ["Empleado", empleado],
+        ["Fecha", str(fecha)],
+        ["ID Liquidación", str(id_liquidacion)],
+        ["Tipo", tipo_pago],
+        ["Estado", estado],
+        ["Concepto", concepto],
+    ]
+
+    tabla_principal = Table(
+        datos_principales,
+        colWidths=[45 * mm, 130 * mm]
+    )
+
+    tabla_principal.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("PADDING", (0, 0), (-1, -1), 6),
+        ])
+    )
+
+    elementos.append(tabla_principal)
+
+    elementos.append(
+        Spacer(1, 15)
+    )
+
+    datos_liquidacion = [
+        ["Detalle", "Valor"],
+
+        [
+            "Horas trabajadas",
+            f"{horas:.2f} h"
+        ],
+
+        [
+            "Valor por hora",
+            f"$ {valor_hora:,.2f}"
+        ],
+
+        [
+            "Monto base",
+            f"$ {monto_base:,.2f}"
+        ],
+
+        [
+            "Bonificación / Descuento",
+            f"{porcentaje:+.2f}%"
+        ],
+
+        [
+            "Monto bonificación/descuento",
+            f"$ {monto_bonificacion:,.2f}"
+        ],
+
+        [
+            "Monto final del trabajo",
+            f"$ {monto_final:,.2f}"
+        ],
+
+        [
+            "Adelanto anterior",
+            f"$ {adelanto_anterior:,.2f}"
+        ],
+
+        [
+            "Adelanto compensado",
+            f"$ {monto_compensado:,.2f}"
+        ],
+
+        [
+            "Neto a pagar",
+            f"$ {monto_neto:,.2f}"
+        ],
+
+        [
+            "Monto realmente pagado",
+            f"$ {monto_pagado:,.2f}"
+        ],
+
+        [
+            "Nuevo adelanto generado",
+            f"$ {adelanto_nuevo:,.2f}"
+        ],
+
+        [
+            "Saldo de adelanto",
+            f"$ {saldo_adelanto:,.2f}"
+        ],
+    ]
+
+    tabla_liquidacion = Table(
+        datos_liquidacion,
+        colWidths=[100 * mm, 75 * mm]
+    )
+
+    tabla_liquidacion.setStyle(
+        TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 6), (-1, 6), "Helvetica-Bold"),
+            ("FONTNAME", (0, 9), (-1, 9), "Helvetica-Bold"),
+            ("FONTNAME", (0, 12), (-1, 12), "Helvetica-Bold"),
+            ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+            ("PADDING", (0, 0), (-1, -1), 6),
+        ])
+    )
+
+    elementos.append(tabla_liquidacion)
+
+    elementos.append(
+        Spacer(1, 15)
+    )
+
+    elementos.append(
+        Paragraph(
+            "<b>Comprobantes de pago:</b>",
+            estilos["Heading3"]
+        )
+    )
+
+    if comprobantes:
+
+        for comprobante in comprobantes:
+
+            elementos.append(
+                Paragraph(
+                    f"• {comprobante}",
+                    estilos["Normal"]
+                )
+            )
+
+    else:
+
+        elementos.append(
+            Paragraph(
+                "No se adjuntaron comprobantes.",
+                estilos["Normal"]
+            )
+        )
+
+    elementos.append(
+        Spacer(1, 15)
+    )
+
+    elementos.append(
+        Paragraph(
+            "Documento generado automáticamente por "
+            "D&A Candelero Agro.",
+            estilos["Normal"]
+        )
+    )
+
+    doc.build(elementos)
+
+    return ruta_pdf
 
 # ----------------------------------------------------
 # PESTAÑA: SISTEMA DE TRIPULACIÓN
