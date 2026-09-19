@@ -2338,32 +2338,35 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
 # ==========================================
 # BOTÓN DE DESCARGA DEL PDF
+# SOLO EN SISTEMA DE TRIPULACIÓN
 # ==========================================
 
-if "ultimo_pdf_liquidacion" in st.session_state:
+if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
-    pdf_info = st.session_state[
-        "ultimo_pdf_liquidacion"
-    ]
+    if "ultimo_pdf_liquidacion" in st.session_state:
 
-    if os.path.exists(pdf_info["ruta"]):
+        pdf_info = st.session_state[
+            "ultimo_pdf_liquidacion"
+        ]
 
-        with open(
-            pdf_info["ruta"],
-            "rb"
-        ) as archivo_pdf:
+        if os.path.exists(pdf_info["ruta"]):
 
-            st.download_button(
-                label="📄 DESCARGAR LIQUIDACIÓN EN PDF",
-                data=archivo_pdf.read(),
-                file_name=(
-                    f"Liquidacion_"
-                    f"{pdf_info['empleado']}_"
-                    f"{pdf_info['fecha']}.pdf"
-                ),
-                mime="application/pdf",
-                key=f"pdf_{pdf_info['id']}"
-            )
+            with open(
+                pdf_info["ruta"],
+                "rb"
+            ) as archivo_pdf:
+
+                st.download_button(
+                    label="📄 DESCARGAR LIQUIDACIÓN EN PDF",
+                    data=archivo_pdf.read(),
+                    file_name=(
+                        f"Liquidacion_"
+                        f"{pdf_info['empleado']}_"
+                        f"{pdf_info['fecha']}.pdf"
+                    ),
+                    mime="application/pdf",
+                    key=f"pdf_{pdf_info['id']}"
+                )
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO
 # ----------------------------------------------------
