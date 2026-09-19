@@ -2332,6 +2332,34 @@ st.session_state["ultimo_pdf_liquidacion"] = {
                     st.warning(
                         "No hay operarios registrados."
                     )
+# ==========================================
+# BOTÓN DE DESCARGA DEL PDF
+# ==========================================
+
+if "ultimo_pdf_liquidacion" in st.session_state:
+
+    pdf_info = st.session_state[
+        "ultimo_pdf_liquidacion"
+    ]
+
+    if os.path.exists(pdf_info["ruta"]):
+
+        with open(
+            pdf_info["ruta"],
+            "rb"
+        ) as archivo_pdf:
+
+            st.download_button(
+                label="📄 DESCARGAR LIQUIDACIÓN EN PDF",
+                data=archivo_pdf.read(),
+                file_name=(
+                    f"Liquidacion_"
+                    f"{pdf_info['empleado']}_"
+                    f"{pdf_info['fecha']}.pdf"
+                ),
+                mime="application/pdf",
+                key=f"pdf_{pdf_info['id']}"
+            )
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO
 # ----------------------------------------------------
