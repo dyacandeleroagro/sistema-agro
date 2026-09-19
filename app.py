@@ -2316,22 +2316,26 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 f"$ {saldo_adelanto_final:,.2f}"
                             )
 
-# ==================================
-# PDF
-# ==================================
+                        # ==================================
+                        # GUARDAR PDF EN SESSION STATE
+                        # ==================================
 
-st.session_state["ultimo_pdf_liquidacion"] = {
-    "ruta": ruta_pdf,
-    "empleado": emp_liquidacion,
-    "fecha": str(fecha_liquidacion),
-    "id": nuevo_id
-}
+                        st.session_state[
+                            "ultimo_pdf_liquidacion"
+                        ] = {
+                            "ruta": ruta_pdf,
+                            "empleado": emp_liquidacion,
+                            "fecha": str(fecha_liquidacion),
+                            "id": nuevo_id
+                        }
 
                 else:
 
                     st.warning(
                         "No hay operarios registrados."
                     )
+
+
 # ==========================================
 # BOTÓN DE DESCARGA DEL PDF
 # ==========================================
