@@ -2316,29 +2316,16 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 f"$ {saldo_adelanto_final:,.2f}"
                             )
 
-                        # ==================================
-                        # PDF
-                        # ==================================
+# ==================================
+# PDF
+# ==================================
 
-                        with open(
-                            ruta_pdf,
-                            "rb"
-                        ) as archivo_pdf:
-
-                            st.download_button(
-                                label=(
-                                    "📄 DESCARGAR "
-                                    "LIQUIDACIÓN EN PDF"
-                                ),
-                                data=archivo_pdf.read(),
-                                file_name=(
-                                    f"Liquidacion_"
-                                    f"{emp_liquidacion}_"
-                                    f"{fecha_liquidacion}.pdf"
-                                ),
-                                mime="application/pdf",
-                                key=f"pdf_{nuevo_id}"
-                            )
+st.session_state["ultimo_pdf_liquidacion"] = {
+    "ruta": ruta_pdf,
+    "empleado": emp_liquidacion,
+    "fecha": str(fecha_liquidacion),
+    "id": nuevo_id
+}
 
                 else:
 
