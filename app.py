@@ -2813,9 +2813,6 @@ if menu == "🗄 CONTROL DE ERRORES":
                     )
 
                     st.rerun()
-        else:
-
-            st.info("No hay movimientos de personal.")
 
     # ==========================================
     # SEGUROS
