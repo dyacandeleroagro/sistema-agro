@@ -189,24 +189,19 @@ if not os.path.exists("registro_pagos_empleados.csv"):
 ARCHIVO_PAGOS_EMPLEADOS = "registro_pagos_empleados.csv"
 
 # ==========================================================
-# CARGA PERSISTENTE DE PAGOS DE EMPLEADOS
+# CARGA DE PAGOS DE EMPLEADOS
 # ==========================================================
 
-if "df_pagos_empleados" not in st.session_state:
+if os.path.exists(ARCHIVO_PAGOS_EMPLEADOS):
 
-    if os.path.exists(ARCHIVO_PAGOS_EMPLEADOS):
+    df_pagos_empleados = pd.read_csv(
+        ARCHIVO_PAGOS_EMPLEADOS,
+        encoding="utf-8-sig"
+    )
 
-        st.session_state["df_pagos_empleados"] = pd.read_csv(
-            ARCHIVO_PAGOS_EMPLEADOS,
-            encoding="utf-8-sig"
-        )
+else:
 
-    else:
-
-        st.session_state["df_pagos_empleados"] = pd.DataFrame()
-
-
-df_pagos_empleados = st.session_state["df_pagos_empleados"].copy()
+    df_pagos_empleados = pd.DataFrame()
 
 
 # Agregar columnas nuevas si el archivo ya existía
@@ -1698,8 +1693,9 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             )
 
                             df_pagos_empleados.to_csv(
-                                "registro_pagos_empleados.csv",
-                                index=False
+                             ARCHIVO_PAGOS_EMPLEADOS,
+                             index=False,
+                             encoding="utf-8-sig"
                             )
 
                             st.success(
@@ -2801,11 +2797,6 @@ if menu == "🗄 CONTROL DE ERRORES":
                         "registro_pagos_empleados.csv",
                         index=False,
                         encoding="utf-8-sig"
-                    )
-
-                    # Actualizar memoria de la sesión
-                    st.session_state["df_pagos_empleados"] = (
-                        df_pagos_empleados.copy()
                     )
 
                     st.success(
