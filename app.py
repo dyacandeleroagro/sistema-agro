@@ -2118,7 +2118,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         nombres_comprobantes = guardar_comprobantes(
                             archivos_comprobantes,
                             nuevo_id,
-                            emp_liquidacion
                         )
 
                         nuevo_pago = {
