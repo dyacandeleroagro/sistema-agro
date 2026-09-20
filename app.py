@@ -1698,761 +1698,602 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         "No hay operarios registrados."
                     )
 
-        # ==================================================
-        # LIQUIDACIÓN ESPECIAL
-        # ==================================================
-
+                # ==========================================
+        # LIQUIDACIÓN ESPECIAL POR HORAS TOTALES
+        # ==========================================
         else:
 
-         st.markdown(
-             "### 📋 Liquidación especial"
-        )
-
-         st.info(
-             "Usá esta opción para cargar una liquidación "
-             "por horas totales."
-        )
-
-         with st.form(
-             "form_liquidacion_especial"
-        ):
-
-            if not df_empleados.empty:
-
-            # ==========================================
-            # EMPLEADO
-            # ==========================================
-
-            emp_liquidacion = st.selectbox(
-                "👤 Seleccionar Operario",
-                df_empleados["Nombre"].tolist()
-            )
-
-            # ==========================================
-            # FECHA
-            # ==========================================
-
-            fecha_liquidacion = st.date_input(
-                "📅 Fecha de pago",
-                value=datetime.today()
-            )
-
-            # ==========================================
-            # HORAS
-            # ==========================================
-
-            horas_totales = st.number_input(
-                "⏱️ Horas totales trabajadas",
-                min_value=0.0,
-                step=0.5,
-                value=0.0
-            )
-
-            # ==========================================
-            # VALOR HORA
-            # ==========================================
-
-            valor_hora_total = st.number_input(
-                "💰 Valor por hora ($ ARS)",
-                min_value=0.0,
-                step=100.0,
-                value=0.0
-            )
-
-            # ==========================================
-            # MONTO BASE
-            # ==========================================
-
-            monto_base_trabajado = (
-                horas_totales
-                * valor_hora_total
-            )
+            st.markdown("### 📋 Liquidación por horas totales")
 
             st.info(
-                f"💰 Monto base: "
-                f"**$ {monto_base_trabajado:,.2f}**"
+                "Esta opción permite cargar una liquidación completa "
+                "sin tener que registrar cada jornada por separado."
             )
 
-            # ==========================================
-            # BONIFICACIÓN / DESCUENTO
-            # ==========================================
+            with st.form("form_liquidacion_especial"):
 
-            porcentaje_bonificacion = st.number_input(
-                "⭐ Bonificación / Descuento (%)",
-                min_value=-100000.0,
-                max_value=5.0,
-                step=1.0,
-                value=0.0,
-                help=(
-                    "Positivo = bonificación. "
-                    "Negativo = descuento. "
-                    "Máximo permitido: +5%."
-                )
-            )
+                if not df_empleados.empty:
 
-            monto_bonificacion = (
-                monto_base_trabajado
-                * porcentaje_bonificacion
-                / 100
-            )
+                    # ==========================================
+                    # EMPLEADO
+                    # ==========================================
 
-            monto_final_trabajo = (
-                monto_base_trabajado
-                + monto_bonificacion
-            )
-
-            if porcentaje_bonificacion > 0:
-
-                st.success(
-                    f"⭐ Bonificación "
-                    f"{porcentaje_bonificacion:+.2f}%: "
-                    f"**+$ {monto_bonificacion:,.2f}**"
-                )
-
-            elif porcentaje_bonificacion < 0:
-
-                st.warning(
-                    f"📉 Descuento "
-                    f"{porcentaje_bonificacion:.2f}%: "
-                    f"**$ {monto_bonificacion:,.2f}**"
-                )
-
-            st.success(
-                f"💰 TOTAL FINAL DEL TRABAJO: "
-                f"**$ {monto_final_trabajo:,.2f}**"
-            )
-
-            # ==========================================
-            # ADELANTO / DEUDA ANTERIOR
-            # ==========================================
-
-            saldo_adelanto_anterior = (
-                obtener_saldo_adelanto(
-                    df_pagos_empleados,
-                    emp_liquidacion
-                )
-            )
-
-            if saldo_adelanto_anterior > 0:
-
-                st.warning(
-                    f"💳 Adelanto/deuda pendiente: "
-                    f"**$ {saldo_adelanto_anterior:,.2f}**"
-                )
-
-                st.info(
-                    "La deuda se descontará "
-                    "automáticamente de lo generado "
-                    "en esta liquidación."
-                )
-
-            else:
-
-                st.success(
-                    "✔ No tiene adelantos/deudas pendientes."
-                )
-
-            # ==========================================
-            # COMPENSACIÓN DE DEUDA
-            # ==========================================
-
-            monto_compensado = min(
-                monto_final_trabajo,
-                saldo_adelanto_anterior
-            )
-
-            monto_neto_a_pagar = (
-                monto_final_trabajo
-                - monto_compensado
-            )
-
-            st.write(
-                f"💵 Neto a pagar después de compensar "
-                f"la deuda: "
-                f"**$ {monto_neto_a_pagar:,.2f}**"
-            )
-
-            if monto_compensado > 0:
-
-                st.info(
-                    f"⏱️ Se compensan "
-                    f"**$ {monto_compensado:,.2f}** "
-                    f"de la deuda anterior."
-                )
-
-            # ==========================================
-            # MONTO REALMENTE PAGADO
-            # ==========================================
-
-            # IMPORTANTE:
-            # El valor queda guardado en session_state
-            # para que Streamlit no lo vuelva a pisar
-            # con el monto calculado.
-
-            clave_pago = (
-                f"monto_pagado_liquidacion_"
-                f"{emp_liquidacion}"
-            )
-
-            if clave_pago not in st.session_state:
-
-                st.session_state[clave_pago] = (
-                    float(monto_neto_a_pagar)
-                )
-
-            monto_pagado = st.number_input(
-                "💵 Monto REALMENTE PAGADO",
-                min_value=0.0,
-                step=1000.0,
-                key=clave_pago,
-                help=(
-                    "Ingresá exactamente cuánto "
-                    "se pagó realmente al empleado. "
-                    "Este valor NO será reemplazado "
-                    "por el cálculo automático."
-                )
-            )
-
-            # ==========================================
-            # DIFERENCIA REAL
-            # ==========================================
-
-            adelanto_nuevo = 0.0
-            saldo_pendiente_pago = 0.0
-
-            # ------------------------------------------
-            # SE PAGÓ DE MÁS
-            # ------------------------------------------
-
-            if monto_pagado > monto_neto_a_pagar:
-
-                adelanto_nuevo = (
-                    monto_pagado
-                    - monto_neto_a_pagar
-                )
-
-                st.warning(
-                    f"⚠️ Se pagó de más: "
-                    f"**$ {adelanto_nuevo:,.2f}**"
-                )
-
-                st.info(
-                    "Ese importe queda como "
-                    "adelanto del empleado para "
-                    "futuras liquidaciones."
-                )
-
-            # ------------------------------------------
-            # SE PAGÓ DE MENOS
-            # ------------------------------------------
-
-            elif monto_pagado < monto_neto_a_pagar:
-
-                saldo_pendiente_pago = (
-                    monto_neto_a_pagar
-                    - monto_pagado
-                )
-
-                st.warning(
-                    f"⚠️ Queda pendiente de pago: "
-                    f"**$ {saldo_pendiente_pago:,.2f}**"
-                )
-
-                st.info(
-                    "Este importe NO se considera "
-                    "adelanto del empleado. "
-                    "Es dinero que todavía debe "
-                    "pagar la empresa."
-                )
-
-            # ------------------------------------------
-            # PAGO EXACTO
-            # ------------------------------------------
-
-            else:
-
-                st.success(
-                    "✔ El monto realmente pagado "
-                    "coincide exactamente con el "
-                    "neto de la liquidación."
-                )
-
-            # ==========================================
-            # SALDO FINAL DE ADELANTO
-            # ==========================================
-
-            saldo_adelanto_final = (
-                saldo_adelanto_anterior
-                - monto_compensado
-                + adelanto_nuevo
-            )
-
-            saldo_adelanto_final = max(
-                saldo_adelanto_final,
-                0.0
-            )
-
-            if saldo_adelanto_final > 0:
-
-                st.warning(
-                    f"💳 Saldo de adelanto/deuda "
-                    f"restante: "
-                    f"**$ {saldo_adelanto_final:,.2f}**"
-                )
-
-            else:
-
-                st.success(
-                    "✔ No queda saldo de adelanto/deuda."
-                )
-
-            # ==========================================
-            # TIPO
-            # ==========================================
-
-            tipo_liquidacion = st.radio(
-                "💳 Tipo de pago:",
-                [
-                    "Liquidación / Pago",
-                    "Reintegro / Devolución"
-                ],
-                horizontal=True
-            )
-
-            # ==========================================
-            # ESTADO
-            # ==========================================
-
-            estado_liquidacion = st.radio(
-                "📌 Estado:",
-                [
-                    "Pagado",
-                    "Pendiente"
-                ],
-                horizontal=True
-            )
-
-            # ==========================================
-            # CONCEPTO
-            # ==========================================
-
-            concepto_liquidacion = st.text_input(
-                "📝 Concepto",
-                value="Liquidación mensual"
-            )
-
-            # ==========================================
-            # COMPROBANTES
-            # ==========================================
-
-            comprobantes_liquidacion = st.file_uploader(
-                "🧾 Comprobantes de pago",
-                type=[
-                    "pdf",
-                    "png",
-                    "jpg",
-                    "jpeg",
-                    "webp"
-                ],
-                accept_multiple_files=True,
-                key="comprobantes_liquidacion"
-            )
-
-            if comprobantes_liquidacion:
-
-                st.write(
-                    f"📎 "
-                    f"**{len(comprobantes_liquidacion)} "
-                    f"comprobante(s) seleccionado(s)**"
-                )
-
-                for archivo in comprobantes_liquidacion:
-
-                    st.caption(
-                        f"• {archivo.name}"
+                    emp_liquidacion = st.selectbox(
+                        "👤 Empleado",
+                        df_empleados["Nombre"].tolist(),
+                        key="empleado_liquidacion_especial"
                     )
 
-            # ==========================================
-            # GUARDAR
-            # ==========================================
+                    # ==========================================
+                    # FECHA DE LIQUIDACIÓN
+                    # ==========================================
 
-            guardar_liquidacion = st.form_submit_button(
-                "💳 GUARDAR LIQUIDACIÓN Y GENERAR PDF"
-            )
-
-            if guardar_liquidacion:
-
-                # ======================================
-                # VALIDACIONES
-                # ======================================
-
-                if horas_totales <= 0:
-
-                    st.error(
-                        "❌ Tenés que ingresar "
-                        "las horas totales."
+                    fecha_liquidacion = st.date_input(
+                        "📅 Fecha de liquidación",
+                        value=datetime.date.today(),
+                        key="fecha_liquidacion_especial"
                     )
 
-                    st.stop()
+                    # ==========================================
+                    # HORAS TOTALES
+                    # ==========================================
 
-                if valor_hora_total <= 0:
-
-                    st.error(
-                        "❌ Tenés que ingresar "
-                        "el valor por hora."
+                    horas_totales = st.number_input(
+                        "⏱️ Horas totales trabajadas",
+                        min_value=0.0,
+                        step=0.5,
+                        value=0.0,
+                        key="horas_totales_liquidacion"
                     )
 
-                    st.stop()
+                    # ==========================================
+                    # VALOR HORA
+                    # ==========================================
 
-                # ======================================
-                # PROTECCIÓN CONTRA DOBLE GUARDADO
-                # ======================================
-
-                nombres_archivos = ""
-
-                if comprobantes_liquidacion:
-
-                    nombres_archivos = "|".join(
-                        archivo.name
-                        for archivo
-                        in comprobantes_liquidacion
+                    valor_hora_total = st.number_input(
+                        "💵 Valor de la hora",
+                        min_value=0.0,
+                        step=100.0,
+                        value=0.0,
+                        key="valor_hora_liquidacion"
                     )
 
-                firma_datos = (
-                    f"{emp_liquidacion}|"
-                    f"{fecha_liquidacion}|"
-                    f"{horas_totales}|"
-                    f"{valor_hora_total}|"
-                    f"{porcentaje_bonificacion}|"
-                    f"{monto_pagado}|"
-                    f"{tipo_liquidacion}|"
-                    f"{estado_liquidacion}|"
-                    f"{concepto_liquidacion}|"
-                    f"{nombres_archivos}"
-                )
+                    # ==========================================
+                    # MONTO BASE
+                    # ==========================================
 
-                firma = hashlib.sha256(
-                    firma_datos.encode("utf-8")
-                ).hexdigest()
-
-                ahora = time.time()
-
-                ultima_liquidacion = (
-                    st.session_state.get(
-                        "ultima_liquidacion_guardada"
-                    )
-                )
-
-                if ultima_liquidacion:
-
-                    misma_firma = (
-                        ultima_liquidacion["firma"]
-                        == firma
+                    monto_base_trabajado = (
+                        horas_totales * valor_hora_total
                     )
 
-                    muy_reciente = (
-                        ahora
-                        - ultima_liquidacion["hora"]
-                        < 15
+                    st.markdown(
+                        f"""
+                        **Monto trabajado:**  
+                        ${monto_base_trabajado:,.2f}
+                        """.replace(",", "X").replace(".", ",").replace("X", ".")
                     )
 
-                    if (
-                        misma_firma
-                        and muy_reciente
-                    ):
+                    # ==========================================
+                    # BONIFICACIÓN
+                    # ==========================================
+
+                    porcentaje_bonificacion = st.number_input(
+                        "🎁 Bonificación (%)",
+                        min_value=0.0,
+                        max_value=100.0,
+                        step=1.0,
+                        value=0.0,
+                        key="porcentaje_bonificacion_liquidacion"
+                    )
+
+                    monto_bonificacion = (
+                        monto_base_trabajado
+                        * porcentaje_bonificacion
+                        / 100
+                    )
+
+                    # ==========================================
+                    # DESCUENTO
+                    # ==========================================
+
+                    porcentaje_descuento = st.number_input(
+                        "➖ Descuento (%)",
+                        min_value=0.0,
+                        max_value=100.0,
+                        step=1.0,
+                        value=0.0,
+                        key="porcentaje_descuento_liquidacion"
+                    )
+
+                    monto_descuento = (
+                        monto_base_trabajado
+                        * porcentaje_descuento
+                        / 100
+                    )
+
+                    # ==========================================
+                    # MONTO FINAL DEL TRABAJO
+                    # ==========================================
+
+                    monto_final_trabajo = (
+                        monto_base_trabajado
+                        + monto_bonificacion
+                        - monto_descuento
+                    )
+
+                    st.markdown(
+                        f"""
+                        **Monto final del trabajo:**  
+                        ${monto_final_trabajo:,.2f}
+                        """.replace(",", "X").replace(".", ",").replace("X", ".")
+                    )
+
+                    # ==========================================
+                    # ADELANTO / DEUDA ANTERIOR
+                    # ==========================================
+
+                    saldo_adelanto_anterior = obtener_saldo_adelanto(
+                        df_pagos_empleados,
+                        emp_liquidacion
+                    )
+
+                    if saldo_adelanto_anterior > 0:
 
                         st.warning(
-                            "⚠️ Esta liquidación "
-                            "ya fue guardada."
+                            "⚠️ Este empleado tiene un adelanto/deuda "
+                            f"pendiente de "
+                            f"${saldo_adelanto_anterior:,.2f}"
                         )
 
-                        st.stop()
+                    else:
 
-                # ======================================
-                # ID ÚNICO
-                # ======================================
-
-                nuevo_id = (
-                    datetime.now().strftime(
-                        "%Y%m%d%H%M%S%f"
-                    )
-                )
-
-                # ======================================
-                # GUARDAR COMPROBANTES
-                # ======================================
-
-                nombres_comprobantes = (
-                    guardar_comprobantes(
-                        comprobantes_liquidacion,
-                        nuevo_id
-                    )
-                )
-
-                comprobantes_texto = (
-                    " | ".join(
-                        nombres_comprobantes
-                    )
-                )
-
-                # ======================================
-                # NUEVO REGISTRO
-                # ======================================
-
-                nuevo_pago = {
-
-                    "ID_Pago":
-                        nuevo_id,
-
-                    "Fecha Pago":
-                        fecha_liquidacion.strftime(
-                            "%Y-%m-%d"
-                        ),
-
-                    "Nombre Empleado":
-                        emp_liquidacion,
-
-                    "Fecha Trabajo":
-                        fecha_liquidacion.strftime(
-                            "%Y-%m-%d"
-                        ),
-
-                    "Hora Entrada":
-                        "",
-
-                    "Hora Salida":
-                        "",
-
-                    "Horas Trabajadas":
-                        round(
-                            horas_totales,
-                            2
-                        ),
-
-                    "Valor Hora":
-                        round(
-                            valor_hora_total,
-                            2
-                        ),
-
-                    # ESTE ES EL MONTO REAL
-                    "Monto (ARS)":
-                        round(
-                            monto_pagado,
-                            2
-                        ),
-
-                    "Tipo Registro":
-                        tipo_liquidacion,
-
-                    "Estado Pago":
-                        estado_liquidacion,
-
-                    "Concepto":
-                        concepto_liquidacion,
-
-                    "Porcentaje Bonificacion":
-                        round(
-                            porcentaje_bonificacion,
-                            2
-                        ),
-
-                    "Monto Bonificacion (ARS)":
-                        round(
-                            monto_bonificacion,
-                            2
-                        ),
-
-                    "Monto Trabajado (ARS)":
-                        round(
-                            monto_base_trabajado,
-                            2
-                        ),
-
-                    "Monto Pagado (ARS)":
-                        round(
-                            monto_pagado,
-                            2
-                        ),
-
-                    "Monto Final Trabajo (ARS)":
-                        round(
-                            monto_final_trabajo,
-                            2
-                        ),
-
-                    "Adelanto Generado (ARS)":
-                        round(
-                            adelanto_nuevo,
-                            2
-                        ),
-
-                    "Monto Compensado (ARS)":
-                        round(
-                            monto_compensado,
-                            2
-                        ),
-
-                    "Saldo Adelanto (ARS)":
-                        round(
-                            saldo_adelanto_final,
-                            2
-                        ),
-
-                    "Saldo Pendiente Pago (ARS)":
-                        round(
-                            saldo_pendiente_pago,
-                            2
-                        ),
-
-                    "Comprobantes":
-                        comprobantes_texto,
-
-                    "PDF Liquidacion":
-                        ""
-                }
-
-                # ======================================
-                # GUARDAR EN DATAFRAME
-                # ======================================
-
-                df_pagos_empleados = pd.concat(
-                    [
-                        df_pagos_empleados,
-                        pd.DataFrame(
-                            [nuevo_pago]
+                        st.success(
+                            "✅ Este empleado no tiene adelantos pendientes."
                         )
-                    ],
-                    ignore_index=True
-                )
 
-                # ======================================
-                # GENERAR PDF
-                # ======================================
+                    # ==========================================
+                    # COMPENSACIÓN DEL ADELANTO
+                    # ==========================================
 
-                ruta_pdf = (
-                    generar_pdf_liquidacion(
-                        nuevo_id,
-                        emp_liquidacion,
-                        fecha_liquidacion,
-                        horas_totales,
-                        valor_hora_total,
-                        monto_base_trabajado,
-                        porcentaje_bonificacion,
-                        monto_bonificacion,
-                        monto_final_trabajo,
-                        saldo_adelanto_anterior,
-                        monto_compensado,
-                        monto_neto_a_pagar,
-                        monto_pagado,
-                        adelanto_nuevo,
-                        saldo_adelanto_final,
-                        saldo_pendiente_pago,
-                        tipo_liquidacion,
-                        estado_liquidacion,
-                        concepto_liquidacion,
-                        nombres_comprobantes
-                    )
-                )
-
-                # ======================================
-                # GUARDAR RUTA PDF
-                # ======================================
-
-                df_pagos_empleados.loc[
-                    df_pagos_empleados[
-                        "ID_Pago"
-                    ].astype(str)
-                    == str(nuevo_id),
-                    "PDF Liquidacion"
-                ] = ruta_pdf
-
-                # ======================================
-                # GUARDAR CSV
-                # ======================================
-
-                df_pagos_empleados.to_csv(
-                    "registro_pagos_empleados.csv",
-                    index=False
-                )
-
-                # ======================================
-                # MARCAR COMO GUARDADA
-                # ======================================
-
-                st.session_state[
-                    "ultima_liquidacion_guardada"
-                ] = {
-                    "firma": firma,
-                    "hora": time.time()
-                }
-
-                # ======================================
-                # RESULTADO
-                # ======================================
-
-                st.success(
-                    "✔ Liquidación registrada "
-                    "correctamente."
-                )
-
-                st.info(
-                    f"💰 Total trabajo: "
-                    f"$ {monto_final_trabajo:,.2f}"
-                )
-
-                st.info(
-                    f"💵 Total realmente pagado: "
-                    f"$ {monto_pagado:,.2f}"
-                )
-
-                if monto_compensado > 0:
-
-                    st.info(
-                        f"⏱️ Adelanto/deuda compensado: "
-                        f"$ {monto_compensado:,.2f}"
+                    monto_compensado = st.number_input(
+                        "💳 Monto de adelanto a compensar",
+                        min_value=0.0,
+                        max_value=float(saldo_adelanto_anterior),
+                        step=100.0,
+                        value=0.0,
+                        key="monto_compensado_liquidacion"
                     )
 
-                if adelanto_nuevo > 0:
+                    # ==========================================
+                    # NETO A PAGAR
+                    # ==========================================
+
+                    monto_neto_a_pagar = (
+                        monto_final_trabajo
+                        - monto_compensado
+                    )
+
+                    if monto_neto_a_pagar < 0:
+                        monto_neto_a_pagar = 0.0
+
+                    st.markdown(
+                        f"""
+                        ### 💰 Neto correspondiente
+
+                        **${monto_neto_a_pagar:,.2f}**
+                        """.replace(",", "X").replace(".", ",").replace("X", ".")
+                    )
+
+                    # ==========================================
+                    # MONTO REALMENTE PAGADO
+                    # ==========================================
+
+                    monto_pagado = st.number_input(
+                        "💵 Monto realmente pagado",
+                        min_value=0.0,
+                        step=100.0,
+                        value=float(monto_neto_a_pagar),
+                        key="monto_pagado_liquidacion"
+                    )
+
+                    st.caption(
+                        "Este es el importe que realmente se entrega al empleado. "
+                        "Puede ser diferente del neto correspondiente."
+                    )
+
+                    # ==========================================
+                    # DIFERENCIA
+                    # ==========================================
+
+                    if monto_pagado < monto_neto_a_pagar:
+
+                        saldo_pendiente_pago = (
+                            monto_neto_a_pagar - monto_pagado
+                        )
+
+                        adelanto_nuevo = 0.0
+
+                        st.warning(
+                            f"⚠️ Queda un saldo pendiente de pago de "
+                            f"${saldo_pendiente_pago:,.2f}"
+                        )
+
+                    elif monto_pagado > monto_neto_a_pagar:
+
+                        adelanto_nuevo = (
+                            monto_pagado - monto_neto_a_pagar
+                        )
+
+                        saldo_pendiente_pago = 0.0
+
+                        st.info(
+                            f"ℹ️ El empleado recibe "
+                            f"${adelanto_nuevo:,.2f} "
+                            f"por encima de la liquidación."
+                        )
+
+                    else:
+
+                        adelanto_nuevo = 0.0
+                        saldo_pendiente_pago = 0.0
+
+                    # ==========================================
+                    # SALDO FINAL DE ADELANTO
+                    # ==========================================
+
+                    saldo_adelanto_final = (
+                        saldo_adelanto_anterior
+                        - monto_compensado
+                        + adelanto_nuevo
+                    )
+
+                    if saldo_adelanto_final < 0:
+                        saldo_adelanto_final = 0.0
+
+                    # ==========================================
+                    # ESTADO DEL PAGO
+                    # ==========================================
+
+                    estado_liquidacion = st.selectbox(
+                        "📌 Estado del pago",
+                        [
+                            "Pagado",
+                            "Pendiente",
+                            "Pagado parcialmente"
+                        ],
+                        key="estado_liquidacion_especial"
+                    )
+
+                    # ==========================================
+                    # CONCEPTO
+                    # ==========================================
+
+                    concepto_liquidacion = st.text_input(
+                        "📝 Concepto",
+                        value="Liquidación de horas",
+                        key="concepto_liquidacion_especial"
+                    )
+
+                    # ==========================================
+                    # COMPROBANTES
+                    # ==========================================
+
+                    archivos_comprobantes = st.file_uploader(
+                        "📎 Comprobantes",
+                        accept_multiple_files=True,
+                        key="comprobantes_liquidacion_especial"
+                    )
+
+                    # ==========================================
+                    # RESUMEN
+                    # ==========================================
+
+                    st.markdown("---")
+                    st.markdown("### 📊 Resumen de liquidación")
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        st.write(
+                            f"**Monto trabajado:** "
+                            f"${monto_base_trabajado:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                        st.write(
+                            f"**Bonificación:** "
+                            f"${monto_bonificacion:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                        st.write(
+                            f"**Descuento:** "
+                            f"${monto_descuento:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                        st.write(
+                            f"**Monto final:** "
+                            f"${monto_final_trabajo:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                    with col2:
+
+                        st.write(
+                            f"**Adelanto anterior:** "
+                            f"${saldo_adelanto_anterior:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                        st.write(
+                            f"**Adelanto compensado:** "
+                            f"${monto_compensado:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                        st.write(
+                            f"**Neto correspondiente:** "
+                            f"${monto_neto_a_pagar:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                        st.write(
+                            f"**Realmente pagado:** "
+                            f"${monto_pagado:,.2f}"
+                            .replace(",", "X")
+                            .replace(".", ",")
+                            .replace("X", ".")
+                        )
+
+                    # ==========================================
+                    # SALDOS
+                    # ==========================================
+
+                    st.markdown("---")
+
+                    col3, col4 = st.columns(2)
+
+                    with col3:
+
+                        st.metric(
+                            "💰 Saldo de adelanto",
+                            f"${saldo_adelanto_final:,.2f}"
+                        )
+
+                    with col4:
+
+                        st.metric(
+                            "📌 Saldo pendiente de pago",
+                            f"${saldo_pendiente_pago:,.2f}"
+                        )
+
+                    # ==========================================
+                    # BOTÓN GUARDAR
+                    # ==========================================
+
+                    guardar_liquidacion = st.form_submit_button(
+                        "💾 Guardar liquidación",
+                        use_container_width=True
+                    )
+
+                    # ==========================================
+                    # GUARDAR
+                    # ==========================================
+
+                    if guardar_liquidacion:
+
+                        nuevo_id = (
+                            int(df_pagos_empleados["ID_Pago"].max()) + 1
+                            if not df_pagos_empleados.empty
+                            else 1
+                        )
+
+                        nombres_comprobantes = guardar_comprobantes(
+                            archivos_comprobantes,
+                            nuevo_id,
+                            emp_liquidacion
+                        )
+
+                        nuevo_pago = {
+
+                            "ID_Pago": nuevo_id,
+
+                            "Fecha Pago": str(
+                                fecha_liquidacion
+                            ),
+
+                            "Nombre Empleado":
+                                emp_liquidacion,
+
+                            "Fecha Trabajo": str(
+                                fecha_liquidacion
+                            ),
+
+                            "Hora Entrada": "",
+
+                            "Hora Salida": "",
+
+                            "Horas Trabajadas":
+                                round(
+                                    horas_totales,
+                                    2
+                                ),
+
+                            "Valor Hora":
+                                round(
+                                    valor_hora_total,
+                                    2
+                                ),
+
+                            "Monto (ARS)":
+                                round(
+                                    monto_pagado,
+                                    2
+                                ),
+
+                            "Tipo Registro":
+                                "Liquidación / Pago",
+
+                            "Estado Pago":
+                                estado_liquidacion,
+
+                            "Concepto":
+                                concepto_liquidacion,
+
+                            "Porcentaje Bonificacion":
+                                round(
+                                    porcentaje_bonificacion,
+                                    2
+                                ),
+
+                            "Monto Bonificacion (ARS)":
+                                round(
+                                    monto_bonificacion,
+                                    2
+                                ),
+
+                            "Monto Trabajado (ARS)":
+                                round(
+                                    monto_base_trabajado,
+                                    2
+                                ),
+
+                            "Monto Pagado (ARS)":
+                                round(
+                                    monto_pagado,
+                                    2
+                                ),
+
+                            "Monto Final Trabajo (ARS)":
+                                round(
+                                    monto_final_trabajo,
+                                    2
+                                ),
+
+                            "Adelanto Generado (ARS)":
+                                round(
+                                    adelanto_nuevo,
+                                    2
+                                ),
+
+                            "Monto Compensado (ARS)":
+                                round(
+                                    monto_compensado,
+                                    2
+                                ),
+
+                            "Saldo Adelanto (ARS)":
+                                round(
+                                    saldo_adelanto_final,
+                                    2
+                                ),
+
+                            "Saldo Pendiente Pago (ARS)":
+                                round(
+                                    saldo_pendiente_pago,
+                                    2
+                                ),
+
+                            "Comprobantes":
+                                nombres_comprobantes,
+
+                            "PDF Liquidacion":
+                                ""
+                        }
+
+                        df_pagos_empleados = pd.concat(
+                            [
+                                df_pagos_empleados,
+                                pd.DataFrame([nuevo_pago])
+                            ],
+                            ignore_index=True
+                        )
+
+                        # ==========================================
+                        # GUARDAR CSV
+                        # ==========================================
+
+                        df_pagos_empleados.to_csv(
+                            ARCHIVO_PAGOS_EMPLEADOS,
+                            index=False,
+                            encoding="utf-8-sig"
+                        )
+
+                        # ==========================================
+                        # PDF
+                        # ==========================================
+
+                        try:
+
+                            ruta_pdf = generar_pdf_liquidacion(
+                                nuevo_id,
+                                emp_liquidacion,
+                                fecha_liquidacion,
+                                horas_totales,
+                                valor_hora_total,
+                                monto_base_trabajado,
+                                porcentaje_bonificacion,
+                                monto_bonificacion,
+                                monto_final_trabajo,
+                                saldo_adelanto_anterior,
+                                monto_compensado,
+                                monto_neto_a_pagar,
+                                monto_pagado,
+                                adelanto_nuevo,
+                                saldo_adelanto_final,
+                                tipo_liquidacion,
+                                estado_liquidacion,
+                                concepto_liquidacion,
+                                nombres_comprobantes
+                            )
+
+                            if ruta_pdf:
+
+                                df_pagos_empleados.loc[
+                                    df_pagos_empleados["ID_Pago"] == nuevo_id,
+                                    "PDF Liquidacion"
+                                ] = ruta_pdf
+
+                                df_pagos_empleados.to_csv(
+                                    ARCHIVO_PAGOS_EMPLEADOS,
+                                    index=False,
+                                    encoding="utf-8-sig"
+                                )
+
+                        except Exception as e:
+
+                            st.warning(
+                                f"⚠️ La liquidación se guardó, "
+                                f"pero no se pudo generar el PDF: {e}"
+                            )
+
+                        st.success(
+                            "✅ Liquidación guardada correctamente."
+                        )
+
+                        st.rerun()
+
+                else:
 
                     st.warning(
-                        f"💳 Nuevo adelanto: "
-                        f"$ {adelanto_nuevo:,.2f}"
+                        "⚠️ No hay operarios registrados."
                     )
-
-                if saldo_adelanto_final > 0:
-
-                    st.warning(
-                        f"💳 Saldo de adelanto: "
-                        f"$ {saldo_adelanto_final:,.2f}"
-                    )
-
-                if saldo_pendiente_pago > 0:
-
-                    st.warning(
-                        f"💵 Saldo pendiente de pago "
-                        f"por parte de la empresa: "
-                        f"$ {saldo_pendiente_pago:,.2f}"
-                    )
-
-                # ======================================
-                # GUARDAR PDF EN SESSION STATE
-                # ======================================
-
-                st.session_state[
-                    "ultimo_pdf_liquidacion"
-                ] = {
-                    "ruta": ruta_pdf,
-                    "empleado": emp_liquidacion,
-                    "fecha": str(fecha_liquidacion),
-                    "id": nuevo_id
-                }
-
-        else:
-
-            st.warning(
-                "No hay operarios registrados."
-            )
 # ==========================================
 # BOTÓN DE DESCARGA DEL PDF
 # SOLO EN SISTEMA DE TRIPULACIÓN
