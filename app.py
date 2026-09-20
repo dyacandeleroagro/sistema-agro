@@ -1457,7 +1457,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                     p_fecha_trabajo = st.date_input(
                         "📅 Día trabajado",
-                        value=datetime.today()
+                        value=datetime.datetime.today()
                     )
 
                     col_hora1, col_hora2 = st.columns(2)
