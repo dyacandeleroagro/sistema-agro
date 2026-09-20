@@ -1779,11 +1779,11 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                     porcentaje_bonificacion = st.number_input(
                      "🎁 Bonificación / Descuento (%)",
-                      min_value=-100.0,
-                      max_value=100.0,
-                      step=1.0,
-                      value=0.0,
-                      key="porcentaje_bonificacion_liquidacion"
+                       min_value=-100.0,
+                       max_value=100.0,
+                       step=1.0,
+                       value=0.0,
+                       key="porcentaje_bonificacion_liquidacion"
                     )
 
                     monto_bonificacion = (
