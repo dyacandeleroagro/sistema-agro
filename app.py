@@ -1704,20 +1704,20 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
         else:
 
-    st.markdown(
-        "### 📋 Liquidación especial"
-    )
+         st.markdown(
+             "### 📋 Liquidación especial"
+        )
 
-    st.info(
-        "Usá esta opción para cargar una liquidación "
-        "por horas totales."
-    )
+         st.info(
+             "Usá esta opción para cargar una liquidación "
+             "por horas totales."
+        )
 
-    with st.form(
-        "form_liquidacion_especial"
-    ):
+         with st.form(
+             "form_liquidacion_especial"
+        ):
 
-        if not df_empleados.empty:
+         if not df_empleados.empty:
 
             # ==========================================
             # EMPLEADO
