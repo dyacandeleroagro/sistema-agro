@@ -2334,45 +2334,16 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 f"el PDF: {e}"
                             )
 
-                        # ==========================================
+                                                # ==========================================
                         # RESULTADO
                         # ==========================================
+
+                        st.session_state["pdf_liquidacion_path"] = ruta_pdf
+                        st.session_state["pdf_liquidacion_id"] = nuevo_id
 
                         st.success(
                             "✅ Liquidación guardada correctamente."
                         )
-
-                        # ==========================================
-                        # DESCARGAR PDF
-                        # ==========================================
-
-                        if (
-                            ruta_pdf
-                            and os.path.exists(ruta_pdf)
-                        ):
-
-                            with open(
-                                ruta_pdf,
-                                "rb"
-                            ) as archivo_pdf:
-
-                                st.download_button(
-                                    label="📄 Descargar comprobante de liquidación",
-                                    data=archivo_pdf,
-                                    file_name=os.path.basename(
-                                        ruta_pdf
-                                    ),
-                                    mime="application/pdf",
-                                    key=f"descargar_pdf_{nuevo_id}"
-                                )
-
-                        else:
-
-                            st.error(
-                                "❌ La liquidación fue guardada, "
-                                "pero no se encontró el archivo PDF."
-                            )
-
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO
 # ----------------------------------------------------
