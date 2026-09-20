@@ -1573,19 +1573,18 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                 "sin tener que registrar cada jornada por separado."
             )
 
-            with st.form("form_liquidacion_especial"):
 
-                if not df_empleados.empty:
+            if not df_empleados.empty:
 
                     # ==========================================
                     # EMPLEADO
                     # ==========================================
 
-                    emp_liquidacion = st.selectbox(
-                        "👤 Empleado",
-                        df_empleados["Nombre"].tolist(),
+                emp_liquidacion = st.selectbox(
+                    "👤 Empleado",
+                    df_empleados["Nombre"].tolist(),
                         key="empleado_liquidacion_especial"
-                    )
+                )
 
                     # ==========================================
                     # FECHA DE LIQUIDACIÓN
@@ -1983,9 +1982,10 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     # BOTÓN GUARDAR
                     # ==========================================
 
-                    guardar_liquidacion = st.form_submit_button(
-                        "💾 Guardar liquidación",
-                        use_container_width=True
+                    guardar_liquidacion = st.button(
+                      "💾 Guardar liquidación",
+                      use_container_width=True,
+                      key="btn_guardar_liquidacion_especial"
                     )
 
                     # ==========================================
