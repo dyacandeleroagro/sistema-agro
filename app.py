@@ -1798,7 +1798,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                     porcentaje_descuento = st.number_input(
                         "➖ Descuento (%)",
-                        min_value=0.0,
+                        min_value=-100.0,
                         max_value=100.0,
                         step=1.0,
                         value=0.0,
@@ -1808,7 +1808,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     monto_descuento = (
                         monto_base_trabajado
                         * porcentaje_descuento
-                        / 100
+                        / -100
                     )
 
                     # ==========================================
@@ -1832,7 +1832,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         .replace(".", ",")
                         .replace("X", ".")
                     )
-                    
+
                     # ==========================================
                     # ADELANTO / DEUDA ANTERIOR
                     # ==========================================
