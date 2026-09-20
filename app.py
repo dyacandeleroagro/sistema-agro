@@ -2779,27 +2779,27 @@ if menu == "🗄 CONTROL DE ERRORES":
                 with c_b:
 
                     if st.button(
-                     "🗑 Borrar",
-                      key=f"b_emp_{fila['ID_Pago']}_{idx}"
+                       "🗑 Borrar",
+                       key=f"b_emp_{fila['ID_Pago']}_{idx}"
                     ):
 
-                    # Eliminar el movimiento
-                    df_pagos_empleados = df_pagos_empleados.drop(idx).reset_index(drop=True)
+                       # Eliminar el movimiento
+                       df_pagos_empleados = df_pagos_empleados.drop(idx).reset_index(drop=True)
 
-                    # Guardar en CSV
-                    df_pagos_empleados.to_csv(
-                     "registro_pagos_empleados.csv",
-                      index=False,
-                      encoding="utf-8-sig"
-                    )
+                       # Guardar en CSV
+                       df_pagos_empleados.to_csv(
+                         "registro_pagos_empleados.csv",
+                         index=False,
+                         encoding="utf-8-sig"
+                        )
 
-                    # IMPORTANTE:
-                    # actualizar también la memoria de la sesión
-                    st.session_state["df_pagos_empleados"] = df_pagos_empleados.copy()
+                        # IMPORTANTE:
+                        # actualizar también la memoria de la sesión
+                        st.session_state["df_pagos_empleados"] = df_pagos_empleados.copy()
 
-                    st.success("Movimiento de personal eliminado.")
+                        st.success("Movimiento de personal eliminado.")
 
-                    st.rerun()
+                        st.rerun()
 
         else:
 
