@@ -1857,18 +1857,24 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         )
 
                     # ==========================================
-                    # COMPENSACIÓN DEL ADELANTO
-                    # ==========================================
+# COMPENSACIÓN AUTOMÁTICA DEL ADELANTO
+# ==========================================
 
-                    monto_compensado = st.number_input(
-                        "💳 Monto de adelanto a compensar",
-                        min_value=0.0,
-                        max_value=float(saldo_adelanto_anterior),
-                        step=100.0,
-                        value=0.0,
-                        key="monto_compensado_liquidacion"
-                    )
+# El sistema calcula automáticamente cuánto
+# del adelanto pendiente se descuenta.
 
+monto_compensado = min(
+    saldo_adelanto_anterior,
+    monto_final_trabajo
+)
+
+st.info(
+    f"💳 Adelanto a compensar automáticamente: "
+    f"${monto_compensado:,.2f}"
+    .replace(",", "X")
+    .replace(".", ",")
+    .replace("X", ".")
+)
                     # ==========================================
                     # NETO A PAGAR
                     # ==========================================
