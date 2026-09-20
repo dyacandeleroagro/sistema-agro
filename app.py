@@ -2295,11 +2295,20 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             )
 
                         st.success(
-                            "✅ Liquidación guardada correctamente."
+                         "✅ Liquidación guardada correctamente."
                         )
 
-                        st.rerun()
+                          if ruta_pdf and os.path.exists(ruta_pdf):
 
+                            with open(ruta_pdf, "rb") as archivo_pdf:
+
+                                st.download_button(
+                                 label="📄 Descargar comprobante de liquidación",
+                                 data=archivo_pdf,
+                                 file_name=os.path.basename(ruta_pdf),
+                                 mime="application/pdf",
+                                 key=f"descargar_pdf_{nuevo_id}"
+                                )
                 else:
 
                     st.warning(
