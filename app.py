@@ -1565,7 +1565,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                 # LIQUIDACIÓN ESPECIAL POR HORAS TOTALES
                 # ==================================================
 
-                else:
+        else:
 
                     st.markdown(
                         "### 📋 Liquidación por horas totales"
