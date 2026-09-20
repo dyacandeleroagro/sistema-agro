@@ -2108,7 +2108,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     # GUARDAR
                     # ==========================================
 
-                    ```python
                     if guardar_liquidacion:
 
                         # ==========================================
