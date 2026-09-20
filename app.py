@@ -2334,7 +2334,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 f"el PDF: {e}"
                             )
 
-                                                # ==========================================
+                                                                        # ==========================================
                         # RESULTADO
                         # ==========================================
 
@@ -2344,6 +2344,45 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         st.success(
                             "✅ Liquidación guardada correctamente."
                         )
+
+
+            # ==================================================
+            # BOTÓN DESCARGAR PDF
+            # IMPORTANTE: ESTÁ FUERA DEL st.form
+            # ==================================================
+
+            if st.session_state.get("pdf_liquidacion_path"):
+
+                pdf_liquidacion_path = (
+                    st.session_state["pdf_liquidacion_path"]
+                )
+
+                pdf_liquidacion_id = (
+                    st.session_state["pdf_liquidacion_id"]
+                )
+
+                if os.path.exists(pdf_liquidacion_path):
+
+                    with open(
+                        pdf_liquidacion_path,
+                        "rb"
+                    ) as archivo_pdf:
+
+                        st.download_button(
+                            label="📄 Descargar comprobante de liquidación",
+                            data=archivo_pdf.read(),
+                            file_name=os.path.basename(
+                                pdf_liquidacion_path
+                            ),
+                            mime="application/pdf",
+                            key=f"descargar_pdf_{pdf_liquidacion_id}"
+                        )
+
+                else:
+
+                    st.error(
+                        "❌ No se encontró el archivo PDF."
+                    )
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO
 # ----------------------------------------------------
