@@ -186,6 +186,7 @@ if not os.path.exists("registro_pagos_empleados.csv"):
         index=False
     )
 
+ARCHIVO_PAGOS_EMPLEADOS = "registro_pagos_empleados.csv"
 
 df_pagos_empleados = pd.read_csv(
     "registro_pagos_empleados.csv"
