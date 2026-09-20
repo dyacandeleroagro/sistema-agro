@@ -223,6 +223,8 @@ columnas_pagos = {
     # NUEVAS COLUMNAS
     "Porcentaje Bonificacion": 0.0,
     "Monto Bonificacion (ARS)": 0.0,
+    "Porcentaje Descuento": 0.0,
+    "Monto Descuento (ARS)": 0.0,
     "Monto Trabajado (ARS)": 0.0,
     "Monto Pagado (ARS)": 0.0,
     "Monto Final Trabajo (ARS)": 0.0,
@@ -1027,312 +1029,81 @@ if menu == "🔍 CUENTAS PENDIENTES":
 # FUNCIONES PARA LIQUIDACIONES
 # ============================================================
 
-def obtener_saldo_adelanto(df_pagos, empleado):
+def obtener_saldos_empleado(df_pagos, empleado):
 
     if df_pagos.empty:
-        return 0.0
+        return {
+            "adelanto": 0.0,
+            "pendiente": 0.0
+        }
 
     df_emp = df_pagos[
-        df_pagos["Nombre Empleado"] == empleado
+        df_pagos["Nombre Empleado"].astype(str).str.strip()
+        == str(empleado).strip()
     ].copy()
 
     if df_emp.empty:
-        return 0.0
-
-    if "Adelanto Generado (ARS)" not in df_emp.columns:
-        return 0.0
-
-    if "Monto Compensado (ARS)" not in df_emp.columns:
-        return 0.0
+        return {
+            "adelanto": 0.0,
+            "pendiente": 0.0
+        }
 
     adelantos = pd.to_numeric(
-        df_emp["Adelanto Generado (ARS)"],
+        df_emp.get(
+            "Adelanto Generado (ARS)",
+            pd.Series(dtype=float)
+        ),
         errors="coerce"
     ).fillna(0).sum()
 
     compensados = pd.to_numeric(
-        df_emp["Monto Compensado (ARS)"],
+        df_emp.get(
+            "Monto Compensado (ARS)",
+            pd.Series(dtype=float)
+        ),
         errors="coerce"
     ).fillna(0).sum()
 
-    return max(adelantos - compensados, 0.0)
-
-
-def guardar_comprobantes(comprobantes, id_liquidacion):
-
-    if not comprobantes:
-        return []
-
-    carpeta = os.path.join(
-        "comprobantes_pagos",
-        str(id_liquidacion)
-    )
-
-    os.makedirs(carpeta, exist_ok=True)
-
-    nombres = []
-
-    for numero, archivo in enumerate(comprobantes, 1):
-
-        nombre_original = os.path.basename(
-            archivo.name
+    if "Fecha Pago" in df_emp.columns:
+        df_emp = df_emp.sort_values(
+            by=["Fecha Pago", "ID_Pago"]
         )
 
-        nombre_limpio = re.sub(
-            r"[^a-zA-Z0-9._-]",
-            "_",
-            nombre_original
+    if not df_emp.empty:
+
+        pendiente_actual = pd.to_numeric(
+            df_emp.iloc[-1].get(
+                "Saldo Pendiente Pago (ARS)",
+                0
+            ),
+            errors="coerce"
         )
 
-        nombre_final = (
-            f"{numero}_{nombre_limpio}"
-        )
-
-        ruta = os.path.join(
-            carpeta,
-            nombre_final
-        )
-
-        with open(ruta, "wb") as f:
-            f.write(
-                archivo.getbuffer()
-            )
-
-        nombres.append(nombre_final)
-
-    return nombres
-
-
-def generar_pdf_liquidacion(
-    id_liquidacion,
-    empleado,
-    fecha,
-    horas,
-    valor_hora,
-    monto_base,
-    porcentaje,
-    monto_bonificacion,
-    monto_final,
-    adelanto_anterior,
-    monto_compensado,
-    monto_neto,
-    monto_pagado,
-    adelanto_nuevo,
-    saldo_adelanto,
-    tipo_pago,
-    estado,
-    concepto,
-    comprobantes
-):
-
-    carpeta = "liquidaciones_pdf"
-
-    os.makedirs(
-        carpeta,
-        exist_ok=True
-    )
-
-    ruta_pdf = os.path.join(
-        carpeta,
-        f"liquidacion_{id_liquidacion}.pdf"
-    )
-
-    doc = SimpleDocTemplate(
-        ruta_pdf,
-        pagesize=A4,
-        rightMargin=15 * mm,
-        leftMargin=15 * mm,
-        topMargin=15 * mm,
-        bottomMargin=15 * mm
-    )
-
-    estilos = getSampleStyleSheet()
-
-    elementos = []
-
-    elementos.append(
-        Paragraph(
-            "<b>D&A CANDELERO AGRO</b>",
-            estilos["Title"]
-        )
-    )
-
-    elementos.append(
-        Spacer(1, 8)
-    )
-
-    elementos.append(
-        Paragraph(
-            "<b>LIQUIDACIÓN DE PERSONAL</b>",
-            estilos["Heading2"]
-        )
-    )
-
-    elementos.append(
-        Spacer(1, 10)
-    )
-
-    datos_principales = [
-        ["Empleado", empleado],
-        ["Fecha", str(fecha)],
-        ["ID Liquidación", str(id_liquidacion)],
-        ["Tipo", tipo_pago],
-        ["Estado", estado],
-        ["Concepto", concepto],
-    ]
-
-    tabla_principal = Table(
-        datos_principales,
-        colWidths=[45 * mm, 130 * mm]
-    )
-
-    tabla_principal.setStyle(
-        TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("PADDING", (0, 0), (-1, -1), 6),
-        ])
-    )
-
-    elementos.append(tabla_principal)
-
-    elementos.append(
-        Spacer(1, 15)
-    )
-
-    datos_liquidacion = [
-        ["Detalle", "Valor"],
-
-        [
-            "Horas trabajadas",
-            f"{horas:.2f} h"
-        ],
-
-        [
-            "Valor por hora",
-            f"$ {valor_hora:,.2f}"
-        ],
-
-        [
-            "Monto base",
-            f"$ {monto_base:,.2f}"
-        ],
-
-        [
-            "Bonificación / Descuento",
-            f"{porcentaje:+.2f}%"
-        ],
-
-        [
-            "Monto bonificación/descuento",
-            f"$ {monto_bonificacion:,.2f}"
-        ],
-
-        [
-            "Monto final del trabajo",
-            f"$ {monto_final:,.2f}"
-        ],
-
-        [
-            "Adelanto anterior",
-            f"$ {adelanto_anterior:,.2f}"
-        ],
-
-        [
-            "Adelanto compensado",
-            f"$ {monto_compensado:,.2f}"
-        ],
-
-        [
-            "Neto a pagar",
-            f"$ {monto_neto:,.2f}"
-        ],
-
-        [
-            "Monto realmente pagado",
-            f"$ {monto_pagado:,.2f}"
-        ],
-
-        [
-            "Nuevo adelanto generado",
-            f"$ {adelanto_nuevo:,.2f}"
-        ],
-
-        [
-            "Saldo de adelanto",
-            f"$ {saldo_adelanto:,.2f}"
-        ],
-    ]
-
-    tabla_liquidacion = Table(
-        datos_liquidacion,
-        colWidths=[100 * mm, 75 * mm]
-    )
-
-    tabla_liquidacion.setStyle(
-        TableStyle([
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTNAME", (0, 6), (-1, 6), "Helvetica-Bold"),
-            ("FONTNAME", (0, 9), (-1, 9), "Helvetica-Bold"),
-            ("FONTNAME", (0, 12), (-1, 12), "Helvetica-Bold"),
-            ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-            ("PADDING", (0, 0), (-1, -1), 6),
-        ])
-    )
-
-    elementos.append(tabla_liquidacion)
-
-    elementos.append(
-        Spacer(1, 15)
-    )
-
-    elementos.append(
-        Paragraph(
-            "<b>Comprobantes de pago:</b>",
-            estilos["Heading3"]
-        )
-    )
-
-    if comprobantes:
-
-        for comprobante in comprobantes:
-
-            elementos.append(
-                Paragraph(
-                    f"• {comprobante}",
-                    estilos["Normal"]
-                )
-            )
+        if pd.isna(pendiente_actual):
+            pendiente_actual = 0.0
 
     else:
+        pendiente_actual = 0.0
 
-        elementos.append(
-            Paragraph(
-                "No se adjuntaron comprobantes.",
-                estilos["Normal"]
-            )
-        )
-
-    elementos.append(
-        Spacer(1, 15)
+    saldo_adelanto = max(
+        adelantos - compensados,
+        0.0
     )
 
-    elementos.append(
-        Paragraph(
-            "Documento generado automáticamente por "
-            "D&A Candelero Agro.",
-            estilos["Normal"]
-        )
+    return {
+        "adelanto": float(saldo_adelanto),
+        "pendiente": float(pendiente_actual)
+    }
+
+
+def obtener_saldo_adelanto(df_pagos, empleado):
+
+    saldos = obtener_saldos_empleado(
+        df_pagos,
+        empleado
     )
 
-    doc.build(elementos)
-
-    return ruta_pdf
-
+    return saldos["adelanto"]
 # ----------------------------------------------------
 # PESTAÑA: SISTEMA DE TRIPULACIÓN
 # ----------------------------------------------------
@@ -1810,18 +1581,18 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     # ==========================================
 
                     porcentaje_descuento = st.number_input(
-                        "➖ Descuento (%)",
-                        min_value=-100.0,
-                        max_value=100.0,
-                        step=1.0,
-                        value=0.0,
-                        key="porcentaje_descuento_liquidacion"
+                     "➖ Descuento (%)",
+                      min_value=0.0,
+                      max_value=100.0,
+                      step=1.0,
+                      value=0.0,
+                      key="porcentaje_descuento_liquidacion"
                     )
 
                     monto_descuento = (
-                        monto_base_trabajado
-                        * porcentaje_descuento
-                        / -100
+                     monto_base_trabajado
+                     * porcentaje_descuento
+                        / 100
                     )
 
                     # ==========================================
@@ -1846,20 +1617,27 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         .replace("X", ".")
                     )
 
-                    # ==========================================
+                                        # ==========================================
                     # ADELANTO / DEUDA ANTERIOR
                     # ==========================================
 
-                    saldo_adelanto_anterior = obtener_saldo_adelanto(
+                    saldos_anteriores = obtener_saldos_empleado(
                         df_pagos_empleados,
                         emp_liquidacion
+                    )
+
+                    saldo_adelanto_anterior = float(
+                        saldos_anteriores.get("adelanto", 0.0)
+                    )
+
+                    saldo_pendiente_anterior = float(
+                        saldos_anteriores.get("pendiente", 0.0)
                     )
 
                     if saldo_adelanto_anterior > 0:
 
                         st.warning(
-                            "⚠️ Este empleado tiene un adelanto/deuda "
-                            f"pendiente de "
+                            "⚠️ Este empleado tiene un adelanto pendiente de "
                             f"${saldo_adelanto_anterior:,.2f}"
                         )
 
@@ -1869,31 +1647,42 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             "✅ Este empleado no tiene adelantos pendientes."
                         )
 
+                    if saldo_pendiente_anterior > 0:
+
+                        st.warning(
+                            "📌 Este empleado también tiene un saldo pendiente "
+                            f"de pago de ${saldo_pendiente_anterior:,.2f}"
+                        )
+
                     # ==========================================
-                    # COMPENSACIÓN AUTOMÁTICA DEL ADELANTO
+                    # TOTAL QUE SE DEBE AL EMPLEADO
                     # ==========================================
 
-                    # El sistema calcula automáticamente cuánto
-                    # del adelanto pendiente se descuenta.
+                    total_deuda_antes_adelanto = (
+                        saldo_pendiente_anterior
+                        + monto_final_trabajo
+                    )
+
+                    # ==========================================
+                    # COMPENSACIÓN DEL ADELANTO
+                    # ==========================================
 
                     monto_compensado = min(
-                    saldo_adelanto_anterior,
-                    monto_final_trabajo
+                        saldo_adelanto_anterior,
+                        total_deuda_antes_adelanto
                     )
 
                     st.info(
-                        f"💳 Adelanto a compensar automáticamente: "
+                        f"💳 Adelanto compensado automáticamente: "
                         f"${monto_compensado:,.2f}"
-                        .replace(",", "X")
-                        .replace(".", ",")
-                        .replace("X", ".")
                     )
+
                     # ==========================================
-                    # NETO A PAGAR
+                    # NETO REAL A PAGAR
                     # ==========================================
 
                     monto_neto_a_pagar = (
-                        monto_final_trabajo
+                        total_deuda_antes_adelanto
                         - monto_compensado
                     )
 
@@ -1905,7 +1694,9 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         ### 💰 Neto correspondiente
 
                         **${monto_neto_a_pagar:,.2f}**
-                        """.replace(",", "X").replace(".", ",").replace("X", ".")
+                        """.replace(",", "X")
+                        .replace(".", ",")
+                        .replace("X", ".")
                     )
 
                     # ==========================================
@@ -1926,13 +1717,14 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     )
 
                     # ==========================================
-                    # DIFERENCIA
+                    # DIFERENCIA ENTRE LO DEBIDO Y LO PAGADO
                     # ==========================================
 
                     if monto_pagado < monto_neto_a_pagar:
 
                         saldo_pendiente_pago = (
-                            monto_neto_a_pagar - monto_pagado
+                            monto_neto_a_pagar
+                            - monto_pagado
                         )
 
                         adelanto_nuevo = 0.0
@@ -1945,7 +1737,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     elif monto_pagado > monto_neto_a_pagar:
 
                         adelanto_nuevo = (
-                            monto_pagado - monto_neto_a_pagar
+                            monto_pagado
+                            - monto_neto_a_pagar
                         )
 
                         saldo_pendiente_pago = 0.0
@@ -1953,7 +1746,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         st.info(
                             f"ℹ️ El empleado recibe "
                             f"${adelanto_nuevo:,.2f} "
-                            f"por encima de la liquidación."
+                            f"por encima de lo correspondiente. "
+                            f"Queda registrado como nuevo adelanto."
                         )
 
                     else:
@@ -1973,7 +1767,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                     if saldo_adelanto_final < 0:
                         saldo_adelanto_final = 0.0
-
                     # ==========================================
                     # ESTADO DEL PAGO
                     # ==========================================
@@ -2210,6 +2003,18 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             "Monto Bonificacion (ARS)":
                                 round(
                                     monto_bonificacion,
+                                    2
+                                ),
+
+                            "Porcentaje Descuento":
+                                round(
+                                    porcentaje_descuento,
+                                    2
+                                ),
+
+                            "Monto Descuento (ARS)":
+                                round(
+                                    monto_descuento,
                                     2
                                 ),
 
@@ -2480,22 +2285,31 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
             if not df_pagos.empty:
 
                 st.dataframe(
-                    df_pagos[
-                        [
-                            "Fecha Trabajo",
-                            "Hora Entrada",
-                            "Hora Salida",
-                            "Horas Trabajadas",
-                            "Valor Hora",
-                            "Monto (ARS)",
-                            "Estado Pago",
-                            "Concepto"
-                        ]
-                    ],
-                    use_container_width=True,
-                    hide_index=True
-                )
-
+             df_pagos[
+            [
+             "Fecha Trabajo",
+             "Hora Entrada",
+             "Hora Salida",
+             "Horas Trabajadas",
+             "Valor Hora",
+             "Monto Trabajado (ARS)",
+             "Porcentaje Bonificacion",
+             "Monto Bonificacion (ARS)",
+             "Porcentaje Descuento",
+             "Monto Descuento (ARS)",
+             "Monto Final Trabajo (ARS)",
+             "Monto Pagado (ARS)",
+             "Adelanto Generado (ARS)",
+             "Monto Compensado (ARS)",
+             "Saldo Adelanto (ARS)",
+             "Saldo Pendiente Pago (ARS)",
+             "Estado Pago",
+             "Concepto"
+            ]
+        ],
+         use_container_width=True,
+         hide_index=True
+        )
                 # Total de pagos
                 total_pagos = df_pagos[
                     "Monto (ARS)"
