@@ -2108,22 +2108,39 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     # GUARDAR
                     # ==========================================
 
+                    ```python
                     if guardar_liquidacion:
 
-                        nuevo_id = (
-                            int(df_pagos_empleados["ID_Pago"].max()) + 1
-                            if not df_pagos_empleados.empty
-                            else 1
-                        )
+                        # ==========================================
+                        # GENERAR ID SEGURO
+                        # ==========================================
+
+                        ids_numericos = pd.to_numeric(
+                            df_pagos_empleados["ID_Pago"],
+                            errors="coerce"
+                        ).dropna()
+
+                        if ids_numericos.empty:
+                            nuevo_id = 1
+                        else:
+                            nuevo_id = int(ids_numericos.max()) + 1
+
+                        # ==========================================
+                        # GUARDAR COMPROBANTES
+                        # ==========================================
 
                         nombres_comprobantes = guardar_comprobantes(
                             archivos_comprobantes,
-                            nuevo_id,
+                            nuevo_id
                         )
+
+                        # ==========================================
+                        # CREAR MOVIMIENTO
+                        # ==========================================
 
                         nuevo_pago = {
 
-                            "ID_Pago": nuevo_id,
+                            "ID_Pago": str(nuevo_id),
 
                             "Fecha Pago": str(
                                 fecha_liquidacion
@@ -2151,6 +2168,12 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     valor_hora_total,
                                     2
                                 ),
+
+                            # ======================================
+                            # IMPORTANTE:
+                            # GUARDA EXACTAMENTE LO QUE INGRESÓ
+                            # EL USUARIO
+                            # ======================================
 
                             "Monto (ARS)":
                                 round(
@@ -2222,11 +2245,17 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 ),
 
                             "Comprobantes":
-                                nombres_comprobantes,
+                                ", ".join(
+                                    nombres_comprobantes
+                                ),
 
                             "PDF Liquidacion":
                                 ""
                         }
+
+                        # ==========================================
+                        # AGREGAR AL DATAFRAME
+                        # ==========================================
 
                         df_pagos_empleados = pd.concat(
                             [
@@ -2247,8 +2276,10 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         )
 
                         # ==========================================
-                        # PDF
+                        # GENERAR PDF
                         # ==========================================
+
+                        ruta_pdf = None
 
                         try:
 
@@ -2268,16 +2299,25 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 monto_pagado,
                                 adelanto_nuevo,
                                 saldo_adelanto_final,
-                                tipo_liquidacion,
+
+                                # Tipo de liquidación
+                                "Liquidación por horas totales",
+
                                 estado_liquidacion,
                                 concepto_liquidacion,
                                 nombres_comprobantes
                             )
 
+                            # ======================================
+                            # GUARDAR RUTA DEL PDF
+                            # ======================================
+
                             if ruta_pdf:
 
                                 df_pagos_empleados.loc[
-                                    df_pagos_empleados["ID_Pago"] == nuevo_id,
+                                    df_pagos_empleados[
+                                        "ID_Pago"
+                                    ].astype(str) == str(nuevo_id),
                                     "PDF Liquidacion"
                                 ] = ruta_pdf
 
@@ -2289,46 +2329,51 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                         except Exception as e:
 
-                            st.warning(
-                                f"⚠️ La liquidación se guardó, "
-                                f"pero no se pudo generar el PDF: {e}"
+                            st.error(
+                                "❌ La liquidación se guardó, "
+                                "pero ocurrió un error al generar "
+                                f"el PDF: {e}"
                             )
 
+                        # ==========================================
+                        # RESULTADO
+                        # ==========================================
+
                         st.success(
-                         "✅ Liquidación guardada correctamente."
+                            "✅ Liquidación guardada correctamente."
                         )
 
-                          if ruta_pdf and os.path.exists(ruta_pdf):
+                        # ==========================================
+                        # DESCARGAR PDF
+                        # ==========================================
 
-                            with open(ruta_pdf, "rb") as archivo_pdf:
+                        if (
+                            ruta_pdf
+                            and os.path.exists(ruta_pdf)
+                        ):
+
+                            with open(
+                                ruta_pdf,
+                                "rb"
+                            ) as archivo_pdf:
 
                                 st.download_button(
-                                 label="📄 Descargar comprobante de liquidación",
-                                 data=archivo_pdf,
-                                 file_name=os.path.basename(ruta_pdf),
-                                 mime="application/pdf",
-                                 key=f"descargar_pdf_{nuevo_id}"
+                                    label="📄 Descargar comprobante de liquidación",
+                                    data=archivo_pdf,
+                                    file_name=os.path.basename(
+                                        ruta_pdf
+                                    ),
+                                    mime="application/pdf",
+                                    key=f"descargar_pdf_{nuevo_id}"
                                 )
-                else:
 
-                    st.warning(
-                        "⚠️ No hay operarios registrados."
-                    )
-# ==========================================
-# BOTÓN DE DESCARGA DEL PDF
-# ==========================================
+                        else:
 
-if pdf_liquidacion_path and os.path.exists(pdf_liquidacion_path):
+                            st.error(
+                                "❌ La liquidación fue guardada, "
+                                "pero no se encontró el archivo PDF."
+                            )
 
-    with open(pdf_liquidacion_path, "rb") as archivo_pdf:
-
-        st.download_button(
-            label="📄 Descargar comprobante de liquidación",
-            data=archivo_pdf,
-            file_name=os.path.basename(pdf_liquidacion_path),
-            mime="application/pdf",
-            key=f"descargar_pdf_{nuevo_id}"
-        )
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO
 # ----------------------------------------------------
