@@ -1698,9 +1698,9 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         "No hay operarios registrados."
                     )
 
-# ==================================================
-# LIQUIDACIÓN ESPECIAL
-# ==================================================
+        # ==================================================
+        # LIQUIDACIÓN ESPECIAL
+        # ==================================================
 
         else:
 
@@ -1717,7 +1717,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
              "form_liquidacion_especial"
         ):
 
-         if not df_empleados.empty:
+        if not df_empleados.empty:
 
             # ==========================================
             # EMPLEADO
