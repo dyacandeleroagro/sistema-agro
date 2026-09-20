@@ -1699,10 +1699,10 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     )
 
         # ==================================================
-# LIQUIDACIÓN ESPECIAL
-# ==================================================
+        # LIQUIDACIÓN ESPECIAL
+        # ==================================================
 
-else:
+        else:
 
     st.markdown(
         "### 📋 Liquidación especial"
