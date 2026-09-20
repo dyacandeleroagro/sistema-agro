@@ -1029,6 +1029,85 @@ if menu == "🔍 CUENTAS PENDIENTES":
 # FUNCIONES PARA LIQUIDACIONES
 # ============================================================
 
+# ============================================================
+# FUNCIONES PARA LIQUIDACIONES
+# ============================================================
+
+def guardar_comprobantes(archivos, carpeta="comprobantes"):
+    """
+    Guarda los comprobantes cargados y devuelve
+    los nombres de los archivos guardados.
+    """
+
+    nombres = []
+
+    if not archivos:
+        return nombres
+
+    os.makedirs(carpeta, exist_ok=True)
+
+    for archivo in archivos:
+
+        if archivo is None:
+            continue
+
+        nombre_original = archivo.name
+
+        nombre_limpio = re.sub(
+            r"[^a-zA-Z0-9._-]",
+            "_",
+            nombre_original
+        )
+
+        ruta = os.path.join(
+            carpeta,
+            nombre_limpio
+        )
+
+        base, extension = os.path.splitext(
+            nombre_limpio
+        )
+
+        contador = 1
+
+        while os.path.exists(ruta):
+
+            nombre_limpio = (
+                f"{base}_{contador}{extension}"
+            )
+
+            ruta = os.path.join(
+                carpeta,
+                nombre_limpio
+            )
+
+            contador += 1
+
+        with open(ruta, "wb") as f:
+            f.write(
+                archivo.getbuffer()
+            )
+
+        nombres.append(nombre_limpio)
+
+    return nombres
+
+
+def obtener_saldos_empleado(df_pagos, empleado):
+
+    if df_pagos.empty:
+        return {
+            "adelanto": 0.0,
+            "pendiente": 0.0
+        }
+
+    df_emp = df_pagos[
+        df_pagos["Nombre Empleado"].astype(str).str.strip()
+        == str(empleado).strip()
+    ].copy()
+
+    # ...
+
 def obtener_saldos_empleado(df_pagos, empleado):
 
     if df_pagos.empty:
