@@ -1773,7 +1773,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         """.replace(",", "X").replace(".", ",").replace("X", ".")
                     )
 
-                    # ==========================================
+                                        # ==========================================
                     # BONIFICACIÓN
                     # ==========================================
 
@@ -1798,7 +1798,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                     porcentaje_descuento = st.number_input(
                         "➖ Descuento (%)",
-                        min_value=-100.0,
+                        min_value=0.0,
                         max_value=100.0,
                         step=1.0,
                         value=0.0,
@@ -1821,13 +1821,18 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         - monto_descuento
                     )
 
+                    if monto_final_trabajo < 0:
+                        monto_final_trabajo = 0.0
+
                     st.markdown(
                         f"""
                         **Monto final del trabajo:**  
                         ${monto_final_trabajo:,.2f}
-                        """.replace(",", "X").replace(".", ",").replace("X", ".")
+                        """.replace(",", "X")
+                        .replace(".", ",")
+                        .replace("X", ".")
                     )
-
+                    
                     # ==========================================
                     # ADELANTO / DEUDA ANTERIOR
                     # ==========================================
