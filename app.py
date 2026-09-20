@@ -188,9 +188,25 @@ if not os.path.exists("registro_pagos_empleados.csv"):
 
 ARCHIVO_PAGOS_EMPLEADOS = "registro_pagos_empleados.csv"
 
-df_pagos_empleados = pd.read_csv(
-    "registro_pagos_empleados.csv"
-)
+# ==========================================================
+# CARGA PERSISTENTE DE PAGOS DE EMPLEADOS
+# ==========================================================
+
+if "df_pagos_empleados" not in st.session_state:
+
+    if os.path.exists(ARCHIVO_PAGOS_EMPLEADOS):
+
+        st.session_state["df_pagos_empleados"] = pd.read_csv(
+            ARCHIVO_PAGOS_EMPLEADOS,
+            encoding="utf-8-sig"
+        )
+
+    else:
+
+        st.session_state["df_pagos_empleados"] = pd.DataFrame()
+
+
+df_pagos_empleados = st.session_state["df_pagos_empleados"].copy()
 
 
 # Agregar columnas nuevas si el archivo ya existía
