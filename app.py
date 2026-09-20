@@ -1698,11 +1698,11 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         "No hay operarios registrados."
                     )
 
-        # ==================================================
-        # LIQUIDACIÓN ESPECIAL
-        # ==================================================
+# ==================================================
+# LIQUIDACIÓN ESPECIAL
+# ==================================================
 
-        else:
+ else:
 
     st.markdown(
         "### 📋 Liquidación especial"
