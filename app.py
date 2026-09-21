@@ -2297,6 +2297,12 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                         if nombres_comprobantes_hectareas:
 
+                            st.success(
+                                f"✅ Se guardaron "
+                                f"{len(nombres_comprobantes_hectareas)} "
+                                f"comprobante(s) correctamente."
+                            )
+
                             st.markdown(
                                 "### 📎 Comprobantes guardados"
                             )
@@ -2306,39 +2312,10 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 start=1
                             ):
 
-                                ruta_comprobante = os.path.join(
-                                    "comprobantes_pagos",
-                                    str(nombre_archivo)
+                                st.write(
+                                    f"📎 Comprobante {indice}: "
+                                    f"`{str(nombre_archivo)}`"
                                 )
-
-                                if os.path.isfile(
-                                    ruta_comprobante
-                                ):
-
-                                    with open(
-                                        ruta_comprobante,
-                                        "rb"
-                                    ) as archivo:
-
-                                        datos_comprobante = archivo.read()
-
-                                    st.download_button(
-                                        label=(
-                                            f"📎 Descargar comprobante "
-                                            f"{indice}"
-                                        ),
-                                        data=datos_comprobante,
-                                        file_name=str(
-                                            nombre_archivo
-                                        ),
-                                        mime="application/octet-stream",
-                                        key=(
-                                            f"descargar_hectareas_"
-                                            f"{nuevo_id_hectareas}_"
-                                            f"{indice}"
-                                        ),
-                                        use_container_width=True
-                                    )
                                 st.download_button(
                                     label=(
                                         "📎 Ver / descargar "
