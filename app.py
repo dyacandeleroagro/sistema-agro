@@ -2295,7 +2295,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             "✅ Pago por hectárea guardado correctamente."
                         )
 
-                                                if nombres_comprobantes_hectareas:
+                        if nombres_comprobantes_hectareas:
 
                             st.markdown(
                                 "### 📎 Comprobantes guardados"
