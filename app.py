@@ -1025,92 +1025,245 @@ if menu == "🔍 CUENTAS PENDIENTES":
                             st.success("¡Liquidado!")
                             st.rerun()
         else: st.success("👌 ¡Ningún gasto pendiente!")
-# ============================================================
-# FUNCIONES PARA LIQUIDACIONES
-# ============================================================
 
 # ============================================================
 # FUNCIONES PARA LIQUIDACIONES
 # ============================================================
 
-def guardar_comprobantes(archivos, carpeta="comprobantes"):
-    """
-    Guarda los comprobantes cargados y devuelve
-    los nombres de los archivos guardados.
-    """
+import io
+
+
+def guardar_comprobantes(archivos, nuevo_id):
 
     nombres = []
 
     if not archivos:
         return nombres
 
-    os.makedirs(carpeta, exist_ok=True)
+    carpeta = "comprobantes_pagos"
+
+    os.makedirs(
+        carpeta,
+        exist_ok=True
+    )
 
     for archivo in archivos:
 
         if archivo is None:
             continue
 
-        nombre_original = archivo.name
+        extension = os.path.splitext(
+            archivo.name
+        )[1]
 
-        nombre_limpio = re.sub(
-            r"[^a-zA-Z0-9._-]",
-            "_",
-            nombre_original
+        nombre_archivo = (
+            f"liquidacion_{nuevo_id}_"
+            f"{len(nombres) + 1}"
+            f"{extension}"
         )
 
         ruta = os.path.join(
             carpeta,
-            nombre_limpio
+            nombre_archivo
         )
 
-        base, extension = os.path.splitext(
-            nombre_limpio
-        )
+        with open(
+            ruta,
+            "wb"
+        ) as f:
 
-        contador = 1
-
-        while os.path.exists(ruta):
-
-            nombre_limpio = (
-                f"{base}_{contador}{extension}"
-            )
-
-            ruta = os.path.join(
-                carpeta,
-                nombre_limpio
-            )
-
-            contador += 1
-
-        with open(ruta, "wb") as f:
             f.write(
                 archivo.getbuffer()
             )
 
-        nombres.append(nombre_limpio)
+        nombres.append(
+            nombre_archivo
+        )
 
     return nombres
 
 
-def obtener_saldos_empleado(df_pagos, empleado):
+def generar_pdf_liquidacion(
+    nuevo_id,
+    empleado,
+    fecha,
+    horas,
+    valor_hora,
+    monto_trabajado,
+    bonificacion,
+    descuento,
+    monto_final,
+    adelanto_anterior,
+    pendiente_anterior,
+    compensado,
+    neto_pagar,
+    monto_pagado,
+    adelanto_final,
+    pendiente_final,
+    concepto
+):
+
+    buffer = io.BytesIO()
+
+    documento = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=15 * mm,
+        leftMargin=15 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm
+    )
+
+    estilos = getSampleStyleSheet()
+
+    elementos = []
+
+    elementos.append(
+        Paragraph(
+            "<b>D&A CANDELERO AGRO</b>",
+            estilos["Title"]
+        )
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            8
+        )
+    )
+
+    elementos.append(
+        Paragraph(
+            "<b>LIQUIDACIÓN DE PERSONAL</b>",
+            estilos["Heading2"]
+        )
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            10
+        )
+    )
+
+    datos = [
+        ["Empleado", str(empleado)],
+        ["Fecha", str(fecha)],
+        ["ID Liquidación", str(nuevo_id)],
+        ["Concepto", str(concepto)],
+        ["Horas trabajadas", f"{horas:,.2f}"],
+        ["Valor hora", f"$ {valor_hora:,.2f}"],
+        ["Monto trabajado", f"$ {monto_trabajado:,.2f}"],
+        ["Bonificación", f"$ {bonificacion:,.2f}"],
+        ["Descuento", f"$ {descuento:,.2f}"],
+        ["Total final trabajo", f"$ {monto_final:,.2f}"],
+        ["Adelanto anterior", f"$ {adelanto_anterior:,.2f}"],
+        ["Pendiente anterior", f"$ {pendiente_anterior:,.2f}"],
+        ["Adelanto compensado", f"$ {compensado:,.2f}"],
+        ["Neto a pagar", f"$ {neto_pagar:,.2f}"],
+        ["Monto realmente pagado", f"$ {monto_pagado:,.2f}"],
+        ["Adelanto final", f"$ {adelanto_final:,.2f}"],
+        ["Pendiente final", f"$ {pendiente_final:,.2f}"],
+    ]
+
+    tabla = Table(
+        datos,
+        colWidths=[
+            75 * mm,
+            95 * mm
+        ]
+    )
+
+    tabla.setStyle(
+        TableStyle([
+            (
+                "GRID",
+                (0, 0),
+                (-1, -1),
+                0.5,
+                colors.grey
+            ),
+            (
+                "BACKGROUND",
+                (0, 0),
+                (0, -1),
+                colors.lightgrey
+            ),
+            (
+                "FONTNAME",
+                (0, 0),
+                (0, -1),
+                "Helvetica-Bold"
+            ),
+            (
+                "FONTNAME",
+                (1, 0),
+                (1, -1),
+                "Helvetica"
+            ),
+            (
+                "VALIGN",
+                (0, 0),
+                (-1, -1),
+                "MIDDLE"
+            ),
+            (
+                "PADDING",
+                (0, 0),
+                (-1, -1),
+                6
+            ),
+        ])
+    )
+
+    elementos.append(
+        tabla
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            20
+        )
+    )
+
+    elementos.append(
+        Paragraph(
+            "Firma del empleado: ______________________________",
+            estilos["Normal"]
+        )
+    )
+
+    elementos.append(
+        Spacer(
+            1,
+            15
+        )
+    )
+
+    elementos.append(
+        Paragraph(
+            "Firma responsable: ________________________________",
+            estilos["Normal"]
+        )
+    )
+
+    documento.build(
+        elementos
+    )
+
+    buffer.seek(0)
+
+    return buffer.getvalue()
+
+
+def obtener_saldos_empleado(
+    df_pagos,
+    empleado
+):
 
     if df_pagos.empty:
-        return {
-            "adelanto": 0.0,
-            "pendiente": 0.0
-        }
 
-    df_emp = df_pagos[
-        df_pagos["Nombre Empleado"].astype(str).str.strip()
-        == str(empleado).strip()
-    ].copy()
-
-    # ...
-
-def obtener_saldos_empleado(df_pagos, empleado):
-
-    if df_pagos.empty:
         return {
             "adelanto": 0.0,
             "pendiente": 0.0
@@ -1122,60 +1275,93 @@ def obtener_saldos_empleado(df_pagos, empleado):
     ].copy()
 
     if df_emp.empty:
+
         return {
             "adelanto": 0.0,
             "pendiente": 0.0
         }
 
-    adelantos = pd.to_numeric(
-        df_emp.get(
-            "Adelanto Generado (ARS)",
-            pd.Series(dtype=float)
-        ),
-        errors="coerce"
-    ).fillna(0).sum()
-
-    compensados = pd.to_numeric(
-        df_emp.get(
-            "Monto Compensado (ARS)",
-            pd.Series(dtype=float)
-        ),
-        errors="coerce"
-    ).fillna(0).sum()
+    # ==========================================
+    # ORDENAR LOS MOVIMIENTOS
+    # ==========================================
 
     if "Fecha Pago" in df_emp.columns:
-        df_emp = df_emp.sort_values(
-            by=["Fecha Pago", "ID_Pago"]
-        )
 
-    if not df_emp.empty:
-
-        pendiente_actual = pd.to_numeric(
-            df_emp.iloc[-1].get(
-                "Saldo Pendiente Pago (ARS)",
-                0
-            ),
+        df_emp["_orden_fecha"] = pd.to_datetime(
+            df_emp["Fecha Pago"],
             errors="coerce"
         )
 
-        if pd.isna(pendiente_actual):
-            pendiente_actual = 0.0
-
     else:
-        pendiente_actual = 0.0
 
-    saldo_adelanto = max(
-        adelantos - compensados,
-        0.0
+        df_emp["_orden_fecha"] = pd.NaT
+
+    df_emp["_orden_id"] = pd.to_numeric(
+        df_emp["ID_Pago"],
+        errors="coerce"
+    ).fillna(0)
+
+    df_emp = df_emp.sort_values(
+        by=[
+            "_orden_fecha",
+            "_orden_id"
+        ]
     )
 
+    # ==========================================
+    # TOMAR EL ÚLTIMO SALDO REAL
+    # ==========================================
+
+    ultima_fila = df_emp.iloc[-1]
+
+    saldo_adelanto = pd.to_numeric(
+        ultima_fila.get(
+            "Saldo Adelanto (ARS)",
+            0
+        ),
+        errors="coerce"
+    )
+
+    saldo_pendiente = pd.to_numeric(
+        ultima_fila.get(
+            "Saldo Pendiente Pago (ARS)",
+            0
+        ),
+        errors="coerce"
+    )
+
+    if pd.isna(
+        saldo_adelanto
+    ):
+
+        saldo_adelanto = 0.0
+
+    if pd.isna(
+        saldo_pendiente
+    ):
+
+        saldo_pendiente = 0.0
+
     return {
-        "adelanto": float(saldo_adelanto),
-        "pendiente": float(pendiente_actual)
+        "adelanto": float(
+            max(
+                saldo_adelanto,
+                0.0
+            )
+        ),
+        "pendiente": float(
+            max(
+                saldo_pendiente,
+                0.0
+            )
+        )
     }
 
 
-def obtener_saldo_adelanto(df_pagos, empleado):
+def obtener_saldo_adelanto(
+    df_pagos,
+    empleado
+):
 
     saldos = obtener_saldos_empleado(
         df_pagos,
@@ -1991,8 +2177,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             f"$ {saldo_pendiente_nuevo:,.2f}"
                         )
 
-                        # ==========================================
-                        # GUARDAR
+                                                # ==========================================
+                        # GUARDAR LIQUIDACIÓN
                         # ==========================================
 
                         guardar_liquidacion = st.button(
@@ -2003,7 +2189,26 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                         if guardar_liquidacion:
 
-                            # ID numérico nuevo
+                            # ======================================
+                            # VALIDACIONES
+                            # ======================================
+
+                            if horas_totales <= 0:
+                                st.error(
+                                    "❌ Tenés que ingresar las horas trabajadas."
+                                )
+                                st.stop()
+
+                            if valor_hora_total <= 0:
+                                st.error(
+                                    "❌ Tenés que ingresar el valor por hora."
+                                )
+                                st.stop()
+
+                            # ======================================
+                            # GENERAR ID
+                            # ======================================
+
                             if df_pagos_empleados.empty:
 
                                 nuevo_id = 1
@@ -2015,30 +2220,81 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     errors="coerce"
                                 )
 
-                                nuevo_id = (
-                                    int(ids.max()) + 1
-                                    if not ids.dropna().empty
-                                    else 1
-                                )
+                                ids = ids.dropna()
 
-                            # --------------------------------------
+                                if ids.empty:
+                                    nuevo_id = 1
+                                else:
+                                    nuevo_id = int(ids.max()) + 1
+
+                            # ======================================
                             # COMPROBANTES
-                            # --------------------------------------
+                            # ======================================
 
-                            nombres_comprobantes = (
-                                guardar_comprobantes(
-                                    archivos_comprobantes,
-                                    nuevo_id
-                                )
+                            nombres_comprobantes = guardar_comprobantes(
+                                archivos_comprobantes,
+                                nuevo_id
                             )
 
-                            # --------------------------------------
+                            # ======================================
+                            # GENERAR PDF
+                            # ======================================
+
+                            pdf_bytes = generar_pdf_liquidacion(
+                                nuevo_id=nuevo_id,
+                                empleado=emp_liquidacion,
+                                fecha=fecha_liquidacion,
+                                horas=horas_totales,
+                                valor_hora=valor_hora_total,
+                                monto_trabajado=monto_base_trabajado,
+                                bonificacion=monto_bonificacion,
+                                descuento=monto_descuento,
+                                monto_final=monto_final_trabajo,
+                                adelanto_anterior=saldo_adelanto_anterior,
+                                pendiente_anterior=saldo_pendiente_anterior,
+                                compensado=monto_compensado,
+                                neto_pagar=monto_neto_a_pagar,
+                                monto_pagado=monto_pagado,
+                                adelanto_final=saldo_adelanto_final,
+                                pendiente_final=saldo_pendiente_nuevo,
+                                concepto=concepto_liquidacion
+                            )
+
+                            nombre_pdf = (
+                                f"liquidacion_{nuevo_id}.pdf"
+                            )
+
+                            # ======================================
+                            # GUARDAR PDF EN CARPETA
+                            # ======================================
+
+                            carpeta_pdfs = "liquidaciones_pdf"
+
+                            os.makedirs(
+                                carpeta_pdfs,
+                                exist_ok=True
+                            )
+
+                            ruta_pdf = os.path.join(
+                                carpeta_pdfs,
+                                nombre_pdf
+                            )
+
+                            with open(
+                                ruta_pdf,
+                                "wb"
+                            ) as archivo_pdf:
+
+                                archivo_pdf.write(pdf_bytes)
+
+                            # ======================================
                             # NUEVO MOVIMIENTO
-                            # --------------------------------------
+                            # ======================================
 
                             nuevo_pago = {
 
-                                "ID_Pago": nuevo_id,
+                                "ID_Pago":
+                                    str(nuevo_id),
 
                                 "Fecha Pago":
                                     str(fecha_liquidacion),
@@ -2067,8 +2323,9 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                         2
                                     ),
 
-                                # ESTE ES EL MONTO REAL
-                                # QUE ESCRIBIÓ EL USUARIO
+                                # IMPORTANTE:
+                                # ESTE ES EL MONTO QUE
+                                # REALMENTE INGRESÓ EL USUARIO
                                 "Monto (ARS)":
                                     round(
                                         monto_pagado,
@@ -2156,12 +2413,12 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     ),
 
                                 "PDF Liquidacion":
-                                    ""
+                                    nombre_pdf
                             }
 
-                            # --------------------------------------
-                            # GUARDAR
-                            # --------------------------------------
+                            # ======================================
+                            # AGREGAR A LA TABLA
+                            # ======================================
 
                             df_pagos_empleados = pd.concat(
                                 [
@@ -2171,23 +2428,38 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 ignore_index=True
                             )
 
+                            # ======================================
+                            # GUARDAR CSV
+                            # ======================================
+
                             df_pagos_empleados.to_csv(
                                 ARCHIVO_PAGOS_EMPLEADOS,
                                 index=False,
                                 encoding="utf-8-sig"
                             )
 
+                            # ======================================
+                            # GUARDAR ID PARA MOSTRAR CONFIRMACIÓN
+                            # ======================================
+
+                            st.session_state[
+                                "ultima_liquidacion_guardada"
+                            ] = nuevo_id
+
+                            st.session_state[
+                                "ultimo_pdf_liquidacion"
+                            ] = pdf_bytes
+
+                            st.session_state[
+                                "ultimo_nombre_pdf"
+                            ] = nombre_pdf
+
                             st.success(
-                                "✅ Liquidación guardada correctamente."
+                                f"✅ Liquidación #{nuevo_id} "
+                                f"guardada correctamente."
                             )
 
                             st.rerun()
-
-                    else:
-
-                        st.warning(
-                            "No hay empleados cargados."
-                        )
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO
 # ----------------------------------------------------
