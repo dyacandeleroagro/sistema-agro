@@ -2773,6 +2773,7 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                         "ℹ️ Todavía no hay liquidaciones "
                         "con comprobante generado."
                     )
+                    
                 else:
 
                     archivos_carpetas = os.listdir(
