@@ -1773,7 +1773,22 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             df_empleados["Nombre"].tolist(),
                             key="empleado_liquidacion_especial"
                         )
+                        # Detectar cambio de empleado y limpiar los valores de la liquidación
+                        empleado_actual = emp_liquidacion
 
+                        if st.session_state.get("empleado_liquidacion_anterior") != empleado_actual:
+                            st.session_state["empleado_liquidacion_anterior"] = empleado_actual
+
+                            st.session_state["horas_totales_liquidacion"] = 0.0
+                            st.session_state["valor_hora_total_liquidacion"] = 0.0
+                            st.session_state["porcentaje_bonificacion_liquidacion"] = 0.0
+                            st.session_state["porcentaje_descuento_liquidacion"] = 0.0
+                            st.session_state["monto_pagado_liquidacion"] = 0.0
+                            fecha_liquidacion = st.date_input(
+                        "📅 Fecha de liquidación",
+                            value=datetime.date.today(),
+                            key="fecha_liquidacion_especial"
+                        )
                         # ==========================================
                         # FECHA
                         # ==========================================
@@ -1989,7 +2004,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             "💵 Monto realmente pagado",
                             min_value=0.0,
                             step=100.0,
-                            value=float(monto_neto_a_pagar),
+                            value=0.0,
                             key="monto_pagado_liquidacion"
                         )
 
