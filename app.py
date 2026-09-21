@@ -2253,6 +2253,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 archivos_comprobantes,
                                 nuevo_id
                             )
+                            st.write("COMPROBANTES RECIBIDOS:", nombres_comprobantes)
 
                             # ======================================
                             # GENERAR PDF
