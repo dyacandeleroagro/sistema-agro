@@ -1495,7 +1495,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
             "2. Cargar Movimiento de Cuenta"
         )
 
-         tipo_carga = st.radio(
+        tipo_carga = st.radio(
            "Tipo de carga:",
         [
             "🕐 Jornada por día",
