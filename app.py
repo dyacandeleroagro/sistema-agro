@@ -1943,17 +1943,18 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                     # COMPROBANTE
                     # ==========================================
 
-                    comprobante_hectareas = st.file_uploader(
-                        "📎 Comprobante de pago (opcional)",
-                        type=[
-                            "pdf",
-                            "png",
-                            "jpg",
-                            "jpeg",
-                            "webp"
+                    comprobantes_hectareas = st.file_uploader(
+                     "📎 Comprobantes de pago (opcional)",
+                     type=[
+                          "pdf",
+                          "png",
+                          "jpg",
+                          "jpeg",
+                          "webp"
                         ],
-                        key="comprobante_pago_hectareas"
-                    )
+                        accept_multiple_files=True,
+                        key="comprobantes_pago_hectareas"
+                        )
 
                     # ==========================================
                     # RESUMEN
@@ -2083,13 +2084,13 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     int(ids_hectareas.max()) + 1
                                 )
 
-                        # ======================================
-                        # GUARDAR COMPROBANTE
+                                                # ======================================
+                        # GUARDAR COMPROBANTES
                         # ======================================
 
-                        nombre_comprobante_hectareas = ""
+                        nombres_comprobantes_hectareas = []
 
-                        if comprobante_hectareas is not None:
+                        if comprobantes_hectareas:
 
                             carpeta_comprobantes = (
                                 "comprobantes_pagos"
@@ -2100,30 +2101,39 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 exist_ok=True
                             )
 
-                            extension = os.path.splitext(
-                                comprobante_hectareas.name
-                            )[1]
+                            for numero, comprobante in enumerate(
+                                comprobantes_hectareas,
+                                start=1
+                            ):
 
-                            nombre_comprobante_hectareas = (
-                                f"hectareas_"
-                                f"{nuevo_id_hectareas}"
-                                f"{extension}"
-                            )
+                                extension = os.path.splitext(
+                                    comprobante.name
+                                )[1]
 
-                            ruta_comprobante = os.path.join(
-                                carpeta_comprobantes,
-                                nombre_comprobante_hectareas
-                            )
-
-                            with open(
-                                ruta_comprobante,
-                                "wb"
-                            ) as archivo:
-
-                                archivo.write(
-                                    comprobante_hectareas.getbuffer()
+                                nombre_comprobante = (
+                                    f"hectareas_"
+                                    f"{nuevo_id_hectareas}_"
+                                    f"{numero}"
+                                    f"{extension}"
                                 )
 
+                                ruta_comprobante = os.path.join(
+                                    carpeta_comprobantes,
+                                    nombre_comprobante
+                                )
+
+                                with open(
+                                    ruta_comprobante,
+                                    "wb"
+                                ) as archivo:
+
+                                    archivo.write(
+                                        comprobante.getbuffer()
+                                    )
+
+                                nombres_comprobantes_hectareas.append(
+                                    nombre_comprobante
+                                )
                         # ======================================
                         # FECHAS PARA GUARDAR
                         # ======================================
@@ -2255,7 +2265,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 ),
 
                             "Comprobantes":
-                                nombre_comprobante_hectareas,
+                             ", ".join(nombres_comprobantes_hectareas),
 
                             "PDF Liquidacion":
                                 ""
