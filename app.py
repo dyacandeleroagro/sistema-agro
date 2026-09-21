@@ -1773,17 +1773,25 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             df_empleados["Nombre"].tolist(),
                             key="empleado_liquidacion_especial"
                         )
-                        # Detectar cambio de empleado y limpiar los valores de la liquidación
+                        # Detectar cambio de empleado
                         empleado_actual = emp_liquidacion
 
-                        if st.session_state.get("empleado_liquidacion_anterior") != empleado_actual:
-                            st.session_state["empleado_liquidacion_anterior"] = empleado_actual
+                        if "empleado_liquidacion_anterior" not in st.session_state:
+                          st.session_state["empleado_liquidacion_anterior"] = empleado_actual
 
-                            st.session_state["horas_totales_liquidacion"] = 0.0
-                            st.session_state["valor_hora_total_liquidacion"] = 0.0
-                            st.session_state["porcentaje_bonificacion_liquidacion"] = 0.0
-                            st.session_state["porcentaje_descuento_liquidacion"] = 0.0
-                            st.session_state["monto_pagado_liquidacion"] = 0.0
+                        elif st.session_state["empleado_liquidacion_anterior"] != empleado_actual:
+                         st.session_state["empleado_liquidacion_anterior"] = empleado_actual
+
+                         # Limpiar los valores anteriores
+                         for clave in [
+                         "horas_totales_liquidacion",
+                         "valor_hora_total_liquidacion",
+                         "porcentaje_bonificacion_liquidacion",
+                         "porcentaje_descuento_liquidacion",
+                         "monto_pagado_liquidacion"
+                        ]:
+                          if clave in st.session_state:
+                             del st.session_state[clave]
                         # ==========================================
                         # FECHA
                         # ==========================================
