@@ -2548,8 +2548,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                             f"{nombre_comprobante} "
                                             f"no se encuentra en la carpeta."
                                         )
-
-                            st.rerun()
 # ----------------------------------------------------
 # PESTAÑA: RENDICIÓN POR OPERARIO
 # ----------------------------------------------------
