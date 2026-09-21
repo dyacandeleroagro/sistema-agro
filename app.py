@@ -2601,61 +2601,95 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                 # COMPROBANTES DE LAS LIQUIDACIONES
                 # ==========================================
 
-                df_con_comprobantes = df_pagos[
-                    df_pagos["Comprobantes"]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip() != ""
-                ]
+                st.markdown("### 📎 Comprobantes")
 
-                if not df_con_comprobantes.empty:
+                carpeta_comprobantes = "comprobantes_pagos"
 
-                    st.markdown(
-                        "### 📎 Comprobantes de liquidaciones"
+                if os.path.exists(carpeta_comprobantes):
+
+                    archivos_comprobantes = os.listdir(
+                        carpeta_comprobantes
                     )
 
-                    for _, fila_comprobante in df_con_comprobantes.iterrows():
+                    comprobantes_mostrados = False
 
-                        lista_comprobantes = str(
-                            fila_comprobante["Comprobantes"]
-                        ).split(", ")
+                    for _, fila_pago in df_pagos.iterrows():
 
-                        for nombre_comprobante in lista_comprobantes:
+                        id_liquidacion = str(
+                            fila_pago["ID_Pago"]
+                        ).strip()
 
-                            ruta_comprobante = os.path.join(
-                                "comprobantes_pagos",
-                                nombre_comprobante
+                        # Buscar todos los archivos que pertenezcan
+                        # a esta liquidación
+                        archivos_liquidacion = [
+                            archivo
+                            for archivo in archivos_comprobantes
+                            if archivo.startswith(
+                                f"liquidacion_{id_liquidacion}_"
+                            )
+                        ]
+
+                        # También buscar el formato viejo
+                        if not archivos_liquidacion:
+
+                            archivos_liquidacion = [
+                                archivo
+                                for archivo in archivos_comprobantes
+                                if os.path.splitext(archivo)[0]
+                                == id_liquidacion
+                            ]
+
+                        if archivos_liquidacion:
+
+                            comprobantes_mostrados = True
+
+                            st.markdown(
+                                f"**📋 Liquidación #{id_liquidacion}**"
                             )
 
-                            if os.path.exists(ruta_comprobante):
+                            for nombre_comprobante in archivos_liquidacion:
 
-                                with open(
-                                    ruta_comprobante,
-                                    "rb"
-                                ) as archivo:
+                                ruta_comprobante = os.path.join(
+                                    carpeta_comprobantes,
+                                    nombre_comprobante
+                                )
 
-                                    datos_comprobante = archivo.read()
+                                if os.path.exists(ruta_comprobante):
 
-                                st.download_button(
-                                    label=(
-                                        f"📎 Descargar comprobante "
-                                        f"— Liquidación #{fila_comprobante['ID_Pago']}"
-                                    ),
-                                    data=datos_comprobante,
-                                    file_name=nombre_comprobante,
-                                    key=(
-                                        f"descargar_comprobante_"
-                                        f"{fila_comprobante['ID_Pago']}_"
-                                        f"{nombre_comprobante}"
+                                    with open(
+                                        ruta_comprobante,
+                                        "rb"
+                                    ) as archivo:
+
+                                        datos_comprobante = archivo.read()
+
+                                    st.download_button(
+                                        label=(
+                                            f"📎 Ver / descargar "
+                                            f"{nombre_comprobante}"
+                                        ),
+                                        data=datos_comprobante,
+                                        file_name=nombre_comprobante,
+                                        key=(
+                                            f"btn_comprobante_"
+                                            f"{id_liquidacion}_"
+                                            f"{nombre_comprobante}"
+                                        ),
+                                        use_container_width=True
                                     )
-                                )
 
-                            else:
+                    if not comprobantes_mostrados:
+                        st.info(
+                            "ℹ️ Esta liquidación todavía no tiene "
+                            "un comprobante guardado."
+                        )
 
-                                st.warning(
-                                    f"⚠️ No se encontró el archivo: "
-                                    f"{nombre_comprobante}"
-                                )
+                else:
+
+                    st.info(
+                        "ℹ️ Todavía no existe la carpeta "
+                        "'comprobantes_pagos'."
+                    )
 
             else:
 
