@@ -575,7 +575,7 @@ if menu == "🚜 LABORES Y LOTES":
 
             fecha_labor = st.date_input(
                 "Fecha de Labor",
-                value=datetime.today()
+                value=datetime.date.today()
             )
 
             lote_labor = st.text_input(
@@ -930,7 +930,7 @@ if menu == "🧾 GASTOS COMERCIALES":
 
         nuevo = {
 
-            "ID": str(int(datetime.now().timestamp())),
+            "ID": str(int(datetime.datetime.now().timestamp())),
 
             "Fecha Registro": fecha.strftime("%Y-%m-%d"),
 
@@ -1016,7 +1016,7 @@ if menu == "🔍 CUENTAS PENDIENTES":
                         archivo_pendiente = st.file_uploader("Adjuntar Comprobante:", type=["pdf", "png", "jpg", "jpeg"], key=f"file_pend_{fila['ID']}_{idx}")
                         btn_cerrar_caso = st.form_submit_button("🟢 Marcar como PAGADO")
                         if btn_cerrar_caso and archivo_pendiente:
-                            nombre_archivo_guardado = f"liquidado_{int(datetime.now().timestamp())}_{archivo_pendiente.name}"
+                            nombre_archivo_guardado = f"liquidado_{int(datetime.datetime.now().timestamp())}_{archivo_pendiente.name}"
                             with open(os.path.join("comprobantes", nombre_archivo_guardado), "wb") as f:
                                 f.write(archivo_pendiente.getbuffer())
                             df_facturas.loc[df_facturas["ID"] == str(fila["ID"]), "Estado Pago"] = "Pagado"
@@ -1618,7 +1618,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                             nuevo_id = str(
                                 int(
-                                    datetime.now().timestamp()
+                                    datetime.datetime.now().timestamp()
                                     * 1000
                                 )
                             )
@@ -1663,7 +1663,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 "ID_Pago": nuevo_id,
 
                                 "Fecha Pago":
-                                    datetime.now().strftime(
+                                    datetime.datetime.now().strftime(
                                         "%Y-%m-%d"
                                     ),
 
@@ -2897,7 +2897,7 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
         btn_seguro = st.form_submit_button("💾 Archivar")
         if btn_seguro and seg_comp and seg_monto > 0:
                 nuevo_seg = {
-                    "ID_Seguro": f"seg_{int(datetime.now().timestamp())}", "Compañía": seg_comp.strip(), "Tipo Cobertura": seg_tipo,
+                    "ID_Seguro": f"seg_{int(datetime.datetime.now().timestamp())}", "Compañía": seg_comp.strip(), "Tipo Cobertura": seg_tipo,
                     "Bien Asegurado": seg_bien.strip(), "Vencimiento": seg_venc.strftime("%Y-%m-%d"), "Monto Prima (ARS)": seg_monto, "Estado Pago": seg_estado
                 }
                 df_seguros = pd.concat([df_seguros, pd.DataFrame([nuevo_seg])], ignore_index=True)
