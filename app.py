@@ -2295,15 +2295,20 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             "✅ Pago por hectárea guardado correctamente."
                         )
 
-                        if nombres_comprobantes_hectareas:
+                                                if nombres_comprobantes_hectareas:
 
-                            for nombre_comprobante_hectareas in (
-                                nombres_comprobantes_hectareas
+                            st.markdown(
+                                "### 📎 Comprobantes guardados"
+                            )
+
+                            for indice, nombre_archivo in enumerate(
+                                nombres_comprobantes_hectareas,
+                                start=1
                             ):
 
                                 ruta_comprobante = os.path.join(
                                     "comprobantes_pagos",
-                                    nombre_comprobante_hectareas
+                                    str(nombre_archivo)
                                 )
 
                                 if os.path.isfile(
@@ -2315,23 +2320,22 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                         "rb"
                                     ) as archivo:
 
-                                        datos_comprobante = (
-                                            archivo.read()
-                                        )
+                                        datos_comprobante = archivo.read()
 
                                     st.download_button(
                                         label=(
-                                            "📎 Ver / descargar "
-                                            f"{nombre_comprobante_hectareas}"
+                                            f"📎 Descargar comprobante "
+                                            f"{indice}"
                                         ),
                                         data=datos_comprobante,
-                                        file_name=(
-                                            nombre_comprobante_hectareas
+                                        file_name=str(
+                                            nombre_archivo
                                         ),
+                                        mime="application/octet-stream",
                                         key=(
-                                            f"ver_comprobante_hectareas_"
+                                            f"descargar_hectareas_"
                                             f"{nuevo_id_hectareas}_"
-                                            f"{nombre_comprobante_hectareas}"
+                                            f"{indice}"
                                         ),
                                         use_container_width=True
                                     )
@@ -3046,7 +3050,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                                 "Comprobantes":
                                     ", ".join(
-                                        nombres_comprobantes
+                                     str(x)
+                                     for x in nombres_comprobantes_hectareas
                                     ),
 
                                 "PDF Liquidacion":
