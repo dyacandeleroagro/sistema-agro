@@ -2489,7 +2489,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 f"✅ Liquidación #{nuevo_id} "
                                 f"guardada correctamente."
                             )
-                                                        st.success(
+                            st.success(
                                 f"✅ Liquidación #{nuevo_id} "
                                 f"guardada correctamente."
                             )
