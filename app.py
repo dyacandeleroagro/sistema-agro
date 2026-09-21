@@ -2597,6 +2597,65 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                     "💰 Total Liquidaciones",
                     f"$ {total_pagos:,.2f}"
                 )
+                                # ==========================================
+                # COMPROBANTES DE LAS LIQUIDACIONES
+                # ==========================================
+
+                df_con_comprobantes = df_pagos[
+                    df_pagos["Comprobantes"]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip() != ""
+                ]
+
+                if not df_con_comprobantes.empty:
+
+                    st.markdown(
+                        "### 📎 Comprobantes de liquidaciones"
+                    )
+
+                    for _, fila_comprobante in df_con_comprobantes.iterrows():
+
+                        lista_comprobantes = str(
+                            fila_comprobante["Comprobantes"]
+                        ).split(", ")
+
+                        for nombre_comprobante in lista_comprobantes:
+
+                            ruta_comprobante = os.path.join(
+                                "comprobantes_pagos",
+                                nombre_comprobante
+                            )
+
+                            if os.path.exists(ruta_comprobante):
+
+                                with open(
+                                    ruta_comprobante,
+                                    "rb"
+                                ) as archivo:
+
+                                    datos_comprobante = archivo.read()
+
+                                st.download_button(
+                                    label=(
+                                        f"📎 Descargar comprobante "
+                                        f"— Liquidación #{fila_comprobante['ID_Pago']}"
+                                    ),
+                                    data=datos_comprobante,
+                                    file_name=nombre_comprobante,
+                                    key=(
+                                        f"descargar_comprobante_"
+                                        f"{fila_comprobante['ID_Pago']}_"
+                                        f"{nombre_comprobante}"
+                                    )
+                                )
+
+                            else:
+
+                                st.warning(
+                                    f"⚠️ No se encontró el archivo: "
+                                    f"{nombre_comprobante}"
+                                )
 
             else:
 
