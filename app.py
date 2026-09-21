@@ -1495,13 +1495,14 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
             "2. Cargar Movimiento de Cuenta"
         )
 
-        tipo_carga = st.radio(
-            "Tipo de carga:",
-            [
-                "🕐 Jornada por día",
-                "📋 Liquidación por horas totales"
-            ],
-            horizontal=True
+         tipo_carga = st.radio(
+           "Tipo de carga:",
+        [
+            "🕐 Jornada por día",
+            "📋 Liquidación por horas totales",
+            "🌾 Pago por hectárea"
+        ],
+        horizontal=True
         )
 
         # ==================================================
@@ -1777,9 +1778,526 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         "No hay operarios registrados."
                     )
 
-                                # ==================================================
-                # LIQUIDACIÓN ESPECIAL POR HORAS TOTALES
+                                                # ==================================================
+                # PAGO POR HECTÁREA
                 # ==================================================
+
+        elif tipo_carga == "🌾 Pago por hectárea":
+
+                    st.markdown(
+                        "### 🌾 Pago por hectárea"
+                    )
+
+                    st.info(
+                        "Cargá una campaña y las hectáreas trabajadas. "
+                        "El total se calcula automáticamente."
+                    )
+
+                    # ==========================================
+                    # CAMPAÑA Y LOTE
+                    # ==========================================
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        campaña_hectareas = st.text_input(
+                            "🌾 Campaña",
+                            placeholder="Ej: Campaña 2026/27",
+                            key="campaña_pago_hectareas"
+                        )
+
+                    with col2:
+
+                        lote_hectareas = st.text_input(
+                            "📍 Lote",
+                            placeholder="Ej: Lote 12",
+                            key="lote_pago_hectareas"
+                        )
+
+                    # ==========================================
+                    # FECHA
+                    # ==========================================
+
+                    usar_rango_fechas = st.checkbox(
+                        "📅 Usar rango de fechas",
+                        value=False,
+                        key="usar_rango_fechas_hectareas"
+                    )
+
+                    if usar_rango_fechas:
+
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+
+                            fecha_desde_hectareas = st.date_input(
+                                "📅 Fecha desde",
+                                value=datetime.date.today(),
+                                key="fecha_desde_pago_hectareas"
+                            )
+
+                        with col2:
+
+                            fecha_hasta_hectareas = st.date_input(
+                                "📅 Fecha hasta",
+                                value=datetime.date.today(),
+                                key="fecha_hasta_pago_hectareas"
+                            )
+
+                        fecha_pago_hectareas = fecha_desde_hectareas
+
+                    else:
+
+                        fecha_pago_hectareas = st.date_input(
+                            "📅 Fecha",
+                            value=datetime.date.today(),
+                            key="fecha_pago_hectareas"
+                        )
+
+                        fecha_desde_hectareas = fecha_pago_hectareas
+                        fecha_hasta_hectareas = fecha_pago_hectareas
+
+                    # ==========================================
+                    # HECTÁREAS Y VALOR
+                    # ==========================================
+
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        hectareas_trabajadas = st.number_input(
+                            "🌱 Hectáreas trabajadas",
+                            min_value=0.0,
+                            step=0.1,
+                            value=0.0,
+                            key="hectareas_trabajadas"
+                        )
+
+                    with col2:
+
+                        valor_hectarea = st.number_input(
+                            "💰 Valor por hectárea ($ ARS)",
+                            min_value=0.0,
+                            step=100.0,
+                            value=0.0,
+                            key="valor_hectarea_pago"
+                        )
+
+                    # ==========================================
+                    # TOTAL AUTOMÁTICO
+                    # ==========================================
+
+                    total_pagar_hectareas = (
+                        hectareas_trabajadas
+                        * valor_hectarea
+                    )
+
+                    st.metric(
+                        "💵 Total a pagar",
+                        f"$ {total_pagar_hectareas:,.2f}"
+                    )
+
+                    # ==========================================
+                    # ESTADO
+                    # ==========================================
+
+                    estado_pago_hectareas = st.selectbox(
+                        "📌 Estado del pago",
+                        [
+                            "Pagado",
+                            "Pendiente",
+                            "Pago parcial"
+                        ],
+                        key="estado_pago_hectareas"
+                    )
+
+                    # ==========================================
+                    # COMPROBANTE
+                    # ==========================================
+
+                    comprobante_hectareas = st.file_uploader(
+                        "📎 Comprobante de pago (opcional)",
+                        type=[
+                            "pdf",
+                            "png",
+                            "jpg",
+                            "jpeg",
+                            "webp"
+                        ],
+                        key="comprobante_pago_hectareas"
+                    )
+
+                    # ==========================================
+                    # RESUMEN
+                    # ==========================================
+
+                    st.markdown("### 📋 Resumen")
+
+                    st.write(
+                        f"**Campaña:** "
+                        f"{campaña_hectareas or '-'}"
+                    )
+
+                    st.write(
+                        f"**Lote:** "
+                        f"{lote_hectareas or '-'}"
+                    )
+
+                    if usar_rango_fechas:
+
+                        st.write(
+                            f"**Período:** "
+                            f"{fecha_desde_hectareas.strftime('%d/%m/%Y')} "
+                            f"al "
+                            f"{fecha_hasta_hectareas.strftime('%d/%m/%Y')}"
+                        )
+
+                    else:
+
+                        st.write(
+                            f"**Fecha:** "
+                            f"{fecha_pago_hectareas.strftime('%d/%m/%Y')}"
+                        )
+
+                    st.write(
+                        f"**Hectáreas:** "
+                        f"{hectareas_trabajadas:,.2f} ha"
+                    )
+
+                    st.write(
+                        f"**Valor por hectárea:** "
+                        f"$ {valor_hectarea:,.2f}"
+                    )
+
+                    st.write(
+                        f"**Total a pagar:** "
+                        f"**$ {total_pagar_hectareas:,.2f}**"
+                    )
+
+                    # ==========================================
+                    # GUARDAR
+                    # ==========================================
+
+                    guardar_pago_hectareas = st.button(
+                        "💾 Guardar pago por hectárea",
+                        use_container_width=True,
+                        key="btn_guardar_pago_hectareas"
+                    )
+
+                    if guardar_pago_hectareas:
+
+                        # ======================================
+                        # VALIDACIONES
+                        # ======================================
+
+                        if not campaña_hectareas.strip():
+
+                            st.error(
+                                "❌ Tenés que ingresar la campaña."
+                            )
+                            st.stop()
+
+                        if not lote_hectareas.strip():
+
+                            st.error(
+                                "❌ Tenés que ingresar el lote."
+                            )
+                            st.stop()
+
+                        if hectareas_trabajadas <= 0:
+
+                            st.error(
+                                "❌ Tenés que ingresar las hectáreas trabajadas."
+                            )
+                            st.stop()
+
+                        if valor_hectarea <= 0:
+
+                            st.error(
+                                "❌ Tenés que ingresar el valor por hectárea."
+                            )
+                            st.stop()
+
+                        if (
+                            usar_rango_fechas
+                            and fecha_hasta_hectareas
+                            < fecha_desde_hectareas
+                        ):
+
+                            st.error(
+                                "❌ La fecha hasta no puede ser anterior "
+                                "a la fecha desde."
+                            )
+                            st.stop()
+
+                        # ======================================
+                        # GENERAR ID
+                        # ======================================
+
+                        if df_pagos_empleados.empty:
+
+                            nuevo_id_hectareas = 1
+
+                        else:
+
+                            ids_hectareas = pd.to_numeric(
+                                df_pagos_empleados["ID_Pago"],
+                                errors="coerce"
+                            ).dropna()
+
+                            if ids_hectareas.empty:
+
+                                nuevo_id_hectareas = 1
+
+                            else:
+
+                                nuevo_id_hectareas = (
+                                    int(ids_hectareas.max()) + 1
+                                )
+
+                        # ======================================
+                        # GUARDAR COMPROBANTE
+                        # ======================================
+
+                        nombre_comprobante_hectareas = ""
+
+                        if comprobante_hectareas is not None:
+
+                            carpeta_comprobantes = (
+                                "comprobantes_pagos"
+                            )
+
+                            os.makedirs(
+                                carpeta_comprobantes,
+                                exist_ok=True
+                            )
+
+                            extension = os.path.splitext(
+                                comprobante_hectareas.name
+                            )[1]
+
+                            nombre_comprobante_hectareas = (
+                                f"hectareas_"
+                                f"{nuevo_id_hectareas}"
+                                f"{extension}"
+                            )
+
+                            ruta_comprobante = os.path.join(
+                                carpeta_comprobantes,
+                                nombre_comprobante_hectareas
+                            )
+
+                            with open(
+                                ruta_comprobante,
+                                "wb"
+                            ) as archivo:
+
+                                archivo.write(
+                                    comprobante_hectareas.getbuffer()
+                                )
+
+                        # ======================================
+                        # FECHAS PARA GUARDAR
+                        # ======================================
+
+                        if usar_rango_fechas:
+
+                            fecha_trabajo_guardada = (
+                                f"{fecha_desde_hectareas}"
+                                f" al "
+                                f"{fecha_hasta_hectareas}"
+                            )
+
+                        else:
+
+                            fecha_trabajo_guardada = str(
+                                fecha_pago_hectareas
+                            )
+
+                        # ======================================
+                        # NUEVO MOVIMIENTO
+                        # ======================================
+
+                        nuevo_pago_hectareas = {
+
+                            "ID_Pago":
+                                str(nuevo_id_hectareas),
+
+                            "Fecha Pago":
+                                str(
+                                    datetime.date.today()
+                                ),
+
+                            "Nombre Empleado":
+                                "Pago general por hectárea",
+
+                            "Fecha Trabajo":
+                                fecha_trabajo_guardada,
+
+                            "Hora Entrada":
+                                "",
+
+                            "Hora Salida":
+                                "",
+
+                            "Horas Trabajadas":
+                                0.0,
+
+                            "Valor Hora":
+                                0.0,
+
+                            "Monto (ARS)":
+                                round(
+                                    total_pagar_hectareas,
+                                    2
+                                ),
+
+                            "Tipo Registro":
+                                "Pago por hectárea",
+
+                            "Estado Pago":
+                                estado_pago_hectareas,
+
+                            "Concepto":
+                                (
+                                    f"Campaña: "
+                                    f"{campaña_hectareas.strip()} "
+                                    f"| Lote: "
+                                    f"{lote_hectareas.strip()} "
+                                    f"| "
+                                    f"{hectareas_trabajadas:,.2f} ha "
+                                    f"x $ "
+                                    f"{valor_hectarea:,.2f}/ha"
+                                ),
+
+                            "Porcentaje Bonificacion":
+                                0.0,
+
+                            "Monto Bonificacion (ARS)":
+                                0.0,
+
+                            "Porcentaje Descuento":
+                                0.0,
+
+                            "Monto Descuento (ARS)":
+                                0.0,
+
+                            "Monto Trabajado (ARS)":
+                                round(
+                                    total_pagar_hectareas,
+                                    2
+                                ),
+
+                            "Monto Pagado (ARS)":
+                                (
+                                    round(
+                                        total_pagar_hectareas,
+                                        2
+                                    )
+                                    if estado_pago_hectareas
+                                    == "Pagado"
+                                    else 0.0
+                                ),
+
+                            "Monto Final Trabajo (ARS)":
+                                round(
+                                    total_pagar_hectareas,
+                                    2
+                                ),
+
+                            "Adelanto Generado (ARS)":
+                                0.0,
+
+                            "Monto Compensado (ARS)":
+                                0.0,
+
+                            "Saldo Adelanto (ARS)":
+                                0.0,
+
+                            "Saldo Pendiente Pago (ARS)":
+                                (
+                                    round(
+                                        total_pagar_hectareas,
+                                        2
+                                    )
+                                    if estado_pago_hectareas
+                                    != "Pagado"
+                                    else 0.0
+                                ),
+
+                            "Comprobantes":
+                                nombre_comprobante_hectareas,
+
+                            "PDF Liquidacion":
+                                ""
+                        }
+
+                        # ======================================
+                        # GUARDAR EN TABLA
+                        # ======================================
+
+                        df_pagos_empleados = pd.concat(
+                            [
+                                df_pagos_empleados,
+                                pd.DataFrame(
+                                    [nuevo_pago_hectareas]
+                                )
+                            ],
+                            ignore_index=True
+                        )
+
+                        df_pagos_empleados.to_csv(
+                            ARCHIVO_PAGOS_EMPLEADOS,
+                            index=False,
+                            encoding="utf-8-sig"
+                        )
+
+                        st.success(
+                            "✅ Pago por hectárea guardado correctamente."
+                        )
+
+                        if nombre_comprobante_hectareas:
+
+                            ruta_comprobante = os.path.join(
+                                "comprobantes_pagos",
+                                nombre_comprobante_hectareas
+                            )
+
+                            if os.path.isfile(
+                                ruta_comprobante
+                            ):
+
+                                with open(
+                                    ruta_comprobante,
+                                    "rb"
+                                ) as archivo:
+
+                                    datos_comprobante = (
+                                        archivo.read()
+                                    )
+
+                                st.download_button(
+                                    label=(
+                                        "📎 Ver / descargar "
+                                        "comprobante"
+                                    ),
+                                    data=datos_comprobante,
+                                    file_name=(
+                                        nombre_comprobante_hectareas
+                                    ),
+                                    key=(
+                                        f"ver_comprobante_hectareas_"
+                                        f"{nuevo_id_hectareas}"
+                                    ),
+                                    use_container_width=True
+                                )
+
+                        st.rerun()
+
+        # ==================================================
+        # LIQUIDACIÓN ESPECIAL POR HORAS TOTALES
+        # ==================================================
 
         else:
 
