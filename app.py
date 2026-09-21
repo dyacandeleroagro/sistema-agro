@@ -2668,23 +2668,111 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                     f"$ {total_pagos:,.2f}"
                 )
                                 # ==========================================
-                # COMPROBANTES DE LAS LIQUIDACIONES
+                # COMPROBANTES AUTOMÁTICOS DE LIQUIDACIÓN
                 # ==========================================
 
-                st.markdown("### 📎 Comprobantes")
+                st.markdown(
+                    "### 📄 Comprobantes de liquidación"
+                )
 
-                carpeta_comprobantes = "comprobantes_pagos"
+                carpeta_pdfs = "liquidaciones_pdf"
 
-                comprobantes_mostrados = False
+                if os.path.exists(carpeta_pdfs):
 
-                # Si la carpeta todavía no existe
-                if not os.path.exists(carpeta_comprobantes):
+                    pdfs_mostrados = False
+
+                    for _, fila_pago in df_pagos.iterrows():
+
+                        nombre_pdf = fila_pago.get(
+                            "PDF Liquidacion",
+                            ""
+                        )
+
+                        if pd.isna(nombre_pdf):
+                            nombre_pdf = ""
+
+                        nombre_pdf = str(
+                            nombre_pdf
+                        ).strip()
+
+                        if not nombre_pdf:
+                            continue
+
+                        ruta_pdf = os.path.join(
+                            carpeta_pdfs,
+                            nombre_pdf
+                        )
+
+                        if os.path.isfile(ruta_pdf):
+
+                            pdfs_mostrados = True
+
+                            id_numerico = pd.to_numeric(
+                                fila_pago.get(
+                                    "ID_Pago",
+                                    ""
+                                ),
+                                errors="coerce"
+                            )
+
+                            if pd.notna(id_numerico):
+
+                                id_liquidacion = str(
+                                    int(id_numerico)
+                                )
+
+                            else:
+
+                                id_liquidacion = str(
+                                    fila_pago.get(
+                                        "ID_Pago",
+                                        ""
+                                    )
+                                ).strip()
+
+                            st.markdown(
+                                f"**📋 Liquidación "
+                                f"#{id_liquidacion}**"
+                            )
+
+                            with open(
+                                ruta_pdf,
+                                "rb"
+                            ) as archivo_pdf:
+
+                                datos_pdf = (
+                                    archivo_pdf.read()
+                                )
+
+                            st.download_button(
+                                label=(
+                                    "📄 Ver / descargar "
+                                    "comprobante de liquidación"
+                                ),
+                                data=datos_pdf,
+                                file_name=nombre_pdf,
+                                mime="application/pdf",
+                                key=(
+                                    "pdf_liquidacion_"
+                                    f"{id_liquidacion}_"
+                                    f"{nombre_pdf}"
+                                ),
+                                use_container_width=True
+                            )
+
+                    if not pdfs_mostrados:
+
+                        st.info(
+                            "ℹ️ No hay comprobantes de "
+                            "liquidación disponibles."
+                        )
+
+                else:
 
                     st.info(
-                        "ℹ️ Todavía no existe la carpeta "
-                        "'comprobantes_pagos'."
+                        "ℹ️ Todavía no hay liquidaciones "
+                        "con comprobante generado."
                     )
-
                 else:
 
                     archivos_carpetas = os.listdir(
