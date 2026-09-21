@@ -2295,11 +2295,49 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             "✅ Pago por hectárea guardado correctamente."
                         )
 
-                        if nombre_comprobante_hectareas:
+                        if nombres_comprobantes_hectareas:
 
+                            for nombre_comprobante_hectareas in (
+                                nombres_comprobantes_hectareas
+                            ):
+
+                                ruta_comprobante = os.path.join(
+                                    "comprobantes_pagos",
+                                    nombres_comprobantes_hectareas
+                                )
+
+                                if os.path.isfile(
+                                    ruta_comprobante
+                                ):
+
+                                    with open(
+                                        ruta_comprobante,
+                                        "rb"
+                                    ) as archivo:
+
+                                        datos_comprobante = (
+                                            archivo.read()
+                                        )
+
+                                    st.download_button(
+                                        label=(
+                                            "📎 Ver / descargar "
+                                            f"{nombres_comprobantes_hectareas}"
+                                        ),
+                                        data=datos_comprobante,
+                                        file_name=(
+                                            nombres_comprobantes_hectareas
+                                        ),
+                                        key=(
+                                            f"ver_comprobante_hectareas_"
+                                            f"{nuevo_id_hectareas}_"
+                                            f"{nombres_comprobantes_hectareas}"
+                                        ),
+                                        use_container_width=True
+                                    )
                             ruta_comprobante = os.path.join(
                                 "comprobantes_pagos",
-                                nombre_comprobante_hectareas
+                                nombres_comprobantes_hectareas
                             )
 
                             if os.path.isfile(
@@ -2322,7 +2360,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     ),
                                     data=datos_comprobante,
                                     file_name=(
-                                        nombre_comprobante_hectareas
+                                        nombres_comprobantes_hectareas
                                     ),
                                     key=(
                                         f"ver_comprobante_hectareas_"
