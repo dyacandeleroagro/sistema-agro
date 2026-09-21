@@ -2253,6 +2253,19 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 archivos_comprobantes,
                                 nuevo_id
                             )
+                            st.write("DEBUG - ID:", nuevo_id)
+                            st.write("DEBUG - Archivos recibidos:", archivos_comprobantes)
+                            st.write("DEBUG - Nombres guardados:", nombres_comprobantes)
+                            st.write(
+                             "DEBUG - Carpeta existe:",
+                             os.path.exists("comprobantes_pagos")
+                            )
+
+                            if os.path.exists("comprobantes_pagos"):
+                                st.write(
+                                 "DEBUG - Archivos en carpeta:",
+                                 os.listdir("comprobantes_pagos")
+                            )
                             
                             # ======================================
                             # GENERAR PDF
@@ -2454,6 +2467,10 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 ARCHIVO_PAGOS_EMPLEADOS,
                                 index=False,
                                 encoding="utf-8-sig"
+                            )
+                            st.write(
+                             "DEBUG - Comprobante guardado en CSV:",
+                              nuevo_pago["Comprobantes"]
                             )
 
                             # ======================================
