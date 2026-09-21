@@ -1784,11 +1784,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             st.session_state["porcentaje_bonificacion_liquidacion"] = 0.0
                             st.session_state["porcentaje_descuento_liquidacion"] = 0.0
                             st.session_state["monto_pagado_liquidacion"] = 0.0
-                        fecha_liquidacion = st.date_input(
-                            "📅 Fecha de liquidación",
-                            value=datetime.date.today(),
-                            key="fecha_liquidacion_especial"
-                        )
                         # ==========================================
                         # FECHA
                         # ==========================================
