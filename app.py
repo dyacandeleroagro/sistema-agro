@@ -2468,10 +2468,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 index=False,
                                 encoding="utf-8-sig"
                             )
-                            st.write(
-                             "DEBUG - Comprobante guardado en CSV:",
-                              nuevo_pago["Comprobantes"]
-                            )
 
                             # ======================================
                             # GUARDAR ID PARA MOSTRAR CONFIRMACIÓN
@@ -2493,6 +2489,65 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 f"✅ Liquidación #{nuevo_id} "
                                 f"guardada correctamente."
                             )
+                                                        st.success(
+                                f"✅ Liquidación #{nuevo_id} "
+                                f"guardada correctamente."
+                            )
+
+                            # ======================================
+                            # MOSTRAR COMPROBANTES RECIÉN GUARDADOS
+                            # ======================================
+
+                            if nombres_comprobantes:
+
+                                st.markdown(
+                                    "### 📎 Comprobante de la liquidación"
+                                )
+
+                                for nombre_comprobante in nombres_comprobantes:
+
+                                    ruta_comprobante = os.path.join(
+                                        "comprobantes_pagos",
+                                        nombre_comprobante
+                                    )
+
+                                    if os.path.isfile(
+                                        ruta_comprobante
+                                    ):
+
+                                        with open(
+                                            ruta_comprobante,
+                                            "rb"
+                                        ) as archivo:
+
+                                            datos_comprobante = (
+                                                archivo.read()
+                                            )
+
+                                        st.download_button(
+                                            label=(
+                                                "📎 Ver / descargar "
+                                                f"{nombre_comprobante}"
+                                            ),
+                                            data=datos_comprobante,
+                                            file_name=(
+                                                nombre_comprobante
+                                            ),
+                                            key=(
+                                                f"comprobante_guardado_"
+                                                f"{nuevo_id}_"
+                                                f"{nombre_comprobante}"
+                                            ),
+                                            use_container_width=True
+                                        )
+
+                                    else:
+
+                                        st.error(
+                                            f"❌ El comprobante "
+                                            f"{nombre_comprobante} "
+                                            f"no se encuentra en la carpeta."
+                                        )
 
                             st.rerun()
 # ----------------------------------------------------
