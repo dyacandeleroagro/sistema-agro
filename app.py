@@ -922,6 +922,11 @@ if menu == "🧾 GASTOS COMERCIALES":
                 "Lote / Destino"
             )
 
+            archivo_adjunto = st.file_uploader(
+                "📎 Subir comprobante",
+                type=["pdf", "png", "jpg", "jpeg"]
+            )
+
         guardar = st.form_submit_button(
             "💾 Guardar gasto"
         )
