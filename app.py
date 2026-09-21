@@ -2890,7 +2890,7 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
             seg_tipo = st.selectbox("Tipo Cobertura", ["Maquinaria Agrícola", "Granizo / Multiriesgo", "Responsabilidad Civil", "Otros"])
         with s2:
             seg_bien = st.text_input("Bien Asegurado")
-            seg_venc = st.date_input("Vencimiento", value=datetime.today())
+            seg_venc = st.date_input("Vencimiento", value=datetime.date.today())
         with s3:
             seg_monto = st.number_input("Monto Cuota ($ ARS)", min_value=0.0)
             seg_estado = st.radio("Estado:", ["Pagado", "Pendiente"], horizontal=True)
