@@ -2607,13 +2607,13 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
 
                 if os.path.exists(carpeta_comprobantes):
 
-                    archivos_comprobantes = os.listdir(
-                        carpeta_comprobantes
-                    )
-
                     comprobantes_mostrados = False
 
                     for _, fila_pago in df_pagos.iterrows():
+
+                        # ------------------------------------------
+                        # ID DE LA LIQUIDACIÓN
+                        # ------------------------------------------
 
                         id_numerico = pd.to_numeric(
                             fila_pago.get("ID_Pago", ""),
@@ -2621,63 +2621,98 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                         )
 
                         if pd.notna(id_numerico):
+
                             id_liquidacion = str(
                                 int(id_numerico)
                             )
+
                         else:
+
                             id_liquidacion = str(
                                 fila_pago.get("ID_Pago", "")
                             ).strip()
 
-                        nombres_guardados = str(
-                            fila_pago.get("Comprobantes", "")
+                        # ------------------------------------------
+                        # LEER LOS NOMBRES GUARDADOS EN EL CSV
+                        # ------------------------------------------
+
+                        comprobantes_guardados = str(
+                            fila_pago.get(
+                                "Comprobantes",
+                                ""
+                            )
                         )
 
-                        if nombres_guardados.lower() == "nan":
-                            nombres_guardados = ""
+                        if (
+                            comprobantes_guardados == "nan"
+                            or comprobantes_guardados == "None"
+                        ):
 
-                        lista_nombres = [
-                            x.strip()
-                            for x in nombres_guardados.split(",")
-                            if x.strip()
+                            comprobantes_guardados = ""
+
+                        nombres_comprobantes = [
+                            nombre.strip()
+                            for nombre in comprobantes_guardados.split(",")
+                            if nombre.strip()
                         ]
 
-                        # Si la columna está vacía,
-                        # buscar por ID de liquidación
-                        if not lista_nombres:
-
-                            lista_nombres = [
-                                archivo
-                                for archivo in archivos_comprobantes
-                                if archivo.startswith(
-                                    f"liquidacion_{id_liquidacion}_"
-                                )
-                            ]
-
-                            # Formato viejo de jornada
-                            if not lista_nombres:
-
-                                lista_nombres = [
-                                    archivo
-                                    for archivo in archivos_comprobantes
-                                    if os.path.splitext(archivo)[0]
-                                    == id_liquidacion
-                                ]
+                        # ------------------------------------------
+                        # BUSCAR LOS ARCHIVOS FÍSICOS
+                        # ------------------------------------------
 
                         archivos_validos = []
 
-                        for nombre_comprobante in lista_nombres:
+                        for nombre_comprobante in nombres_comprobantes:
 
                             ruta_comprobante = os.path.join(
                                 carpeta_comprobantes,
                                 nombre_comprobante
                             )
 
-                            if os.path.exists(ruta_comprobante):
+                            if os.path.isfile(
+                                ruta_comprobante
+                            ):
 
                                 archivos_validos.append(
-                                    nombre_comprobante
+                                    (
+                                        nombre_comprobante,
+                                        ruta_comprobante
+                                    )
                                 )
+
+                        # ------------------------------------------
+                        # SI NO ESTÁ EN EL CSV, BUSCAR POR ID
+                        # ------------------------------------------
+
+                        if not archivos_validos:
+
+                            archivos = os.listdir(
+                                carpeta_comprobantes
+                            )
+
+                            for archivo in archivos:
+
+                                if archivo.startswith(
+                                    f"liquidacion_{id_liquidacion}_"
+                                ):
+
+                                    ruta = os.path.join(
+                                        carpeta_comprobantes,
+                                        archivo
+                                    )
+
+                                    if os.path.isfile(ruta):
+
+                                        archivos_validos.append(
+                                            (
+                                                archivo,
+                                                ruta
+                                            )
+                                        )
+
+                        # ------------------------------------------
+                        # MOSTRAR COMPROBANTES
+                        # ------------------------------------------
 
                         if archivos_validos:
 
@@ -2687,12 +2722,10 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                                 f"**📋 Liquidación #{id_liquidacion}**"
                             )
 
-                            for nombre_comprobante in archivos_validos:
-
-                                ruta_comprobante = os.path.join(
-                                    carpeta_comprobantes,
-                                    nombre_comprobante
-                                )
+                            for (
+                                nombre_comprobante,
+                                ruta_comprobante
+                            ) in archivos_validos:
 
                                 with open(
                                     ruta_comprobante,
@@ -2709,7 +2742,7 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                                     data=datos_comprobante,
                                     file_name=nombre_comprobante,
                                     key=(
-                                        f"btn_comprobante_"
+                                        "comprobante_"
                                         f"{id_liquidacion}_"
                                         f"{nombre_comprobante}"
                                     ),
@@ -2718,9 +2751,9 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
 
                     if not comprobantes_mostrados:
 
-                        st.info(
-                            "ℹ️ No se encontró un comprobante físico "
-                            "para las liquidaciones mostradas."
+                        st.warning(
+                            "⚠️ La liquidación está guardada, "
+                            "pero no se encontró el archivo del comprobante."
                         )
 
                 else:
