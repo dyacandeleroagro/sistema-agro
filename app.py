@@ -2316,24 +2316,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     f"📎 Comprobante {indice}: "
                                     f"`{str(nombre_archivo)}`"
                                 )
-                                st.download_button(
-                                    label=(
-                                        "📎 Ver / descargar "
-                                        "comprobante"
-                                    ),
-                                    data=datos_comprobante,
-                                    file_name=(
-                                        nombres_comprobantes_hectareas
-                                    ),
-                                    key=(
-                                        f"ver_comprobante_hectareas_"
-                                        f"{nuevo_id_hectareas}"
-                                    ),
-                                    use_container_width=True
-                                )
-
-                        st.rerun()
-
+                                
         # ==================================================
         # LIQUIDACIÓN ESPECIAL POR HORAS TOTALES
         # ==================================================
