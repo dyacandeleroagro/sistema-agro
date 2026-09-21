@@ -1858,11 +1858,11 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         fecha_desde_hectareas = fecha_pago_hectareas
                         fecha_hasta_hectareas = fecha_pago_hectareas
 
-                    # ==========================================
-                    # HECTÁREAS Y VALOR
+                                        # ==========================================
+                    # HECTÁREAS, VALOR Y PORCENTAJE
                     # ==========================================
 
-                    col1, col2 = st.columns(2)
+                    col1, col2, col3 = st.columns(3)
 
                     with col1:
 
@@ -1884,20 +1884,47 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             key="valor_hectarea_pago"
                         )
 
+                    with col3:
+
+                        porcentaje_hectarea = st.number_input(
+                            "📊 Porcentaje a cobrar (%)",
+                            min_value=0.0,
+                            max_value=100.0,
+                            step=0.5,
+                            value=5.0,
+                            key="porcentaje_hectarea_pago"
+                        )
+
                     # ==========================================
-                    # TOTAL AUTOMÁTICO
+                    # CÁLCULO AUTOMÁTICO
                     # ==========================================
 
-                    total_pagar_hectareas = (
+                    ganancia_total_hectareas = (
                         hectareas_trabajadas
                         * valor_hectarea
                     )
 
-                    st.metric(
-                        "💵 Total a pagar",
-                        f"$ {total_pagar_hectareas:,.2f}"
+                    total_pagar_hectareas = (
+                        ganancia_total_hectareas
+                        * porcentaje_hectarea
+                        / 100
                     )
 
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+
+                        st.metric(
+                            "💵 Ganancia total",
+                            f"$ {ganancia_total_hectareas:,.2f}"
+                        )
+
+                    with col2:
+
+                        st.metric(
+                            "💰 Total a pagar",
+                            f"$ {total_pagar_hectareas:,.2f}"
+                        )
                     # ==========================================
                     # ESTADO
                     # ==========================================
@@ -2160,17 +2187,18 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 estado_pago_hectareas,
 
                             "Concepto":
-                                (
-                                    f"Campaña: "
-                                    f"{campaña_hectareas.strip()} "
-                                    f"| Lote: "
-                                    f"{lote_hectareas.strip()} "
-                                    f"| "
-                                    f"{hectareas_trabajadas:,.2f} ha "
-                                    f"x $ "
-                                    f"{valor_hectarea:,.2f}/ha"
-                                ),
-
+                            (
+                              f"Campaña: "
+                              f"{campaña_hectareas.strip()} "
+                              f"| Lote: "
+                              f"{lote_hectareas.strip()} "
+                              f"| "
+                              f"{hectareas_trabajadas:,.2f} ha "
+                              f"x $ "
+                              f"{valor_hectarea:,.2f}/ha "
+                              f"| "
+                              f"{porcentaje_hectarea:,.2f}%"
+                            ),
                             "Porcentaje Bonificacion":
                                 0.0,
 
