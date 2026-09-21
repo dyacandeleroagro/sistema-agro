@@ -2253,11 +2253,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 archivos_comprobantes,
                                 nuevo_id
                             )
-                            st.write(
-                                "PRUEBA COMPROBANTES:",
-                                 nombres_comprobantes
-                            )
-
+                            
                             # ======================================
                             # GENERAR PDF
                             # ======================================
@@ -2609,18 +2605,33 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
 
                 carpeta_comprobantes = "comprobantes_pagos"
 
-                if os.path.exists(carpeta_comprobantes):
+                comprobantes_mostrados = False
 
-                    comprobantes_mostrados = False
+                # Si la carpeta todavía no existe
+                if not os.path.exists(carpeta_comprobantes):
+
+                    st.info(
+                        "ℹ️ Todavía no existe la carpeta "
+                        "'comprobantes_pagos'."
+                    )
+
+                else:
+
+                    archivos_carpetas = os.listdir(
+                        carpeta_comprobantes
+                    )
 
                     for _, fila_pago in df_pagos.iterrows():
 
-                        # ------------------------------------------
-                        # ID DE LA LIQUIDACIÓN
-                        # ------------------------------------------
+                        # ======================================
+                        # OBTENER ID DE LA LIQUIDACIÓN
+                        # ======================================
 
                         id_numerico = pd.to_numeric(
-                            fila_pago.get("ID_Pago", ""),
+                            fila_pago.get(
+                                "ID_Pago",
+                                ""
+                            ),
                             errors="coerce"
                         )
 
@@ -2633,68 +2644,74 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                         else:
 
                             id_liquidacion = str(
-                                fila_pago.get("ID_Pago", "")
+                                fila_pago.get(
+                                    "ID_Pago",
+                                    ""
+                                )
                             ).strip()
 
-                        # ------------------------------------------
-                        # LEER LOS NOMBRES GUARDADOS EN EL CSV
-                        # ------------------------------------------
+                        # ======================================
+                        # OBTENER NOMBRES GUARDADOS EN EL CSV
+                        # ======================================
 
-                        comprobantes_guardados = str(
-                            fila_pago.get(
-                                "Comprobantes",
-                                ""
-                            )
+                        comprobantes_guardados = fila_pago.get(
+                            "Comprobantes",
+                            ""
                         )
 
-                        if (
-                            comprobantes_guardados == "nan"
-                            or comprobantes_guardados == "None"
+                        if pd.isna(
+                            comprobantes_guardados
                         ):
 
                             comprobantes_guardados = ""
 
-                        nombres_comprobantes = [
-                            nombre.strip()
-                            for nombre in comprobantes_guardados.split(",")
-                            if nombre.strip()
-                        ]
+                        comprobantes_guardados = str(
+                            comprobantes_guardados
+                        ).strip()
 
-                        # ------------------------------------------
-                        # BUSCAR LOS ARCHIVOS FÍSICOS
-                        # ------------------------------------------
+                        nombres_comprobantes = []
+
+                        if comprobantes_guardados:
+
+                            nombres_comprobantes = [
+                                nombre.strip()
+                                for nombre in
+                                comprobantes_guardados.split(",")
+                                if nombre.strip()
+                            ]
+
+                        # ======================================
+                        # BUSCAR ARCHIVOS FÍSICOS
+                        # ======================================
 
                         archivos_validos = []
 
-                        for nombre_comprobante in nombres_comprobantes:
+                        # Primero buscar por el nombre exacto
+                        for nombre_comprobante in (
+                            nombres_comprobantes
+                        ):
 
-                            ruta_comprobante = os.path.join(
+                            ruta = os.path.join(
                                 carpeta_comprobantes,
                                 nombre_comprobante
                             )
 
-                            if os.path.isfile(
-                                ruta_comprobante
-                            ):
+                            if os.path.isfile(ruta):
 
                                 archivos_validos.append(
                                     (
                                         nombre_comprobante,
-                                        ruta_comprobante
+                                        ruta
                                     )
                                 )
 
-                        # ------------------------------------------
-                        # SI NO ESTÁ EN EL CSV, BUSCAR POR ID
-                        # ------------------------------------------
+                        # ======================================
+                        # SI NO LO ENCONTRÓ, BUSCAR POR ID
+                        # ======================================
 
                         if not archivos_validos:
 
-                            archivos = os.listdir(
-                                carpeta_comprobantes
-                            )
-
-                            for archivo in archivos:
+                            for archivo in archivos_carpetas:
 
                                 if archivo.startswith(
                                     f"liquidacion_{id_liquidacion}_"
@@ -2714,16 +2731,17 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                                             )
                                         )
 
-                        # ------------------------------------------
+                        # ======================================
                         # MOSTRAR COMPROBANTES
-                        # ------------------------------------------
+                        # ======================================
 
                         if archivos_validos:
 
                             comprobantes_mostrados = True
 
                             st.markdown(
-                                f"**📋 Liquidación #{id_liquidacion}**"
+                                f"**📋 Liquidación "
+                                f"#{id_liquidacion}**"
                             )
 
                             for (
@@ -2736,36 +2754,37 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                                     "rb"
                                 ) as archivo:
 
-                                    datos_comprobante = archivo.read()
+                                    datos_comprobante = (
+                                        archivo.read()
+                                    )
 
                                 st.download_button(
                                     label=(
-                                        f"📎 Ver / descargar "
+                                        "📎 Ver / descargar "
                                         f"{nombre_comprobante}"
                                     ),
                                     data=datos_comprobante,
-                                    file_name=nombre_comprobante,
+                                    file_name=(
+                                        nombre_comprobante
+                                    ),
                                     key=(
-                                        "comprobante_"
+                                        "comprobante_liq_"
                                         f"{id_liquidacion}_"
                                         f"{nombre_comprobante}"
                                     ),
                                     use_container_width=True
                                 )
 
+                    # ======================================
+                    # SI NO ENCONTRÓ NINGUNO
+                    # ======================================
+
                     if not comprobantes_mostrados:
 
                         st.warning(
-                            "⚠️ La liquidación está guardada, "
-                            "pero no se encontró el archivo del comprobante."
+                            "⚠️ No se encontró ningún comprobante "
+                            "para las liquidaciones mostradas."
                         )
-
-                else:
-
-                    st.info(
-                        "ℹ️ Todavía no existe la carpeta "
-                        "'comprobantes_pagos'."
-                    )
     # ==========================================
     # VALES Y REINTEGROS
     # ==========================================
