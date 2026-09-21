@@ -931,7 +931,32 @@ if menu == "🧾 GASTOS COMERCIALES":
             "💾 Guardar gasto"
         )
 
-    if guardar:
+        if guardar:
+
+        os.makedirs("comprobantes", exist_ok=True)
+
+        nombre_archivo_guardado = ""
+
+        if archivo_adjunto is not None:
+
+            nombre_archivo_guardado = (
+                f"{int(datetime.datetime.now().timestamp())}_"
+                f"{archivo_adjunto.name}"
+            )
+
+            ruta_comprobante = os.path.join(
+                "comprobantes",
+                nombre_archivo_guardado
+            )
+
+            with open(
+                ruta_comprobante,
+                "wb"
+            ) as archivo:
+
+                archivo.write(
+                    archivo_adjunto.getbuffer()
+                )
 
         nuevo = {
 
@@ -953,7 +978,7 @@ if menu == "🧾 GASTOS COMERCIALES":
 
             "Estado Pago": estado,
 
-            "Archivo Comprobante": ""
+            "Archivo Comprobante": nombre_archivo_guardado
 
         }
 
