@@ -883,7 +883,7 @@ if menu == "🧾 GASTOS COMERCIALES":
 
             fecha = st.date_input(
                 "Fecha",
-                value=datetime.today()
+                value=datetime.date.today()
             )
 
             proveedor = st.text_input(
