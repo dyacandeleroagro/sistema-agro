@@ -931,7 +931,7 @@ if menu == "🧾 GASTOS COMERCIALES":
             "💾 Guardar gasto"
         )
 
-        if guardar:
+    if guardar:
 
         os.makedirs("comprobantes", exist_ok=True)
 
