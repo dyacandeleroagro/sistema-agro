@@ -3010,8 +3010,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                                 "Comprobantes":
                                     ", ".join(
-                                     str(x)
-                                     for x in nombres_comprobantes_hectareas
+                                        str(x)
+                                        for x in nombres_comprobantes
                                     ),
 
                                 "PDF Liquidacion":
