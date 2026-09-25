@@ -3926,42 +3926,42 @@ if menu == "🗄 CONTROL DE ERRORES":
 
             st.info("No hay ingresos registrados.")
 
-# ==========================================
-# PAGOS PERSONAL
-# ==========================================
+    # ==========================================
+    # PAGOS PERSONAL
+    # ==========================================
 
-with sub_p:
+    with sub_p:
 
-    if df_pagos_empleados.empty:
+        if df_pagos_empleados.empty:
 
-        st.info("No hay movimientos de personal.")
+            st.info("No hay movimientos de personal.")
 
-    else:
+        else:
 
-        for idx, fila in df_pagos_empleados.copy().iterrows():
+            for idx, fila in df_pagos_empleados.copy().iterrows():
 
-            c_i, c_b = st.columns([6, 1])
+                c_i, c_b = st.columns([6, 1])
 
-            with c_i:
+                with c_i:
 
-                st.write(
-                    f"📅 {fila['Fecha Pago']} | "
-                    f"Operario: *{fila['Nombre Empleado']}* | "
-                    f"**$ {fila['Monto (ARS)']:,.2f}**"
-                )
+                    st.write(
+                        f"📅 {fila['Fecha Pago']} | "
+                        f"Operario: *{fila['Nombre Empleado']}* | "
+                        f"**$ {fila['Monto (ARS)']:,.2f}**"
+                    )
 
-            with c_b:
+                with c_b:
 
-                boton_borrar = st.button(
-                    "🗑 Borrar",
-                    key=f"b_emp_{fila['ID_Pago']}_{idx}"
-                )
+                    boton_borrar = st.button(
+                        "🗑 Borrar",
+                        key=f"b_emp_{fila['ID_Pago']}_{idx}"
+                    )
 
-            if boton_borrar:
+                if boton_borrar:
 
-                id_pago_borrar = str(
-                    fila["ID_Pago"]
-                )
+                    id_pago_borrar = str(
+                        fila["ID_Pago"]
+                    )
 
                 # ==========================================
                 # BORRAR DE NEON
