@@ -147,12 +147,133 @@ if not st.session_state["autenticado"]:
 if not os.path.exists("comprobantes"):
     os.makedirs("comprobantes")
 
-if not os.path.exists("datos_facturas.csv"):
-    pd.DataFrame(columns=["ID", "Fecha Registro", "Proveedor", "Monto Original", "Moneda", "Monto (ARS)", "Categoría", "Lote Asignado", "Estado Pago", "Archivo Comprobante"]).to_csv("datos_facturas.csv", index=False)
-df_facturas = pd.read_csv("datos_facturas.csv")
-if "ID" not in df_facturas.columns: df_facturas["ID"] = [str(int(datetime.now().timestamp()) + i) for i in range(len(df_facturas))]
-df_facturas["ID"] = df_facturas["ID"].astype(str)
+# ==========================================================
+# CARGA DE GASTOS COMERCIALES DESDE NEON
+# ==========================================================
 
+columnas_facturas = {
+    "ID": "",
+    "Fecha Registro": "",
+    "Proveedor": "",
+    "Monto Original": 0.0,
+    "Moneda": "ARS",
+    "Monto (ARS)": 0.0,
+    "Categoría": "",
+    "Lote Asignado": "",
+    "Estado Pago": "",
+    "Archivo Comprobante": ""
+}
+
+
+def cargar_gastos_desde_neon():
+
+    try:
+
+        conn = get_conn()
+
+        query = """
+            SELECT
+                id_gasto,
+                fecha_registro,
+                proveedor,
+                monto_original,
+                moneda,
+                monto_ars,
+                categoria,
+                lote_asignado,
+                estado_pago,
+                archivo_comprobante
+            FROM gastos_comerciales
+            ORDER BY fecha_registro, id
+        """
+
+        df = pd.read_sql_query(
+            query,
+            conn
+        )
+
+        conn.close()
+
+        if df.empty:
+            return pd.DataFrame()
+
+        df = df.rename(
+            columns={
+                "id_gasto": "ID",
+                "fecha_registro": "Fecha Registro",
+                "proveedor": "Proveedor",
+                "monto_original": "Monto Original",
+                "moneda": "Moneda",
+                "monto_ars": "Monto (ARS)",
+                "categoria": "Categoría",
+                "lote_asignado": "Lote Asignado",
+                "estado_pago": "Estado Pago",
+                "archivo_comprobante": "Archivo Comprobante"
+            }
+        )
+
+        return df
+
+    except Exception as e:
+
+        st.warning(
+            f"⚠️ No se pudieron cargar los gastos desde Neon: {e}"
+        )
+
+        return pd.DataFrame()
+
+
+# ==========================================================
+# CARGAR GASTOS
+# ==========================================================
+
+df_facturas = cargar_gastos_desde_neon()
+
+
+# ==========================================================
+# RESPALDO / MIGRACIÓN DESDE CSV
+# ==========================================================
+
+if (
+    df_facturas.empty
+    and os.path.exists("datos_facturas.csv")
+):
+
+    df_csv_facturas = pd.read_csv(
+        "datos_facturas.csv"
+    )
+
+    if not df_csv_facturas.empty:
+
+        for columna, valor in columnas_facturas.items():
+
+            if columna not in df_csv_facturas.columns:
+
+                df_csv_facturas[columna] = valor
+
+        df_facturas = df_csv_facturas.copy()
+
+
+# ==========================================================
+# ASEGURAR COLUMNAS
+# ==========================================================
+
+for columna, valor in columnas_facturas.items():
+
+    if columna not in df_facturas.columns:
+
+        df_facturas[columna] = valor
+
+
+# ==========================================================
+# ASEGURAR ID COMO TEXTO
+# ==========================================================
+
+df_facturas["ID"] = (
+    df_facturas["ID"]
+    .fillna("")
+    .astype(str)
+)
 if not os.path.exists("registro_telemetria.csv"):
     pd.DataFrame(columns=["Fecha", "Maquinaria", "Lote", "Has Trabajadas", "Gasoil Consumido (L)", "Eficiencia (L/Ha)"]).to_csv("registro_telemetria.csv", index=False)
 df_telemetria = pd.read_csv("registro_telemetria.csv")
@@ -3252,6 +3373,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 ignore_index=True
                             )
 
+                            guardar_pago_en_neon(nuevo_pago)
+
                             # ======================================
                             # GUARDAR CSV
                             # ======================================
@@ -3803,58 +3926,117 @@ if menu == "🗄 CONTROL DE ERRORES":
 
             st.info("No hay ingresos registrados.")
 
-        # ==========================================
-    # PAGOS PERSONAL
-    # ==========================================
+# ==========================================
+# PAGOS PERSONAL
+# ==========================================
 
-    with sub_p:
+with sub_p:
 
-        if df_pagos_empleados.empty:
+    if df_pagos_empleados.empty:
 
-            st.info("No hay movimientos de personal.")
+        st.info("No hay movimientos de personal.")
 
-        else:
+    else:
 
-            for idx, fila in df_pagos_empleados.copy().iterrows():
+        for idx, fila in df_pagos_empleados.copy().iterrows():
 
-                c_i, c_b = st.columns([6, 1])
+            c_i, c_b = st.columns([6, 1])
 
-                with c_i:
+            with c_i:
 
-                    st.write(
-                        f"📅 {fila['Fecha Pago']} | "
-                        f"Operario: *{fila['Nombre Empleado']}* | "
-                        f"**$ {fila['Monto (ARS)']:,.2f}**"
+                st.write(
+                    f"📅 {fila['Fecha Pago']} | "
+                    f"Operario: *{fila['Nombre Empleado']}* | "
+                    f"**$ {fila['Monto (ARS)']:,.2f}**"
+                )
+
+            with c_b:
+
+                boton_borrar = st.button(
+                    "🗑 Borrar",
+                    key=f"b_emp_{fila['ID_Pago']}_{idx}"
+                )
+
+            if boton_borrar:
+
+                id_pago_borrar = str(
+                    fila["ID_Pago"]
+                )
+
+                # ==========================================
+                # BORRAR DE NEON
+                # ==========================================
+
+                conn = None
+                cursor = None
+
+                try:
+
+                    conn = get_conn()
+                    cursor = conn.cursor()
+
+                    cursor.execute(
+                        """
+                        DELETE FROM pagos_empleados
+                        WHERE id_pago = %s
+                        """,
+                        (id_pago_borrar,)
                     )
 
-                with c_b:
+                    conn.commit()
 
-                    boton_borrar = st.button(
-                        "🗑 Borrar",
-                        key=f"b_emp_{fila['ID_Pago']}_{idx}"
+                except Exception as e:
+
+                    if conn:
+                        conn.rollback()
+
+                    st.error(
+                        f"❌ No se pudo eliminar de Neon: {e}"
                     )
 
-                if boton_borrar:
+                    if cursor:
+                        cursor.close()
 
-                    # Eliminar movimiento
-                    df_pagos_empleados = (
-                        df_pagos_empleados
-                        .drop(idx)
-                        .reset_index(drop=True)
-                    )
+                    if conn:
+                        conn.close()
 
-                    # Guardar en CSV
-                    df_pagos_empleados.to_csv(
-                        "registro_pagos_empleados.csv",
-                        index=False,
-                        encoding="utf-8-sig"
-                    )
+                    st.stop()
 
-                    st.success(
-                        "Movimiento de personal eliminado."
-                    )
+                finally:
 
-                    st.rerun()
+                    if cursor:
+                        cursor.close()
+
+                    if conn:
+                        conn.close()
+
+                # ==========================================
+                # ELIMINAR DE LA TABLA EN MEMORIA
+                # ==========================================
+
+                df_pagos_empleados = (
+                    df_pagos_empleados[
+                        df_pagos_empleados["ID_Pago"].astype(str)
+                        != id_pago_borrar
+                    ]
+                    .reset_index(drop=True)
+                )
+
+                # ==========================================
+                # ACTUALIZAR CSV DE RESPALDO
+                # ==========================================
+
+                df_pagos_empleados.to_csv(
+                    "registro_pagos_empleados.csv",
+                    index=False,
+                    encoding="utf-8-sig"
+                )
+
+                st.success(
+                    "✅ Movimiento eliminado correctamente de Neon."
+                )
+
+                st.rerun()
 
     # ==========================================
     # SEGUROS
