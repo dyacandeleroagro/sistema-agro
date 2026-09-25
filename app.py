@@ -189,22 +189,8 @@ if not os.path.exists("registro_pagos_empleados.csv"):
 ARCHIVO_PAGOS_EMPLEADOS = "registro_pagos_empleados.csv"
 
 # ==========================================================
-# CARGA DE PAGOS DE EMPLEADOS
+# CARGA DE PAGOS DE EMPLEADOS DESDE NEON
 # ==========================================================
-
-if os.path.exists(ARCHIVO_PAGOS_EMPLEADOS):
-
-    df_pagos_empleados = pd.read_csv(
-        ARCHIVO_PAGOS_EMPLEADOS,
-        encoding="utf-8-sig"
-    )
-
-else:
-
-    df_pagos_empleados = pd.DataFrame()
-
-
-# Agregar columnas nuevas si el archivo ya existía
 
 columnas_pagos = {
     "ID_Pago": "",
@@ -219,8 +205,6 @@ columnas_pagos = {
     "Tipo Registro": "",
     "Estado Pago": "",
     "Concepto": "",
-
-    # NUEVAS COLUMNAS
     "Porcentaje Bonificacion": 0.0,
     "Monto Bonificacion (ARS)": 0.0,
     "Porcentaje Descuento": 0.0,
@@ -237,17 +221,251 @@ columnas_pagos = {
 }
 
 
+def cargar_pagos_desde_neon():
+
+    try:
+
+        conn = get_conn()
+
+        query = """
+            SELECT
+                id_pago,
+                fecha_pago,
+                nombre_empleado,
+                fecha_trabajo,
+                hora_entrada,
+                hora_salida,
+                horas_trabajadas,
+                valor_hora,
+                monto_ars,
+                tipo_registro,
+                estado_pago,
+                concepto,
+                porcentaje_bonificacion,
+                monto_bonificacion,
+                porcentaje_descuento,
+                monto_descuento,
+                monto_trabajado_ars,
+                monto_pagado_ars,
+                monto_final_trabajo_ars,
+                adelanto_generado_ars,
+                monto_compensado_ars,
+                saldo_adelanto_ars,
+                saldo_pendiente_pago_ars,
+                comprobantes,
+                pdf_liquidacion
+            FROM pagos_empleados
+            ORDER BY fecha_pago, id
+        """
+
+        df = pd.read_sql_query(
+            query,
+            conn
+        )
+
+        conn.close()
+
+        if df.empty:
+
+            return pd.DataFrame()
+
+        df = df.rename(
+            columns={
+                "id_pago": "ID_Pago",
+                "fecha_pago": "Fecha Pago",
+                "nombre_empleado": "Nombre Empleado",
+                "fecha_trabajo": "Fecha Trabajo",
+                "hora_entrada": "Hora Entrada",
+                "hora_salida": "Hora Salida",
+                "horas_trabajadas": "Horas Trabajadas",
+                "valor_hora": "Valor Hora",
+                "monto_ars": "Monto (ARS)",
+                "tipo_registro": "Tipo Registro",
+                "estado_pago": "Estado Pago",
+                "concepto": "Concepto",
+                "porcentaje_bonificacion": "Porcentaje Bonificacion",
+                "monto_bonificacion": "Monto Bonificacion (ARS)",
+                "porcentaje_descuento": "Porcentaje Descuento",
+                "monto_descuento": "Monto Descuento (ARS)",
+                "monto_trabajado_ars": "Monto Trabajado (ARS)",
+                "monto_pagado_ars": "Monto Pagado (ARS)",
+                "monto_final_trabajo_ars": "Monto Final Trabajo (ARS)",
+                "adelanto_generado_ars": "Adelanto Generado (ARS)",
+                "monto_compensado_ars": "Monto Compensado (ARS)",
+                "saldo_adelanto_ars": "Saldo Adelanto (ARS)",
+                "saldo_pendiente_pago_ars": "Saldo Pendiente Pago (ARS)",
+                "comprobantes": "Comprobantes",
+                "pdf_liquidacion": "PDF Liquidacion"
+            }
+        )
+
+        return df
+
+    except Exception as e:
+
+        st.warning(
+            f"⚠️ No se pudo cargar pagos desde Neon: {e}"
+        )
+
+        return pd.DataFrame()
+
+
+# ==========================================================
+# CARGAR PAGOS
+# ==========================================================
+
+df_pagos_empleados = cargar_pagos_desde_neon()
+
+
+# ==========================================================
+# RESPALDO / MIGRACIÓN AUTOMÁTICA DESDE CSV
+# ==========================================================
+
+if (
+    df_pagos_empleados.empty
+    and os.path.exists(ARCHIVO_PAGOS_EMPLEADOS)
+):
+
+    df_csv_pagos = pd.read_csv(
+        ARCHIVO_PAGOS_EMPLEADOS,
+        encoding="utf-8-sig"
+    )
+
+    if not df_csv_pagos.empty:
+
+        for columna, valor in columnas_pagos.items():
+
+            if columna not in df_csv_pagos.columns:
+
+                df_csv_pagos[columna] = valor
+
+        df_pagos_empleados = df_csv_pagos.copy()
+
+
+# ==========================================================
+# ASEGURAR COLUMNAS
+# ==========================================================
+
 for columna, valor in columnas_pagos.items():
+
     if columna not in df_pagos_empleados.columns:
+
         df_pagos_empleados[columna] = valor
 
-# Asegurar que los ID sean texto
+
+# ==========================================================
+# ASEGURAR ID COMO TEXTO
+# ==========================================================
 
 df_pagos_empleados["ID_Pago"] = (
     df_pagos_empleados["ID_Pago"]
     .fillna("")
     .astype(str)
 )
+# ==========================================================
+# GUARDAR PAGO EN NEON
+# ==========================================================
+
+def guardar_pago_en_neon(pago):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO pagos_empleados (
+                id_pago,
+                fecha_pago,
+                nombre_empleado,
+                fecha_trabajo,
+                hora_entrada,
+                hora_salida,
+                horas_trabajadas,
+                valor_hora,
+                monto_ars,
+                tipo_registro,
+                estado_pago,
+                concepto,
+                porcentaje_bonificacion,
+                monto_bonificacion,
+                porcentaje_descuento,
+                monto_descuento,
+                monto_trabajado_ars,
+                monto_pagado_ars,
+                monto_final_trabajo_ars,
+                adelanto_generado_ars,
+                monto_compensado_ars,
+                saldo_adelanto_ars,
+                saldo_pendiente_pago_ars,
+                comprobantes,
+                pdf_liquidacion
+            )
+            VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s
+            )
+        """
+
+        valores = (
+            str(pago.get("ID_Pago", "")),
+            pago.get("Fecha Pago") or None,
+            pago.get("Nombre Empleado", ""),
+            pago.get("Fecha Trabajo", ""),
+            pago.get("Hora Entrada", ""),
+            pago.get("Hora Salida", ""),
+            float(pago.get("Horas Trabajadas", 0) or 0),
+            float(pago.get("Valor Hora", 0) or 0),
+            float(pago.get("Monto (ARS)", 0) or 0),
+            pago.get("Tipo Registro", ""),
+            pago.get("Estado Pago", ""),
+            pago.get("Concepto", ""),
+            float(pago.get("Porcentaje Bonificacion", 0) or 0),
+            float(pago.get("Monto Bonificacion (ARS)", 0) or 0),
+            float(pago.get("Porcentaje Descuento", 0) or 0),
+            float(pago.get("Monto Descuento (ARS)", 0) or 0),
+            float(pago.get("Monto Trabajado (ARS)", 0) or 0),
+            float(pago.get("Monto Pagado (ARS)", 0) or 0),
+            float(pago.get("Monto Final Trabajo (ARS)", 0) or 0),
+            float(pago.get("Adelanto Generado (ARS)", 0) or 0),
+            float(pago.get("Monto Compensado (ARS)", 0) or 0),
+            float(pago.get("Saldo Adelanto (ARS)", 0) or 0),
+            float(pago.get("Saldo Pendiente Pago (ARS)", 0) or 0),
+            pago.get("Comprobantes", ""),
+            pago.get("PDF Liquidacion", "")
+        )
+
+        cursor.execute(query, valores)
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        st.error(
+            f"❌ Error guardando el pago en Neon: {e}"
+        )
+
+        return False
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+            
 if not os.path.exists("registro_ingresos.csv"):
     pd.DataFrame(columns=["ID_Ingreso", "Fecha", "Cliente", "Tipo Servicio", "Lote/Establecimiento", "Hectáreas", "Monto Total (ARS)", "Detalle"]).to_csv("registro_ingresos.csv", index=False)
 df_ingresos = pd.read_csv("registro_ingresos.csv")
