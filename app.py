@@ -465,7 +465,7 @@ def guardar_pago_en_neon(pago):
 
         if conn:
             conn.close()
-            
+
 if not os.path.exists("registro_ingresos.csv"):
     pd.DataFrame(columns=["ID_Ingreso", "Fecha", "Cliente", "Tipo Servicio", "Lote/Establecimiento", "Hectáreas", "Monto Total (ARS)", "Detalle"]).to_csv("registro_ingresos.csv", index=False)
 df_ingresos = pd.read_csv("registro_ingresos.csv")
@@ -1976,6 +1976,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 ],
                                 ignore_index=True
                             )
+                            
+                            guardar_pago_en_neon(nuevo_pago)
 
                             df_pagos_empleados.to_csv(
                              ARCHIVO_PAGOS_EMPLEADOS,
