@@ -274,6 +274,79 @@ df_facturas["ID"] = (
     .fillna("")
     .astype(str)
 )
+# ==========================================================
+# GUARDAR GASTO EN NEON
+# ==========================================================
+
+def guardar_gasto_en_neon(gasto):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        query = """
+            INSERT INTO gastos_comerciales (
+                id_gasto,
+                fecha_registro,
+                proveedor,
+                monto_original,
+                moneda,
+                monto_ars,
+                categoria,
+                lote_asignado,
+                estado_pago,
+                archivo_comprobante
+            )
+            VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s
+            )
+        """
+
+        valores = (
+            str(gasto.get("ID", "")),
+            gasto.get("Fecha Registro") or None,
+            gasto.get("Proveedor", ""),
+            float(gasto.get("Monto Original", 0) or 0),
+            gasto.get("Moneda", "ARS"),
+            float(gasto.get("Monto (ARS)", 0) or 0),
+            gasto.get("Categoría", ""),
+            gasto.get("Lote Asignado", ""),
+            gasto.get("Estado Pago", ""),
+            gasto.get("Archivo Comprobante", "")
+        )
+
+        cursor.execute(
+            query,
+            valores
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        st.error(
+            f"❌ Error guardando gasto en Neon: {e}"
+        )
+
+        return False
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 if not os.path.exists("registro_telemetria.csv"):
     pd.DataFrame(columns=["Fecha", "Maquinaria", "Lote", "Has Trabajadas", "Gasoil Consumido (L)", "Eficiencia (L/Ha)"]).to_csv("registro_telemetria.csv", index=False)
 df_telemetria = pd.read_csv("registro_telemetria.csv")
@@ -1328,6 +1401,8 @@ if menu == "🧾 GASTOS COMERCIALES":
             ],
             ignore_index=True
         )
+
+        guardar_gasto_en_neon(nuevo)
 
         df_facturas.to_csv(
             "datos_facturas.csv",
