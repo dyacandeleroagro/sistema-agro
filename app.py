@@ -4048,7 +4048,7 @@ if menu == "🗄 CONTROL DE ERRORES":
         ]
     )
 
-    # ==========================================
+        # ==========================================
     # GASTOS
     # ==========================================
 
@@ -4070,7 +4070,7 @@ if menu == "🗄 CONTROL DE ERRORES":
 
                 with c_b:
 
-                                        if st.button(
+                    if st.button(
                         "🗑 Borrar",
                         key=f"b_fac_{fila['ID']}_{idx}"
                     ):
@@ -4078,10 +4078,6 @@ if menu == "🗄 CONTROL DE ERRORES":
                         id_gasto_borrar = str(
                             fila["ID"]
                         )
-
-                        # ==========================================
-                        # BORRAR DE NEON
-                        # ==========================================
 
                         conn = None
                         cursor = None
@@ -4120,10 +4116,6 @@ if menu == "🗄 CONTROL DE ERRORES":
                             if conn:
                                 conn.close()
 
-                        # ==========================================
-                        # ELIMINAR DE LA TABLA EN MEMORIA
-                        # ==========================================
-
                         df_facturas = (
                             df_facturas[
                                 df_facturas["ID"].astype(str)
@@ -4131,10 +4123,6 @@ if menu == "🗄 CONTROL DE ERRORES":
                             ]
                             .reset_index(drop=True)
                         )
-
-                        # ==========================================
-                        # ACTUALIZAR CSV DE RESPALDO
-                        # ==========================================
 
                         df_facturas.to_csv(
                             "datos_facturas.csv",
@@ -4146,6 +4134,12 @@ if menu == "🗄 CONTROL DE ERRORES":
                         )
 
                         st.rerun()
+
+        else:
+
+            st.info(
+                "No hay gastos registrados."
+            )
     # ==========================================
     # INGRESOS
     # ==========================================
