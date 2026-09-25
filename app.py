@@ -2505,6 +2505,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             ignore_index=True
                         )
 
+                        guardar_pago_en_neon(nuevo_pago_hectareas)
+
                         df_pagos_empleados.to_csv(
                             ARCHIVO_PAGOS_EMPLEADOS,
                             index=False,
