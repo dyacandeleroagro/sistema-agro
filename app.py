@@ -4070,26 +4070,82 @@ if menu == "🗄 CONTROL DE ERRORES":
 
                 with c_b:
 
-                    if st.button(
+                                        if st.button(
                         "🗑 Borrar",
                         key=f"b_fac_{fila['ID']}_{idx}"
                     ):
 
-                        df_facturas = df_facturas.drop(idx)
+                        id_gasto_borrar = str(
+                            fila["ID"]
+                        )
+
+                        # ==========================================
+                        # BORRAR DE NEON
+                        # ==========================================
+
+                        conn = None
+                        cursor = None
+
+                        try:
+
+                            conn = get_conn()
+                            cursor = conn.cursor()
+
+                            cursor.execute(
+                                """
+                                DELETE FROM gastos_comerciales
+                                WHERE id_gasto = %s
+                                """,
+                                (id_gasto_borrar,)
+                            )
+
+                            conn.commit()
+
+                        except Exception as e:
+
+                            if conn:
+                                conn.rollback()
+
+                            st.error(
+                                f"❌ No se pudo eliminar el gasto de Neon: {e}"
+                            )
+
+                            st.stop()
+
+                        finally:
+
+                            if cursor:
+                                cursor.close()
+
+                            if conn:
+                                conn.close()
+
+                        # ==========================================
+                        # ELIMINAR DE LA TABLA EN MEMORIA
+                        # ==========================================
+
+                        df_facturas = (
+                            df_facturas[
+                                df_facturas["ID"].astype(str)
+                                != id_gasto_borrar
+                            ]
+                            .reset_index(drop=True)
+                        )
+
+                        # ==========================================
+                        # ACTUALIZAR CSV DE RESPALDO
+                        # ==========================================
 
                         df_facturas.to_csv(
                             "datos_facturas.csv",
                             index=False
                         )
 
-                        st.success("Gasto eliminado.")
+                        st.success(
+                            "✅ Gasto eliminado correctamente de Neon."
+                        )
 
                         st.rerun()
-
-        else:
-
-            st.info("No hay gastos registrados.")
-
     # ==========================================
     # INGRESOS
     # ==========================================
