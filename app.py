@@ -1450,26 +1450,157 @@ if menu == "🧾 GASTOS COMERCIALES":
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
-if menu == "🔍 CUENTAS PENDIENTES":
-        st.header("🔍 Cuentas Pendientes de Proveedores")
-        df_solo_pendientes = df_facturas[df_facturas["Estado Pago"] == "Pendiente de Pago"]
-        if not df_solo_pendientes.empty:
-            for idx, fila in df_solo_pendientes.iterrows():
-                with st.expander(f"❌ {fila['Proveedor']} — {fila['Monto Original']}"):
-                    with st.form(key=f"form_liquidar_{fila['ID']}_{idx}"):
-                        archivo_pendiente = st.file_uploader("Adjuntar Comprobante:", type=["pdf", "png", "jpg", "jpeg"], key=f"file_pend_{fila['ID']}_{idx}")
-                        btn_cerrar_caso = st.form_submit_button("🟢 Marcar como PAGADO")
-                        if btn_cerrar_caso and archivo_pendiente:
-                            nombre_archivo_guardado = f"liquidado_{int(datetime.datetime.now().timestamp())}_{archivo_pendiente.name}"
-                            with open(os.path.join("comprobantes", nombre_archivo_guardado), "wb") as f:
-                                f.write(archivo_pendiente.getbuffer())
-                            df_facturas.loc[df_facturas["ID"] == str(fila["ID"]), "Estado Pago"] = "Pagado"
-                            df_facturas.loc[df_facturas["ID"] == str(fila["ID"]), "Archivo Comprobante"] = nombre_archivo_guardado
-                            df_facturas.to_csv("datos_facturas.csv", index=False)
-                            st.success("¡Liquidado!")
-                            st.rerun()
-        else: st.success("👌 ¡Ningún gasto pendiente!")
 
+if menu == "🔍 CUENTAS PENDIENTES":
+
+    st.header("🔍 Cuentas Pendientes de Proveedores")
+
+    df_solo_pendientes = df_facturas[
+        df_facturas["Estado Pago"] == "Pendiente de Pago"
+    ]
+
+    if not df_solo_pendientes.empty:
+
+        for idx, fila in df_solo_pendientes.iterrows():
+
+            with st.expander(
+                f"❌ {fila['Proveedor']} — "
+                f"$ {fila['Monto Original']:,.2f}"
+            ):
+
+                with st.form(
+                    key=f"form_liquidar_{fila['ID']}_{idx}"
+                ):
+
+                    archivo_pendiente = st.file_uploader(
+                        "Adjuntar Comprobante:",
+                        type=[
+                            "pdf",
+                            "png",
+                            "jpg",
+                            "jpeg"
+                        ],
+                        key=f"file_pend_{fila['ID']}_{idx}"
+                    )
+
+                    btn_cerrar_caso = st.form_submit_button(
+                        "🟢 Marcar como PAGADO"
+                    )
+
+                    if btn_cerrar_caso:
+
+                        if archivo_pendiente is None:
+
+                            st.warning(
+                                "⚠️ Adjuntá el comprobante antes de marcar el gasto como pagado."
+                            )
+
+                        else:
+
+                            nombre_archivo_guardado = (
+                                f"liquidado_"
+                                f"{int(datetime.datetime.now().timestamp())}_"
+                                f"{archivo_pendiente.name}"
+                            )
+
+                            ruta_comprobante = os.path.join(
+                                "comprobantes",
+                                nombre_archivo_guardado
+                            )
+
+                            with open(
+                                ruta_comprobante,
+                                "wb"
+                            ) as f:
+
+                                f.write(
+                                    archivo_pendiente.getbuffer()
+                                )
+
+                            # ==========================================
+                            # ACTUALIZAR GASTO EN NEON
+                            # ==========================================
+
+                            conn = None
+                            cursor = None
+
+                            try:
+
+                                conn = get_conn()
+                                cursor = conn.cursor()
+
+                                cursor.execute(
+                                    """
+                                    UPDATE gastos_comerciales
+                                    SET
+                                        estado_pago = %s,
+                                        archivo_comprobante = %s
+                                    WHERE id_gasto = %s
+                                    """,
+                                    (
+                                        "Pagado",
+                                        nombre_archivo_guardado,
+                                        str(fila["ID"])
+                                    )
+                                )
+
+                                conn.commit()
+
+                            except Exception as e:
+
+                                if conn:
+                                    conn.rollback()
+
+                                st.error(
+                                    f"❌ No se pudo actualizar el gasto en Neon: {e}"
+                                )
+
+                                st.stop()
+
+                            finally:
+
+                                if cursor:
+                                    cursor.close()
+
+                                if conn:
+                                    conn.close()
+
+                            # ==========================================
+                            # ACTUALIZAR TABLA EN MEMORIA
+                            # ==========================================
+
+                            df_facturas.loc[
+                                df_facturas["ID"].astype(str)
+                                == str(fila["ID"]),
+                                "Estado Pago"
+                            ] = "Pagado"
+
+                            df_facturas.loc[
+                                df_facturas["ID"].astype(str)
+                                == str(fila["ID"]),
+                                "Archivo Comprobante"
+                            ] = nombre_archivo_guardado
+
+                            # ==========================================
+                            # ACTUALIZAR CSV DE RESPALDO
+                            # ==========================================
+
+                            df_facturas.to_csv(
+                                "datos_facturas.csv",
+                                index=False
+                            )
+
+                            st.success(
+                                "✅ ¡Gasto marcado como PAGADO y actualizado en Neon!"
+                            )
+
+                            st.rerun()
+
+    else:
+
+        st.success(
+            "👌 ¡Ningún gasto pendiente!"
+        )
 # ============================================================
 # FUNCIONES PARA LIQUIDACIONES
 # ============================================================
