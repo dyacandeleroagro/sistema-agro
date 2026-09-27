@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime, date
 import os
 
+from notificaciones import crear_notificacion
+
 
 ARCHIVO_AGENDA = "agenda.csv"
 
@@ -182,6 +184,24 @@ def pantalla_agenda():
                 df.to_csv(
                     ARCHIVO_AGENDA,
                     index=False
+                )
+                # ==========================================
+                # CREAR NOTIFICACIÓN
+                # ==========================================
+
+                if destinatarios:
+
+                    crear_notificacion(
+                      titulo=f"📅 {titulo}",
+                     mensaje=(
+                     f"Se creó un nuevo evento para el día "
+                     f"{fecha.strftime('%d/%m/%Y')}.\n\n"
+                     f"Tipo: {tipo}\n\n"
+                     f"Responsable: {responsable}\n\n"
+                     f"{descripcion}"
+                    ),
+                    tipo="Agenda",
+                    destinatarios=destinatarios
                 )
 
 
@@ -480,7 +500,7 @@ def pantalla_agenda():
             st.info(
                 "No hay eventos cargados"
             )
-            
+
     # ==========================
     # PROXIMOS
     # ==========================
