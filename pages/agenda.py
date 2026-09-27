@@ -185,23 +185,34 @@ def pantalla_agenda():
                     ARCHIVO_AGENDA,
                     index=False
                 )
+                
                 # ==========================================
                 # CREAR NOTIFICACIÓN
                 # ==========================================
 
-                if destinatarios:
+                destinatarios_notificacion = destinatarios
 
-                    crear_notificacion(
-                      titulo=f"📅 {titulo}",
-                     mensaje=(
-                     f"Se creó un nuevo evento para el día "
-                     f"{fecha.strftime('%d/%m/%Y')}.\n\n"
-                     f"Tipo: {tipo}\n\n"
-                     f"Responsable: {responsable}\n\n"
-                     f"{descripcion}"
+                if not destinatarios_notificacion:
+
+                    destinatarios_notificacion = [
+                        "Todos"
+                    ]
+
+                crear_notificacion(
+                    titulo=f"📅 {titulo}",
+                    mensaje=(
+                        f"Se creó un nuevo evento para el día "
+                        f"{fecha.strftime('%d/%m/%Y')}.\n\n"
+                        f"Tipo: {tipo}\n\n"
+                        f"Responsable: {responsable}\n\n"
+                        f"{descripcion}"
                     ),
                     tipo="Agenda",
-                    destinatarios=destinatarios
+                    destinatarios=destinatarios_notificacion
+                )
+
+                st.success(
+                    "🔔 Notificación creada correctamente."
                 )
 
 
