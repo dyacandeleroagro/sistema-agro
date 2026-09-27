@@ -31,6 +31,10 @@ from pages.mantenimiento import pantalla_mantenimiento
 from pages.administracion import pantalla_administracion
 from pages.panel_dueno import pantalla_panel_dueno
 from database import get_conn
+from notificaciones import (
+    mostrar_notificaciones,
+    contar_notificaciones_no_leidas
+)
 
 def check_password(usuario, password):
     conn = get_conn()
@@ -815,7 +819,7 @@ if tiene_rol(
     "Maquinista"
 ):
     opciones.append("📅 AGENDA Y VENCIMIENTOS")
-    
+
 if tiene_rol("Dueño","Administrador"):
     opciones.append("⚙ ADMINISTRACIÓN")
 
@@ -828,10 +832,19 @@ if tiene_rol("Dueño"):
 if tiene_rol("Dueño"):
     opciones.append("👑 PANEL DEL DUEÑO")
 
+# ==========================================
+# NOTIFICACIONES
+# ==========================================
+
+opciones.append(
+    "🔔 NOTIFICACIONES"
+)
+
 menu = st.sidebar.radio(
     "📂 Menú",
     opciones
 )
+
 
 # ----------------------------------------------------
 # PESTAÑA: ANALÍTICAS CENTRALES
@@ -4003,6 +4016,33 @@ if menu == "👑 PANEL DEL DUEÑO":
         st.stop()
 
     pantalla_panel_dueno()
+    
+# ==========================================
+# NOTIFICACIONES
+# ==========================================
+
+if menu == "🔔 NOTIFICACIONES":
+
+    st.header("🔔 Notificaciones")
+
+    cantidad = contar_notificaciones_no_leidas()
+
+    if cantidad > 0:
+
+        st.info(
+            f"📬 Tenés **{cantidad} "
+            f"notificación(es) sin leer**."
+        )
+
+    else:
+
+        st.success(
+            "✅ No tenés notificaciones pendientes."
+        )
+
+    st.divider()
+
+    mostrar_notificaciones()
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
