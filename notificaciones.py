@@ -27,11 +27,13 @@ def cargar_notificaciones():
             ]
         ).to_csv(
             ARCHIVO_NOTIFICACIONES,
-            index=False
+            index=False,
+            encoding="utf-8-sig"
         )
 
     df = pd.read_csv(
-        ARCHIVO_NOTIFICACIONES
+        ARCHIVO_NOTIFICACIONES,
+        encoding="utf-8-sig"
     )
 
     columnas = [
@@ -68,12 +70,25 @@ def crear_notificacion(
 
         destinatarios = []
 
+    # Aseguramos que sea una lista
+    if isinstance(destinatarios, str):
+
+        destinatarios = [
+            x.strip()
+            for x in destinatarios.split(",")
+            if x.strip()
+        ]
+
     df = cargar_notificaciones()
 
     nuevo = {
 
         "ID":
-        int(datetime.now().timestamp() * 1000),
+        str(
+            int(
+                datetime.now().timestamp() * 1000
+            )
+        ),
 
         "Fecha":
         datetime.now().strftime(
@@ -81,20 +96,19 @@ def crear_notificacion(
         ),
 
         "Título":
-        titulo,
+        str(titulo),
 
         "Mensaje":
-        mensaje,
+        str(mensaje),
 
         "Tipo":
-        tipo,
+        str(tipo),
 
         "Destinatarios":
         ", ".join(destinatarios),
 
         "Estado":
         "No leída"
-
     }
 
     df = pd.concat(
@@ -107,12 +121,15 @@ def crear_notificacion(
 
     df.to_csv(
         ARCHIVO_NOTIFICACIONES,
-        index=False
+        index=False,
+        encoding="utf-8-sig"
     )
+
+    return True
 
 
 # ==========================================================
-# VERIFICAR SI LA NOTIFICACIÓN CORRESPONDE AL USUARIO
+# VERIFICAR SI CORRESPONDE AL USUARIO
 # ==========================================================
 
 def notificacion_corresponde(
@@ -125,13 +142,19 @@ def notificacion_corresponde(
             "Destinatarios",
             ""
         )
-    )
+    ).strip()
 
-    # Si no hay destinatarios específicos,
-    # la notificación es para todos
-    if not destinatarios.strip():
+    # ------------------------------------------------------
+    # SIN DESTINATARIOS = PARA TODOS
+    # ------------------------------------------------------
+
+    if not destinatarios:
 
         return True
+
+    # ------------------------------------------------------
+    # DESTINATARIOS DE LA NOTIFICACIÓN
+    # ------------------------------------------------------
 
     lista_destinatarios = [
         x.strip()
@@ -139,20 +162,28 @@ def notificacion_corresponde(
         if x.strip()
     ]
 
-    # Notificación para todos
+    # ------------------------------------------------------
+    # PARA TODOS
+    # ------------------------------------------------------
+
     if "Todos" in lista_destinatarios:
 
         return True
 
-    # El usuario puede tener uno o varios roles
+    # ------------------------------------------------------
+    # ROLES DEL USUARIO
+    # ------------------------------------------------------
+
     roles_usuario = [
         x.strip()
         for x in str(rol_usuario).split(",")
         if x.strip()
     ]
 
-    # Si alguno de los roles del usuario
-    # coincide con los destinatarios
+    # ------------------------------------------------------
+    # COMPROBAR COINCIDENCIA
+    # ------------------------------------------------------
+
     for rol in roles_usuario:
 
         if rol in lista_destinatarios:
@@ -161,31 +192,26 @@ def notificacion_corresponde(
 
     return False
 
-    destinatarios = str(
-        fila.get(
-            "Destinatarios",
-            ""
-        )
+
+# ==========================================================
+# OBTENER ROL DEL USUARIO
+# ==========================================================
+
+def obtener_rol_usuario():
+
+    rol = st.session_state.get(
+        "rol",
+        ""
     )
 
-    if not destinatarios:
+    if not rol:
 
-        return True
+        rol = st.session_state.get(
+            "rol_actual",
+            ""
+        )
 
-    lista = [
-        x.strip()
-        for x in destinatarios.split(",")
-    ]
-
-    if "Todos" in lista:
-
-        return True
-
-    if rol_usuario in lista:
-
-        return True
-
-    return False
+    return str(rol).strip()
 
 
 # ==========================================================
@@ -204,17 +230,7 @@ def mostrar_notificaciones():
 
         return
 
-    rol_usuario = st.session_state.get(
-        "rol",
-        ""
-    )
-
-    if not rol_usuario:
-
-        rol_usuario = st.session_state.get(
-            "rol_actual",
-            ""
-        )
+    rol_usuario = obtener_rol_usuario()
 
     df_usuario = df[
         df.apply(
@@ -249,6 +265,10 @@ def mostrar_notificaciones():
             )
         )
 
+        # ==================================================
+        # NO LEÍDA
+        # ==================================================
+
         if estado == "No leída":
 
             st.warning(
@@ -270,10 +290,15 @@ def mostrar_notificaciones():
 
                 df.to_csv(
                     ARCHIVO_NOTIFICACIONES,
-                    index=False
+                    index=False,
+                    encoding="utf-8-sig"
                 )
 
                 st.rerun()
+
+        # ==================================================
+        # LEÍDA
+        # ==================================================
 
         else:
 
@@ -287,7 +312,7 @@ def mostrar_notificaciones():
 
 
 # ==========================================================
-# CANTIDAD DE NOTIFICACIONES SIN LEER
+# CONTAR NOTIFICACIONES SIN LEER
 # ==========================================================
 
 def contar_notificaciones_no_leidas():
@@ -298,17 +323,7 @@ def contar_notificaciones_no_leidas():
 
         return 0
 
-    rol_usuario = st.session_state.get(
-        "rol",
-        ""
-    )
-
-    if not rol_usuario:
-
-        rol_usuario = st.session_state.get(
-            "rol_actual",
-            ""
-        )
+    rol_usuario = obtener_rol_usuario()
 
     df_usuario = df[
         df.apply(
@@ -321,9 +336,13 @@ def contar_notificaciones_no_leidas():
         )
     ]
 
+    if df_usuario.empty:
+
+        return 0
+
     return len(
         df_usuario[
-            df_usuario["Estado"]
+            df_usuario["Estado"].astype(str)
             == "No leída"
         ]
     )
