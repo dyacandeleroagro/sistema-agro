@@ -1,0 +1,11 @@
+{
+  "name": "D&A Candelero Agro",
+  "short_name": "D&A Agro",
+  "description": "Sistema de gestión D&A Candelero Agro",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1B5E20",
+  "orientation": "portrait-primary"
+}
