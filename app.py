@@ -36,6 +36,35 @@ from notificaciones import (
     contar_notificaciones_no_leidas
 )
 
+# ==========================================================
+# PWA - SISTEMA AGRO
+# ==========================================================
+
+st.html(
+    """
+    <link rel="manifest" href="/app/static/manifest.json">
+
+    <script>
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register(
+            "/app/static/service-worker.js"
+        ).then(function(registration) {
+            console.log(
+                "D&A Candelero Agro: Service Worker registrado",
+                registration
+            );
+        }).catch(function(error) {
+            console.error(
+                "Error registrando Service Worker:",
+                error
+            );
+        });
+    }
+    </script>
+    """,
+    unsafe_allow_javascript=True
+)
+
 def check_password(usuario, password):
     conn = get_conn()
     cur = conn.cursor()
