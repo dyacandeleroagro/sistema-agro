@@ -35,7 +35,6 @@ from notificaciones import (
     mostrar_notificaciones,
     contar_notificaciones_no_leidas
 )
-st.write("VAPID OK:", bool(st.secrets.get("VAPID_PUBLIC_KEY")))
 
 
 def check_password(usuario, password):
