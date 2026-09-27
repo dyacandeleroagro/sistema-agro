@@ -42,7 +42,7 @@ PWA_COMPONENT = st.components.v2.component(
                 manifest.rel = "manifest";
 
                 manifest.href =
-                    "/app/static/manifest.json";
+                    "/static/manifest.json";
 
                 document.head.appendChild(
                     manifest
@@ -68,7 +68,7 @@ PWA_COMPONENT = st.components.v2.component(
 
                     const registration =
                         await navigator.serviceWorker.register(
-                            "/app/static/service-worker.js"
+                            "/static/service-worker.js"
                         );
 
 
