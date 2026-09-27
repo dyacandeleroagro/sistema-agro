@@ -211,8 +211,7 @@ def activar_pwa():
 
     PWA_COMPONENT(
         key="pwa_notificaciones",
-        params={
-            "vapid_public_key":
-                VAPID_PUBLIC_KEY
+        data={
+            "vapid_public_key": VAPID_PUBLIC_KEY
         }
     )
