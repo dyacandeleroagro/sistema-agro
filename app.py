@@ -21,6 +21,7 @@ from reportlab.platypus import (
     Spacer
 )
 
+from pwa.pwa import activar_pwa
 from pages.ingresos import pantalla_ingresos
 from pages.clientes import pantalla_clientes
 from pages.servicios import pantalla_servicios
@@ -72,6 +73,8 @@ st.set_page_config(
     layout="wide",
     page_icon="🚜"
 )
+
+activar_pwa()
 
 st.markdown("""
     <style>
