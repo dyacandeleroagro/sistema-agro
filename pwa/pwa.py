@@ -9,11 +9,13 @@ VAPID_PUBLIC_KEY = st.secrets.get(
 
 PWA_COMPONENT = st.components.v2.component(
     name="da_candelero_agro_pwa",
+
     html="""
         <div id="pwa-status">
             📱 Preparando notificaciones...
         </div>
     """,
+
     js="""
         export default async function(component) {
 
@@ -22,20 +24,13 @@ PWA_COMPONENT = st.components.v2.component(
                 setStateValue
             } = component;
 
-
             const publicKey =
                 component.data.vapid_public_key;
-
 
             const estado =
                 parentElement.querySelector(
                     "#pwa-status"
                 );
-
-
-            // ==============================
-            // MANIFEST
-            // ==============================
 
             if (!document.querySelector(
                 'link[rel="manifest"]'
@@ -49,13 +44,11 @@ PWA_COMPONENT = st.components.v2.component(
                 manifest.href =
                     "/app/static/manifest.json";
 
-                document.head.appendChild(manifest);
+                document.head.appendChild(
+                    manifest
+                );
             }
 
-
-            // ==============================
-            // SERVICE WORKER
-            // ==============================
 
             async function prepararPWA() {
 
@@ -85,11 +78,10 @@ PWA_COMPONENT = st.components.v2.component(
                     );
 
 
-                    // ==============================
-                    // PUSH
-                    // ==============================
-
-                    if (!("PushManager" in window)) {
+                    if (!(
+                        "PushManager"
+                        in window
+                    )) {
 
                         estado.innerText =
                             "⚠️ Push no disponible";
@@ -97,10 +89,6 @@ PWA_COMPONENT = st.components.v2.component(
                         return;
                     }
 
-
-                    // ==============================
-                    // PEDIR PERMISO
-                    // ==============================
 
                     const permiso =
                         await Notification.requestPermission();
@@ -114,10 +102,6 @@ PWA_COMPONENT = st.components.v2.component(
                         return;
                     }
 
-
-                    // ==============================
-                    // SUSCRIPCIÓN
-                    // ==============================
 
                     let subscription =
                         await registration
@@ -140,18 +124,12 @@ PWA_COMPONENT = st.components.v2.component(
                             await registration
                                 .pushManager
                                 .subscribe({
-
                                     userVisibleOnly: true,
-
                                     applicationServerKey:
                                         publicKey
                                 });
                     }
 
-
-                    // ==============================
-                    // DATOS
-                    // ==============================
 
                     const datos =
                         subscription.toJSON();
@@ -183,21 +161,24 @@ PWA_COMPONENT = st.components.v2.component(
                         estado.innerText =
                             "🔔 Notificaciones activadas";
 
+
                         console.log(
                             "D&A Agro - Suscripción Push lista"
                         );
                     }
 
-            } catch (error) {
+                } catch (error) {
 
-                console.error(
-                    "D&A Agro - Error Push:",
-                    error
-                );
+                    console.error(
+                        "D&A Agro - Error Push:",
+                        error
+                    );
 
-                estado.innerText =
-                    "⚠️ Error Push: " +
-                    (error?.message || error);
+
+                    estado.innerText =
+                        "⚠️ Error Push: " +
+                        (error?.message || error);
+                }
             }
 
 
@@ -211,7 +192,9 @@ def activar_pwa():
 
     PWA_COMPONENT(
         key="pwa_notificaciones",
+
         data={
-            "vapid_public_key": VAPID_PUBLIC_KEY
+            "vapid_public_key":
+                VAPID_PUBLIC_KEY
         }
     )
