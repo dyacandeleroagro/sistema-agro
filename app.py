@@ -1,4 +1,5 @@
 import streamlit as st
+st.write(hasattr(st.components, "v2"))
 import pandas as pd
 import os
 import datetime
