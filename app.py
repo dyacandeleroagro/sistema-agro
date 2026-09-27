@@ -806,9 +806,16 @@ if tiene_rol("Dueño","Administrador","Encargado"):
 if tiene_rol("Dueño","Administrador","Encargado","Operario"):
     opciones.append("⛽ CONTROL DE COMBUSTIBLE")
 
-if tiene_rol("Dueño","Administrador","Encargado"):
+if tiene_rol(
+    "Dueño",
+    "Administrador",
+    "Encargado",
+    "Contador",
+    "Operario",
+    "Maquinista"
+):
     opciones.append("📅 AGENDA Y VENCIMIENTOS")
-
+    
 if tiene_rol("Dueño","Administrador"):
     opciones.append("⚙ ADMINISTRACIÓN")
 
