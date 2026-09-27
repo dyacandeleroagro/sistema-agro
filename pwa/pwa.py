@@ -24,7 +24,7 @@ PWA_COMPONENT = st.components.v2.component(
 
 
             const publicKey =
-                component.params.vapid_public_key;
+                component.data.vapid_public_key;
 
 
             const estado =
