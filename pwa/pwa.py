@@ -188,16 +188,16 @@ PWA_COMPONENT = st.components.v2.component(
                         );
                     }
 
-                } catch (error) {
+            } catch (error) {
 
-                    console.error(
-                        "D&A Agro - Error Push:",
-                        error
-                    );
+                console.error(
+                    "D&A Agro - Error Push:",
+                    error
+                );
 
-                    estado.innerText =
-                        "⚠️ Error activando notificaciones";
-                }
+                estado.innerText =
+                    "⚠️ Error Push: " +
+                    (error?.message || error);
             }
 
 
