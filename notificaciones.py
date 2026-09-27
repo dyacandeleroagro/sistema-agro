@@ -127,6 +127,47 @@ def notificacion_corresponde(
         )
     )
 
+    # Si no hay destinatarios específicos,
+    # la notificación es para todos
+    if not destinatarios.strip():
+
+        return True
+
+    lista_destinatarios = [
+        x.strip()
+        for x in destinatarios.split(",")
+        if x.strip()
+    ]
+
+    # Notificación para todos
+    if "Todos" in lista_destinatarios:
+
+        return True
+
+    # El usuario puede tener uno o varios roles
+    roles_usuario = [
+        x.strip()
+        for x in str(rol_usuario).split(",")
+        if x.strip()
+    ]
+
+    # Si alguno de los roles del usuario
+    # coincide con los destinatarios
+    for rol in roles_usuario:
+
+        if rol in lista_destinatarios:
+
+            return True
+
+    return False
+
+    destinatarios = str(
+        fila.get(
+            "Destinatarios",
+            ""
+        )
+    )
+
     if not destinatarios:
 
         return True
