@@ -365,7 +365,49 @@ if not os.path.exists("registro_empleados.csv"):
         {"Nombre": "Gonzalo Vega", "Puesto": "Tractorista", "Porcentaje (%)": 0.0}
     ])
     df_inicial_emp.to_csv("registro_empleados.csv", index=False)
-df_empleados = pd.read_csv("registro_empleados.csv")
+# ==========================================================
+# CARGAR EMPLEADOS DESDE NEON
+# ==========================================================
+
+try:
+
+    conn_empleados = get_conn()
+
+    df_empleados = pd.read_sql(
+        """
+        SELECT
+            nombre AS "Nombre",
+            puesto AS "Puesto",
+            porcentaje AS "Porcentaje (%)"
+        FROM empleados
+        ORDER BY nombre
+        """,
+        conn_empleados
+    )
+
+    conn_empleados.close()
+
+except Exception:
+
+    # Respaldo: si Neon no está disponible,
+    # usar el CSV local
+
+    if os.path.exists("registro_empleados.csv"):
+
+        df_empleados = pd.read_csv(
+            "registro_empleados.csv",
+            encoding="utf-8-sig"
+        )
+
+    else:
+
+        df_empleados = pd.DataFrame(
+            columns=[
+                "Nombre",
+                "Puesto",
+                "Porcentaje (%)"
+            ]
+        )
 
 if not os.path.exists("registro_pagos_empleados.csv"):
 
