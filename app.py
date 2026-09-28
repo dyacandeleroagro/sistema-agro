@@ -2251,7 +2251,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                 "💾 Guardar Nuevo Operario"
             )
 
-                                        if btn_alta_emp and n_nombre:
+            if btn_alta_emp and n_nombre:
 
                 nuevo_emp = {
                     "Nombre": n_nombre.strip(),
