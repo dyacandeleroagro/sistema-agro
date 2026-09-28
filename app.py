@@ -1017,6 +1017,9 @@ if tiene_rol("Dueño","Administrador","Contador"):
 if tiene_rol("Dueño","Administrador","Encargado"):
     opciones.append("👥 SISTEMA DE TRIPULACIÓN")
 
+if tiene_rol("Operario", "Maquinista"):
+    opciones.append("🕐 MI JORNADA")    
+
 if tiene_rol("Dueño","Administrador","Encargado","Operario","Maquinista"):
     opciones.append("📋 RENDICIÓN POR OPERARIO")
 
@@ -1073,6 +1076,35 @@ menu = st.sidebar.radio(
     opciones
 )
 
+# ==========================================================
+# 🕐 MI JORNADA - EMPLEADO
+# ==========================================================
+
+if menu == "🕐 MI JORNADA":
+
+    st.header("🕐 Mi Jornada")
+
+    nombre_empleado = st.session_state.get(
+        "nombre_usuario",
+        ""
+    )
+
+    if not nombre_empleado:
+
+        st.error("❌ No se pudo identificar al empleado.")
+
+    else:
+
+        st.write(
+            f"👷 Empleado: **{nombre_empleado}**"
+        )
+
+        st.markdown("---")
+
+        st.info(
+            "📅 Acá vas a registrar tu jornada laboral. "
+            "Los horarios se toman automáticamente."
+        )
 
 # ----------------------------------------------------
 # PESTAÑA: ANALÍTICAS CENTRALES
