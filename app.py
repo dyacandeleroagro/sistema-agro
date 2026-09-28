@@ -1425,9 +1425,16 @@ if menu == "🕐 MI JORNADA":
 
             else:
 
-                if ahora < datetime.datetime.combine(
-                    datetime.date.today(),
-                    datetime.time(12, 0)
+                if (
+                    ahora >= datetime.datetime.combine(
+                        datetime.date.today(),
+                        datetime.time(8, 0)
+                    )
+                    and
+                    ahora < datetime.datetime.combine(
+                        datetime.date.today(),
+                        datetime.time(12, 0)
+                    )
                 ):
 
                     if st.button(
@@ -1453,7 +1460,13 @@ if menu == "🕐 MI JORNADA":
                 else:
 
                     st.info(
-                        "🌅 No se registraron horas de mañana."
+                     "⏰ La jornada de mañana se habilita a las 08:00."
+                    )
+
+                else:
+
+                    st.info(
+                     "🌅 No se registraron horas de mañana."
                     )
 
         # --------------------------------------------------
@@ -1542,6 +1555,46 @@ if menu == "🕐 MI JORNADA":
         st.markdown("---")
 
         # ==================================================
+        # CIERRE AUTOMÁTICO DE LA TARDE A LAS 19:00
+        # ==================================================
+
+        if (
+            jornada
+            and jornada["entrada_tarde"]
+            and not jornada["salida_tarde"]
+        ):
+
+            fecha_jornada = jornada["fecha"]
+
+            cierre_tarde = datetime.datetime.combine(
+                fecha_jornada,
+                datetime.time(19, 0)
+            )
+
+            if ahora >= cierre_tarde:
+
+                horas_tarde = calcular_horas_jornada(
+                    jornada["entrada_tarde"],
+                    cierre_tarde
+                )
+
+                actualizar_jornada_empleado(
+                    nombre_empleado,
+                    "salida_tarde",
+                    cierre_tarde
+                )
+
+                actualizar_jornada_empleado(
+                    nombre_empleado,
+                    "horas_tarde",
+                    horas_tarde
+                )
+
+                jornada = obtener_jornada_hoy(
+                    nombre_empleado
+                )
+
+        # ==================================================
         # TARDE
         # ==================================================
 
@@ -1568,9 +1621,16 @@ if menu == "🕐 MI JORNADA":
                     ].strftime("%H:%M:%S")
                 )
 
-            elif ahora >= datetime.datetime.combine(
-                datetime.date.today(),
-                datetime.time(12, 0)
+            elif (
+                ahora >= datetime.datetime.combine(
+                    datetime.date.today(),
+                    datetime.time(14, 0)
+                )
+                and
+                ahora < datetime.datetime.combine(
+                    datetime.date.today(),
+                    datetime.time(19, 0)
+                )
             ):
 
                 if st.button(
@@ -1597,7 +1657,7 @@ if menu == "🕐 MI JORNADA":
 
                 st.info(
                     "☀️ La jornada de tarde comienza "
-                    "después de las 12:00."
+                    "después de las 14:00."
                 )
 
         # --------------------------------------------------
@@ -1705,7 +1765,7 @@ if menu == "🕐 MI JORNADA":
             "con la hora del sistema. No se pueden modificar "
             "manualmente."
         )
-        
+
 # ----------------------------------------------------
 # PESTAÑA: ANALÍTICAS CENTRALES
 # ----------------------------------------------------
