@@ -605,6 +605,231 @@ df_pagos_empleados["ID_Pago"] = (
     .fillna("")
     .astype(str)
 )
+
+# ==========================================================
+# FUNCIONES - MI JORNADA
+# ==========================================================
+
+def obtener_jornada_hoy(nombre_empleado):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                id,
+                nombre_empleado,
+                fecha,
+                entrada_manana,
+                salida_manana,
+                entrada_tarde,
+                salida_tarde,
+                horas_manana,
+                horas_tarde,
+                horas_totales,
+                estado
+            FROM jornadas_empleados
+            WHERE nombre_empleado = %s
+              AND fecha = CURRENT_DATE
+            LIMIT 1
+            """,
+            (nombre_empleado,)
+        )
+
+        fila = cursor.fetchone()
+
+        if fila is None:
+            return None
+
+        columnas = [
+            "id",
+            "nombre_empleado",
+            "fecha",
+            "entrada_manana",
+            "salida_manana",
+            "entrada_tarde",
+            "salida_tarde",
+            "horas_manana",
+            "horas_tarde",
+            "horas_totales",
+            "estado"
+        ]
+
+        return dict(zip(columnas, fila))
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Error leyendo jornada: {e}"
+        )
+
+        return None
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
+
+def crear_jornada_hoy(nombre_empleado):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO jornadas_empleados (
+                nombre_empleado,
+                fecha,
+                horas_manana,
+                horas_tarde,
+                horas_totales,
+                estado
+            )
+            VALUES (
+                %s,
+                CURRENT_DATE,
+                0,
+                0,
+                0,
+                'abierto'
+            )
+            ON CONFLICT (
+                nombre_empleado,
+                fecha
+            )
+            DO NOTHING
+            """,
+            (nombre_empleado,)
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        st.error(
+            f"❌ Error creando jornada: {e}"
+        )
+
+        return False
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
+
+def actualizar_jornada_empleado(
+    nombre_empleado,
+    campo,
+    valor
+):
+
+    campos_permitidos = {
+        "entrada_manana",
+        "salida_manana",
+        "entrada_tarde",
+        "salida_tarde",
+        "horas_manana",
+        "horas_tarde",
+        "horas_totales",
+        "estado"
+    }
+
+    if campo not in campos_permitidos:
+        return False
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        query = f"""
+            UPDATE jornadas_empleados
+            SET
+                {campo} = %s,
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE nombre_empleado = %s
+              AND fecha = CURRENT_DATE
+        """
+
+        cursor.execute(
+            query,
+            (
+                valor,
+                nombre_empleado
+            )
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        st.error(
+            f"❌ Error actualizando jornada: {e}"
+        )
+
+        return False
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
+
+def calcular_horas_jornada(
+    entrada,
+    salida
+):
+
+    if not entrada or not salida:
+        return 0.0
+
+    diferencia = salida - entrada
+
+    segundos = diferencia.total_seconds()
+
+    if segundos <= 0:
+        return 0.0
+
+    return round(
+        segundos / 3600,
+        2
+    )
+
 # ==========================================================
 # GUARDAR PAGO EN NEON
 # ==========================================================
@@ -1077,7 +1302,7 @@ menu = st.sidebar.radio(
 )
 
 # ==========================================================
-# 🕐 MI JORNADA - EMPLEADO
+# 🕐 MI JORNADA
 # ==========================================================
 
 if menu == "🕐 MI JORNADA":
@@ -1091,21 +1316,396 @@ if menu == "🕐 MI JORNADA":
 
     if not nombre_empleado:
 
-        st.error("❌ No se pudo identificar al empleado.")
+        st.error(
+            "❌ No se pudo identificar al empleado."
+        )
 
     else:
 
-        st.write(
-            f"👷 Empleado: **{nombre_empleado}**"
+        # ==================================================
+        # OBTENER / CREAR JORNADA DEL DÍA
+        # ==================================================
+
+        jornada = obtener_jornada_hoy(
+            nombre_empleado
+        )
+
+        if jornada is None:
+
+            crear_jornada_hoy(
+                nombre_empleado
+            )
+
+            jornada = obtener_jornada_hoy(
+                nombre_empleado
+            )
+
+        ahora = datetime.datetime.now()
+
+        # ==================================================
+        # CIERRE AUTOMÁTICO DE LA MAÑANA A LAS 12:00
+        # ==================================================
+
+        if (
+            jornada
+            and jornada["entrada_manana"]
+            and not jornada["salida_manana"]
+        ):
+
+            fecha_jornada = jornada["fecha"]
+
+            cierre_manana = datetime.datetime.combine(
+                fecha_jornada,
+                datetime.time(12, 0)
+            )
+
+            if ahora >= cierre_manana:
+
+                horas_manana = calcular_horas_jornada(
+                    jornada["entrada_manana"],
+                    cierre_manana
+                )
+
+                actualizar_jornada_empleado(
+                    nombre_empleado,
+                    "salida_manana",
+                    cierre_manana
+                )
+
+                actualizar_jornada_empleado(
+                    nombre_empleado,
+                    "horas_manana",
+                    horas_manana
+                )
+
+                jornada = obtener_jornada_hoy(
+                    nombre_empleado
+                )
+
+        # ==================================================
+        # CABECERA
+        # ==================================================
+
+        st.subheader(
+            f"👷 {nombre_empleado}"
+        )
+
+        st.caption(
+            f"Fecha: {datetime.date.today().strftime('%d/%m/%Y')}"
         )
 
         st.markdown("---")
 
-        st.info(
-            "📅 Acá vas a registrar tu jornada laboral. "
-            "Los horarios se toman automáticamente."
+        # ==================================================
+        # MAÑANA
+        # ==================================================
+
+        st.markdown("### 🌅 Jornada de la mañana")
+
+        col_manana_1, col_manana_2 = st.columns(2)
+
+        # --------------------------------------------------
+        # ENTRADA MAÑANA
+        # --------------------------------------------------
+
+        with col_manana_1:
+
+            if jornada["entrada_manana"]:
+
+                st.success(
+                    "🟢 Entrada registrada"
+                )
+
+                st.write(
+                    "Hora de entrada:",
+                    jornada[
+                        "entrada_manana"
+                    ].strftime("%H:%M:%S")
+                )
+
+            else:
+
+                if ahora < datetime.datetime.combine(
+                    datetime.date.today(),
+                    datetime.time(12, 0)
+                ):
+
+                    if st.button(
+                        "🟢 ENTRÉ A TRABAJAR",
+                        use_container_width=True,
+                        key="btn_mi_jornada_entrada_manana"
+                    ):
+
+                        momento = datetime.datetime.now()
+
+                        actualizar_jornada_empleado(
+                            nombre_empleado,
+                            "entrada_manana",
+                            momento
+                        )
+
+                        st.success(
+                            "✅ Entrada registrada correctamente."
+                        )
+
+                        st.rerun()
+
+                else:
+
+                    st.info(
+                        "🌅 No se registraron horas de mañana."
+                    )
+
+        # --------------------------------------------------
+        # SALIDA MAÑANA
+        # --------------------------------------------------
+
+        with col_manana_2:
+
+            if jornada["salida_manana"]:
+
+                st.success(
+                    "🔴 Mañana cerrada"
+                )
+
+                st.write(
+                    "Hora de salida:",
+                    jornada[
+                        "salida_manana"
+                    ].strftime("%H:%M:%S")
+                )
+
+                st.write(
+                    f"⏱️ Horas mañana: "
+                    f"**{float(jornada['horas_manana'] or 0):.2f} h**"
+                )
+
+            elif jornada["entrada_manana"]:
+
+                if ahora < datetime.datetime.combine(
+                    datetime.date.today(),
+                    datetime.time(12, 0)
+                ):
+
+                    if st.button(
+                        "🔴 SALÍ DE MAÑANA",
+                        use_container_width=True,
+                        key="btn_mi_jornada_salida_manana"
+                    ):
+
+                        momento = datetime.datetime.now()
+
+                        horas = calcular_horas_jornada(
+                            jornada[
+                                "entrada_manana"
+                            ],
+                            momento
+                        )
+
+                        actualizar_jornada_empleado(
+                            nombre_empleado,
+                            "salida_manana",
+                            momento
+                        )
+
+                        actualizar_jornada_empleado(
+                            nombre_empleado,
+                            "horas_manana",
+                            horas
+                        )
+
+                        st.success(
+                            f"✅ Salida registrada. "
+                            f"Trabajaste {horas:.2f} horas."
+                        )
+
+                        st.rerun()
+
+                else:
+
+                    st.info(
+                        "🕛 La mañana se cerró automáticamente "
+                        "a las 12:00."
+                    )
+
+                    st.write(
+                        f"⏱️ Horas mañana: "
+                        f"**{float(jornada['horas_manana'] or 0):.2f} h**"
+                    )
+
+            else:
+
+                st.info(
+                    "🌅 Mañana: **0:00 h**"
+                )
+
+        st.markdown("---")
+
+        # ==================================================
+        # TARDE
+        # ==================================================
+
+        st.markdown("### ☀️ Jornada de la tarde")
+
+        col_tarde_1, col_tarde_2 = st.columns(2)
+
+        # --------------------------------------------------
+        # ENTRADA TARDE
+        # --------------------------------------------------
+
+        with col_tarde_1:
+
+            if jornada["entrada_tarde"]:
+
+                st.success(
+                    "🟢 Entrada de tarde registrada"
+                )
+
+                st.write(
+                    "Hora de entrada:",
+                    jornada[
+                        "entrada_tarde"
+                    ].strftime("%H:%M:%S")
+                )
+
+            elif ahora >= datetime.datetime.combine(
+                datetime.date.today(),
+                datetime.time(12, 0)
+            ):
+
+                if st.button(
+                    "🟢 ENTRÉ A LA TARDE",
+                    use_container_width=True,
+                    key="btn_mi_jornada_entrada_tarde"
+                ):
+
+                    momento = datetime.datetime.now()
+
+                    actualizar_jornada_empleado(
+                        nombre_empleado,
+                        "entrada_tarde",
+                        momento
+                    )
+
+                    st.success(
+                        "✅ Entrada de tarde registrada."
+                    )
+
+                    st.rerun()
+
+            else:
+
+                st.info(
+                    "☀️ La jornada de tarde comienza "
+                    "después de las 12:00."
+                )
+
+        # --------------------------------------------------
+        # SALIDA TARDE
+        # --------------------------------------------------
+
+        with col_tarde_2:
+
+            if jornada["salida_tarde"]:
+
+                st.success(
+                    "🔴 Jornada finalizada"
+                )
+
+                st.write(
+                    "Hora de salida:",
+                    jornada[
+                        "salida_tarde"
+                    ].strftime("%H:%M:%S")
+                )
+
+                st.write(
+                    f"⏱️ Horas tarde: "
+                    f"**{float(jornada['horas_tarde'] or 0):.2f} h**"
+                )
+
+            elif jornada["entrada_tarde"]:
+
+                if st.button(
+                    "🔴 FINALIZAR JORNADA",
+                    use_container_width=True,
+                    key="btn_mi_jornada_salida_tarde"
+                ):
+
+                    momento = datetime.datetime.now()
+
+                    horas = calcular_horas_jornada(
+                        jornada[
+                            "entrada_tarde"
+                        ],
+                        momento
+                    )
+
+                    actualizar_jornada_empleado(
+                        nombre_empleado,
+                        "salida_tarde",
+                        momento
+                    )
+
+                    actualizar_jornada_empleado(
+                        nombre_empleado,
+                        "horas_tarde",
+                        horas
+                    )
+
+                    st.success(
+                        f"✅ Jornada finalizada. "
+                        f"Trabajaste {horas:.2f} horas."
+                    )
+
+                    st.rerun()
+
+            else:
+
+                st.info(
+                    "☀️ Tarde: **0:00 h**"
+                )
+
+        # ==================================================
+        # TOTAL DEL DÍA
+        # ==================================================
+
+        jornada = obtener_jornada_hoy(
+            nombre_empleado
         )
 
+        horas_manana = float(
+            jornada["horas_manana"] or 0
+        )
+
+        horas_tarde = float(
+            jornada["horas_tarde"] or 0
+        )
+
+        horas_totales = (
+            horas_manana
+            + horas_tarde
+        )
+
+        actualizar_jornada_empleado(
+            nombre_empleado,
+            "horas_totales",
+            horas_totales
+        )
+
+        st.markdown("---")
+
+        st.metric(
+            "⏱️ TOTAL TRABAJADO HOY",
+            f"{horas_totales:.2f} horas"
+        )
+
+        st.info(
+            "🔒 Los horarios se registran automáticamente "
+            "con la hora del sistema. No se pueden modificar "
+            "manualmente."
+        )
+        
 # ----------------------------------------------------
 # PESTAÑA: ANALÍTICAS CENTRALES
 # ----------------------------------------------------
