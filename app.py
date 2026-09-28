@@ -2251,84 +2251,83 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                 "💾 Guardar Nuevo Operario"
             )
 
-                            if btn_alta_emp and n_nombre:
+                                        if btn_alta_emp and n_nombre:
 
-                                nuevo_emp = {
-                                    "Nombre": n_nombre.strip(),
-                                    "Puesto": n_puesto,
-                                    "Porcentaje (%)": n_porcentaje
-                                }
+                nuevo_emp = {
+                    "Nombre": n_nombre.strip(),
+                    "Puesto": n_puesto,
+                    "Porcentaje (%)": n_porcentaje
+                }
 
-                                conn_nuevo_emp = None
-                                cursor_nuevo_emp = None
+                conn_nuevo_emp = None
+                cursor_nuevo_emp = None
 
-                                try:
+                try:
 
-                                    conn_nuevo_emp = get_conn()
-                                    cursor_nuevo_emp = conn_nuevo_emp.cursor()
+                    conn_nuevo_emp = get_conn()
+                    cursor_nuevo_emp = conn_nuevo_emp.cursor()
 
-                                    cursor_nuevo_emp.execute(
-                                        """
-                                        INSERT INTO empleados (
-                                            nombre,
-                                            puesto,
-                                            porcentaje
-                                        )
-                                        VALUES (
-                                            %s,
-                                            %s,
-                                            %s
-                                        )
-                                        """,
-                                        (
-                                            nuevo_emp["Nombre"],
-                                            nuevo_emp["Puesto"],
-                                            float(
-                                                nuevo_emp["Porcentaje (%)"]
-                                                or 0
-                                            )
-                                        )
-                                    )
+                    cursor_nuevo_emp.execute(
+                        """
+                        INSERT INTO empleados (
+                            nombre,
+                            puesto,
+                            porcentaje
+                        )
+                        VALUES (
+                            %s,
+                            %s,
+                            %s
+                        )
+                        """,
+                        (
+                            nuevo_emp["Nombre"],
+                            nuevo_emp["Puesto"],
+                            float(
+                                nuevo_emp["Porcentaje (%)"]
+                                or 0
+                            )
+                        )
+                    )
 
-                                    conn_nuevo_emp.commit()
+                    conn_nuevo_emp.commit()
 
-                                    df_empleados = pd.concat(
-                                        [
-                                            df_empleados,
-                                            pd.DataFrame([nuevo_emp])
-                                        ],
-                                        ignore_index=True
-                                    )
+                    df_empleados = pd.concat(
+                        [
+                            df_empleados,
+                            pd.DataFrame([nuevo_emp])
+                        ],
+                        ignore_index=True
+                    )
 
-                                    df_empleados.to_csv(
-                                        "registro_empleados.csv",
-                                        index=False,
-                                        encoding="utf-8-sig"
-                                    )
+                    df_empleados.to_csv(
+                        "registro_empleados.csv",
+                        index=False,
+                        encoding="utf-8-sig"
+                    )
 
-                                    st.success(
-                                        "✔ Operario agregado correctamente."
-                                    )
+                    st.success(
+                        "✔ Operario agregado correctamente."
+                    )
 
-                                    st.rerun()
+                    st.rerun()
 
-                                except Exception as e:
+                except Exception as e:
 
-                                    if conn_nuevo_emp:
-                                        conn_nuevo_emp.rollback()
+                    if conn_nuevo_emp:
+                        conn_nuevo_emp.rollback()
 
-                                    st.error(
-                                        f"❌ No se pudo guardar el operario en Neon: {e}"
-                                    )
+                    st.error(
+                        f"❌ No se pudo guardar el operario en Neon: {e}"
+                    )
 
-                                finally:
+                finally:
 
-                                    if cursor_nuevo_emp:
-                                        cursor_nuevo_emp.close()
+                    if cursor_nuevo_emp:
+                        cursor_nuevo_emp.close()
 
-                                    if conn_nuevo_emp:
-                                        conn_nuevo_emp.close()
-
+                    if conn_nuevo_emp:
+                        conn_nuevo_emp.close()
     # ==================================================
     # COLUMNA 2 - MOVIMIENTOS DE CUENTA
     # ==================================================
