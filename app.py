@@ -3905,19 +3905,23 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                 "ultimo_nombre_pdf"
                             ] = nombre_pdf
 
-                            st.success(
+                                                        st.success(
                                 f"✅ Liquidación #{nuevo_id} "
                                 f"guardada correctamente."
                             )
-                            st.success(
-                                f"✅ Liquidación #{nuevo_id} "
-                                f"guardada correctamente."
+
+                            st.download_button(
+                                label="📄 Descargar liquidación",
+                                data=pdf_bytes,
+                                file_name=nombre_pdf,
+                                mime="application/pdf",
+                                key=f"descargar_liquidacion_{nuevo_id}",
+                                use_container_width=True
                             )
 
                             # ======================================
                             # MOSTRAR COMPROBANTES RECIÉN GUARDADOS
                             # ======================================
-
                             if nombres_comprobantes:
 
                                 st.markdown(
