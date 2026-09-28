@@ -1017,7 +1017,7 @@ if tiene_rol("Dueño","Administrador","Contador"):
 if tiene_rol("Dueño","Administrador","Encargado"):
     opciones.append("👥 SISTEMA DE TRIPULACIÓN")
 
-if tiene_rol("Operario", "Maquinista"):
+if tiene_rol("Operario", "Maquinista", "Dueño"):
     opciones.append("🕐 MI JORNADA")    
 
 if tiene_rol("Dueño","Administrador","Encargado","Operario","Maquinista"):
