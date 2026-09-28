@@ -2017,6 +2017,237 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
     st.header("👤 Personal y Comisiones de la Tripulación")
 
+# ==========================================================
+# RECUPERAR COMPROBANTE DE LIQUIDACIÓN DESDE NEON
+# ==========================================================
+
+st.subheader("📄 Recuperar comprobante")
+
+try:
+
+    conn_recuperar = get_conn()
+
+    df_liquidaciones_neon = pd.read_sql(
+        """
+        SELECT
+            id,
+            id_pago,
+            nombre_empleado,
+            fecha_trabajo,
+            horas_trabajadas,
+            valor_hora,
+            monto_ars,
+            concepto,
+            porcentaje_bonificacion,
+            monto_bonificacion,
+            porcentaje_descuento,
+            monto_descuento,
+            monto_trabajado_ars,
+            monto_pagado_ars,
+            monto_final_trabajo_ars,
+            adelanto_generado_ars,
+            monto_compensado_ars,
+            saldo_adelanto_ars,
+            saldo_pendiente_pago_ars
+        FROM pagos_empleados
+        ORDER BY id DESC
+        """,
+        conn_recuperar
+    )
+
+    conn_recuperar.close()
+
+except Exception as e:
+
+    df_liquidaciones_neon = pd.DataFrame()
+
+    st.error(
+        f"❌ No se pudieron cargar las liquidaciones: {e}"
+    )
+
+
+if not df_liquidaciones_neon.empty:
+
+    opciones_liquidaciones = []
+
+    for _, fila in df_liquidaciones_neon.iterrows():
+
+        opciones_liquidaciones.append(
+            f"#{fila['id_pago']} - "
+            f"{fila['nombre_empleado']} - "
+            f"{fila['fecha_trabajo']}"
+        )
+
+    liquidacion_a_recuperar = st.selectbox(
+        "Seleccioná la liquidación cuyo comprobante desapareció:",
+        opciones_liquidaciones,
+        key="recuperar_comprobante_liquidacion"
+    )
+
+    if st.button(
+        "📄 Regenerar comprobante",
+        key="btn_regenerar_comprobante"
+    ):
+
+        indice = opciones_liquidaciones.index(
+            liquidacion_a_recuperar
+        )
+
+        fila = df_liquidaciones_neon.iloc[indice]
+
+        # --------------------------------------------------
+        # Convertir valores de Neon a números seguros
+        # --------------------------------------------------
+
+        def numero_seguro(valor):
+
+            if pd.isna(valor):
+                return 0.0
+
+            try:
+                return float(valor)
+            except:
+                return 0.0
+
+
+        nuevo_id_recuperado = str(
+            fila["id_pago"]
+        )
+
+        empleado_recuperado = str(
+            fila["nombre_empleado"]
+        )
+
+        fecha_recuperada = str(
+            fila["fecha_trabajo"]
+        )
+
+        horas_recuperadas = numero_seguro(
+            fila["horas_trabajadas"]
+        )
+
+        valor_hora_recuperado = numero_seguro(
+            fila["valor_hora"]
+        )
+
+        monto_trabajado_recuperado = numero_seguro(
+            fila["monto_trabajado_ars"]
+        )
+
+        bonificacion_recuperada = numero_seguro(
+            fila["monto_bonificacion"]
+        )
+
+        descuento_recuperado = numero_seguro(
+            fila["monto_descuento"]
+        )
+
+        monto_final_recuperado = numero_seguro(
+            fila["monto_final_trabajo_ars"]
+        )
+
+        adelanto_anterior_recuperado = (
+            numero_seguro(
+                fila["adelanto_generado_ars"]
+            )
+            + numero_seguro(
+                fila["monto_compensado_ars"]
+            )
+        )
+
+        pendiente_anterior_recuperado = numero_seguro(
+            fila["saldo_pendiente_pago_ars"]
+        )
+
+        compensado_recuperado = numero_seguro(
+            fila["monto_compensado_ars"]
+        )
+
+        neto_pagar_recuperado = numero_seguro(
+            fila["monto_pagado_ars"]
+        )
+
+        monto_pagado_recuperado = numero_seguro(
+            fila["monto_pagado_ars"]
+        )
+
+        adelanto_final_recuperado = numero_seguro(
+            fila["saldo_adelanto_ars"]
+        )
+
+        pendiente_final_recuperado = numero_seguro(
+            fila["saldo_pendiente_pago_ars"]
+        )
+
+        concepto_recuperado = str(
+            fila["concepto"]
+        )
+
+        # --------------------------------------------------
+        # GENERAR NUEVAMENTE EL PDF
+        # --------------------------------------------------
+
+        pdf_recuperado = generar_pdf_liquidacion(
+            nuevo_id=nuevo_id_recuperado,
+            empleado=empleado_recuperado,
+            fecha=fecha_recuperada,
+            horas=horas_recuperadas,
+            valor_hora=valor_hora_recuperado,
+            monto_trabajado=monto_trabajado_recuperado,
+            bonificacion=bonificacion_recuperada,
+            descuento=descuento_recuperado,
+            monto_final=monto_final_recuperado,
+            adelanto_anterior=adelanto_anterior_recuperado,
+            pendiente_anterior=pendiente_anterior_recuperado,
+            compensado=compensado_recuperado,
+            neto_pagar=neto_pagar_recuperado,
+            monto_pagado=monto_pagado_recuperado,
+            adelanto_final=adelanto_final_recuperado,
+            pendiente_final=pendiente_final_recuperado,
+            concepto=concepto_recuperado
+        )
+
+        # --------------------------------------------------
+        # GUARDAR NUEVAMENTE EL PDF
+        # --------------------------------------------------
+
+        carpeta_pdfs = "liquidaciones_pdf"
+
+        os.makedirs(
+            carpeta_pdfs,
+            exist_ok=True
+        )
+
+        nombre_pdf_recuperado = (
+            f"liquidacion_{nuevo_id_recuperado}.pdf"
+        )
+
+        ruta_pdf_recuperado = os.path.join(
+            carpeta_pdfs,
+            nombre_pdf_recuperado
+        )
+
+        with open(
+            ruta_pdf_recuperado,
+            "wb"
+        ) as archivo_pdf:
+
+            archivo_pdf.write(
+                pdf_recuperado
+            )
+
+        st.success(
+            "✅ Comprobante regenerado correctamente."
+        )
+
+        st.download_button(
+            label="⬇️ Descargar comprobante",
+            data=pdf_recuperado,
+            file_name=nombre_pdf_recuperado,
+            mime="application/pdf",
+            key="descargar_comprobante_recuperado"
+        )
+
     emp_col1, emp_col2 = st.columns(2)
 
     # ==================================================
