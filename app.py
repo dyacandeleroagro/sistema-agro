@@ -619,6 +619,54 @@ def guardar_pago_en_neon(pago):
         conn = get_conn()
         cursor = conn.cursor()
 
+        # ==================================================
+        # BUSCAR EL PDF GENERADO PARA GUARDARLO EN NEON
+        # ==================================================
+
+        pdf_data = None
+
+        ruta_pdf = str(
+            pago.get("PDF Liquidacion", "")
+            or ""
+        ).strip()
+
+        # Si la ruta está guardada y el archivo existe
+        if ruta_pdf and os.path.exists(ruta_pdf):
+
+            with open(
+                ruta_pdf,
+                "rb"
+            ) as archivo_pdf:
+
+                pdf_data = archivo_pdf.read()
+
+        # Si no encontramos la ruta, intentar por ID
+        if pdf_data is None:
+
+            id_pago_pdf = str(
+                pago.get("ID_Pago", "")
+            ).strip()
+
+            ruta_pdf_alternativa = os.path.join(
+                "liquidaciones_pdf",
+                f"liquidacion_{id_pago_pdf}.pdf"
+            )
+
+            if os.path.exists(
+                ruta_pdf_alternativa
+            ):
+
+                with open(
+                    ruta_pdf_alternativa,
+                    "rb"
+                ) as archivo_pdf:
+
+                    pdf_data = archivo_pdf.read()
+
+        # ==================================================
+        # GUARDAR LIQUIDACIÓN + PDF EN NEON
+        # ==================================================
+
         query = """
             INSERT INTO pagos_empleados (
                 id_pago,
@@ -645,46 +693,181 @@ def guardar_pago_en_neon(pago):
                 saldo_adelanto_ars,
                 saldo_pendiente_pago_ars,
                 comprobantes,
-                pdf_liquidacion
+                pdf_liquidacion,
+                pdf_liquidacion_data
             )
             VALUES (
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s,
+                %s
             )
         """
 
         valores = (
-            str(pago.get("ID_Pago", "")),
-            pago.get("Fecha Pago") or None,
-            pago.get("Nombre Empleado", ""),
-            pago.get("Fecha Trabajo", ""),
-            pago.get("Hora Entrada", ""),
-            pago.get("Hora Salida", ""),
-            float(pago.get("Horas Trabajadas", 0) or 0),
-            float(pago.get("Valor Hora", 0) or 0),
-            float(pago.get("Monto (ARS)", 0) or 0),
-            pago.get("Tipo Registro", ""),
-            pago.get("Estado Pago", ""),
-            pago.get("Concepto", ""),
-            float(pago.get("Porcentaje Bonificacion", 0) or 0),
-            float(pago.get("Monto Bonificacion (ARS)", 0) or 0),
-            float(pago.get("Porcentaje Descuento", 0) or 0),
-            float(pago.get("Monto Descuento (ARS)", 0) or 0),
-            float(pago.get("Monto Trabajado (ARS)", 0) or 0),
-            float(pago.get("Monto Pagado (ARS)", 0) or 0),
-            float(pago.get("Monto Final Trabajo (ARS)", 0) or 0),
-            float(pago.get("Adelanto Generado (ARS)", 0) or 0),
-            float(pago.get("Monto Compensado (ARS)", 0) or 0),
-            float(pago.get("Saldo Adelanto (ARS)", 0) or 0),
-            float(pago.get("Saldo Pendiente Pago (ARS)", 0) or 0),
-            pago.get("Comprobantes", ""),
-            pago.get("PDF Liquidacion", "")
+            str(
+                pago.get(
+                    "ID_Pago",
+                    ""
+                )
+            ),
+
+            pago.get(
+                "Fecha Pago"
+            ) or None,
+
+            pago.get(
+                "Nombre Empleado",
+                ""
+            ),
+
+            pago.get(
+                "Fecha Trabajo",
+                ""
+            ),
+
+            pago.get(
+                "Hora Entrada",
+                ""
+            ),
+
+            pago.get(
+                "Hora Salida",
+                ""
+            ),
+
+            float(
+                pago.get(
+                    "Horas Trabajadas",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Valor Hora",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Monto (ARS)",
+                    0
+                ) or 0
+            ),
+
+            pago.get(
+                "Tipo Registro",
+                ""
+            ),
+
+            pago.get(
+                "Estado Pago",
+                ""
+            ),
+
+            pago.get(
+                "Concepto",
+                ""
+            ),
+
+            float(
+                pago.get(
+                    "Porcentaje Bonificacion",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Monto Bonificacion (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Porcentaje Descuento",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Monto Descuento (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Monto Trabajado (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Monto Pagado (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Monto Final Trabajo (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Adelanto Generado (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Monto Compensado (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Saldo Adelanto (ARS)",
+                    0
+                ) or 0
+            ),
+
+            float(
+                pago.get(
+                    "Saldo Pendiente Pago (ARS)",
+                    0
+                ) or 0
+            ),
+
+            pago.get(
+                "Comprobantes",
+                ""
+            ),
+
+            pago.get(
+                "PDF Liquidacion",
+                ""
+            ),
+
+            pdf_data
         )
 
-        cursor.execute(query, valores)
+        cursor.execute(
+            query,
+            valores
+        )
 
         conn.commit()
 
@@ -708,7 +891,7 @@ def guardar_pago_en_neon(pago):
 
         if conn:
             conn.close()
-
+            
 if not os.path.exists("registro_ingresos.csv"):
     pd.DataFrame(columns=["ID_Ingreso", "Fecha", "Cliente", "Tipo Servicio", "Lote/Establecimiento", "Hectáreas", "Monto Total (ARS)", "Detalle"]).to_csv("registro_ingresos.csv", index=False)
 df_ingresos = pd.read_csv("registro_ingresos.csv")
