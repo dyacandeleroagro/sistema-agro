@@ -886,10 +886,10 @@ def obtener_horas_jornada_periodo(
             conn.close()
 
 # ==========================================================
-# RECUPERAR PDF DE LIQUIDACIONES DESDE LOS DATOS DE NEON
+# RECUPERAR PDF ORIGINAL DESDE NEON
 # ==========================================================
 
-def recuperar_pdf_liquidacion_neon(id_registro):
+def recuperar_pdf_original_neon(id_registro):
 
     conn = None
     cursor = None
@@ -905,25 +905,8 @@ def recuperar_pdf_liquidacion_neon(id_registro):
                 id,
                 id_pago,
                 nombre_empleado,
-                fecha_pago,
-                fecha_trabajo,
-                horas_trabajadas,
-                valor_hora,
-                monto_ars,
-                tipo_registro,
-                estado_pago,
-                concepto,
-                porcentaje_bonificacion,
-                monto_bonificacion,
-                porcentaje_descuento,
-                monto_descuento,
-                monto_trabajado_ars,
-                monto_pagado_ars,
-                monto_final_trabajo_ars,
-                adelanto_generado_ars,
-                monto_compensado_ars,
-                saldo_adelanto_ars,
-                saldo_pendiente_pago_ars
+                pdf_liquidacion,
+                pdf_liquidacion_data
             FROM pagos_empleados
             WHERE id = %s
             LIMIT 1
@@ -934,280 +917,72 @@ def recuperar_pdf_liquidacion_neon(id_registro):
         fila = cursor.fetchone()
 
         if not fila:
-            return False
+            return None
 
         (
-            id_registro,
+            id_db,
             id_pago,
             nombre_empleado,
-            fecha_pago,
-            fecha_trabajo,
-            horas_trabajadas,
-            valor_hora,
-            monto_ars,
-            tipo_registro,
-            estado_pago,
-            concepto,
-            porcentaje_bonificacion,
-            monto_bonificacion,
-            porcentaje_descuento,
-            monto_descuento,
-            monto_trabajado_ars,
-            monto_pagado_ars,
-            monto_final_trabajo_ars,
-            adelanto_generado_ars,
-            monto_compensado_ars,
-            saldo_adelanto_ars,
-            saldo_pendiente_pago_ars
+            nombre_pdf,
+            pdf_data
         ) = fila
 
-        nombre_pdf = f"liquidacion_{id_pago}.pdf"
+        # ==========================================
+        # VERIFICAR PDF
+        # ==========================================
+
+        if not pdf_data:
+            return None
+
+        # ==========================================
+        # CREAR CARPETA
+        # ==========================================
 
         os.makedirs(
             "liquidaciones_pdf",
             exist_ok=True
         )
 
+        # ==========================================
+        # NOMBRE DEL PDF
+        # ==========================================
+
+        if not nombre_pdf:
+
+            nombre_pdf = (
+                f"liquidacion_{id_pago}.pdf"
+            )
+
+        # ==========================================
+        # RUTA
+        # ==========================================
+
         ruta_pdf = os.path.join(
             "liquidaciones_pdf",
             nombre_pdf
         )
 
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.units import mm
-
-        pdf = canvas.Canvas(
-            ruta_pdf,
-            pagesize=A4
-        )
-
-        ancho, alto = A4
-
-        y = alto - 25 * mm
-
         # ==========================================
-        # ENCABEZADO
-        # ==========================================
-
-        pdf.setFont(
-            "Helvetica-Bold",
-            16
-        )
-
-        pdf.drawString(
-            20 * mm,
-            y,
-            "D&A CANDELERO AGRO"
-        )
-
-        y -= 10 * mm
-
-        pdf.setFont(
-            "Helvetica-Bold",
-            13
-        )
-
-        pdf.drawString(
-            20 * mm,
-            y,
-            "COMPROBANTE DE LIQUIDACIÓN"
-        )
-
-        y -= 12 * mm
-
-        # ==========================================
-        # DATOS GENERALES
-        # ==========================================
-
-        pdf.setFont(
-            "Helvetica",
-            10
-        )
-
-        datos = [
-            f"ID de pago: {id_pago}",
-            f"Empleado: {nombre_empleado}",
-            f"Fecha de pago: {fecha_pago}",
-            f"Fecha de trabajo: {fecha_trabajo}",
-            f"Tipo de registro: {tipo_registro}",
-            f"Estado: {estado_pago}",
-            f"Concepto: {concepto}",
-        ]
-
-        for dato in datos:
-
-            pdf.drawString(
-                20 * mm,
-                y,
-                str(dato)
-            )
-
-            y -= 6 * mm
-
-        y -= 4 * mm
-
-        # ==========================================
-        # HORAS
-        # ==========================================
-
-        pdf.setFont(
-            "Helvetica-Bold",
-            11
-        )
-
-        pdf.drawString(
-            20 * mm,
-            y,
-            "DETALLE DEL TRABAJO"
-        )
-
-        y -= 8 * mm
-
-        pdf.setFont(
-            "Helvetica",
-            10
-        )
-
-        detalle = [
-            f"Horas trabajadas: {float(horas_trabajadas or 0):,.2f} h",
-            f"Valor por hora: $ {float(valor_hora or 0):,.2f}",
-            f"Monto trabajado: $ {float(monto_trabajado_ars or 0):,.2f}",
-            f"Bonificación: {float(porcentaje_bonificacion or 0):,.2f}%  |  $ {float(monto_bonificacion or 0):,.2f}",
-            f"Descuento: {float(porcentaje_descuento or 0):,.2f}%  |  $ {float(monto_descuento or 0):,.2f}",
-            f"Monto final del trabajo: $ {float(monto_final_trabajo_ars or 0):,.2f}",
-            f"Monto pagado: $ {float(monto_pagado_ars or 0):,.2f}",
-        ]
-
-        for dato in detalle:
-
-            pdf.drawString(
-                20 * mm,
-                y,
-                str(dato)
-            )
-
-            y -= 6 * mm
-
-        y -= 4 * mm
-
-        # ==========================================
-        # ADELANTOS / SALDOS
-        # ==========================================
-
-        pdf.setFont(
-            "Helvetica-Bold",
-            11
-        )
-
-        pdf.drawString(
-            20 * mm,
-            y,
-            "ADELANTOS Y SALDOS"
-        )
-
-        y -= 8 * mm
-
-        pdf.setFont(
-            "Helvetica",
-            10
-        )
-
-        saldos = [
-            f"Adelanto generado: $ {float(adelanto_generado_ars or 0):,.2f}",
-            f"Monto compensado: $ {float(monto_compensado_ars or 0):,.2f}",
-            f"Saldo de adelanto: $ {float(saldo_adelanto_ars or 0):,.2f}",
-            f"Saldo pendiente de pago: $ {float(saldo_pendiente_pago_ars or 0):,.2f}",
-        ]
-
-        for dato in saldos:
-
-            pdf.drawString(
-                20 * mm,
-                y,
-                str(dato)
-            )
-
-            y -= 6 * mm
-
-        y -= 15 * mm
-
-        # ==========================================
-        # FIRMA
-        # ==========================================
-
-        pdf.line(
-            20 * mm,
-            y,
-            90 * mm,
-            y
-        )
-
-        y -= 5 * mm
-
-        pdf.setFont(
-            "Helvetica",
-            9
-        )
-
-        pdf.drawString(
-            20 * mm,
-            y,
-            "Firma del empleado"
-        )
-
-        pdf.line(
-            120 * mm,
-            y + 5 * mm,
-            190 * mm,
-            y + 5 * mm
-        )
-
-        pdf.drawString(
-            120 * mm,
-            y,
-            "Firma responsable"
-        )
-
-        pdf.save()
-
-        # ==========================================
-        # LEER PDF GENERADO
+        # GUARDAR PDF ORIGINAL
         # ==========================================
 
         with open(
             ruta_pdf,
-            "rb"
+            "wb"
         ) as archivo_pdf:
 
-            pdf_data = archivo_pdf.read()
-
-        if not pdf_data:
-
-            return False
-
-        # ==========================================
-        # GUARDAR PDF EN NEON
-        # ==========================================
-
-        cursor.execute(
-            """
-            UPDATE pagos_empleados
-            SET
-                pdf_liquidacion = %s,
-                pdf_liquidacion_data = %s
-            WHERE id = %s
-            """,
-            (
-                nombre_pdf,
-                pdf_data,
-                id_registro
+            archivo_pdf.write(
+                bytes(pdf_data)
             )
-        )
 
-        conn.commit()
-
-        return True
+        return {
+            "id": id_db,
+            "id_pago": id_pago,
+            "empleado": nombre_empleado,
+            "nombre_pdf": nombre_pdf,
+            "ruta": ruta_pdf,
+            "tamanio": len(pdf_data)
+        }
 
     except Exception as e:
 
@@ -1215,10 +990,10 @@ def recuperar_pdf_liquidacion_neon(id_registro):
             conn.rollback()
 
         st.error(
-            f"❌ Error recuperando liquidación {id_registro}: {e}"
+            f"❌ Error recuperando PDF ID {id_registro}: {e}"
         )
 
-        return False
+        return None
 
     finally:
 
@@ -1228,19 +1003,23 @@ def recuperar_pdf_liquidacion_neon(id_registro):
         if conn:
             conn.close()
 
-                        # ==========================================================
-# RECUPERACIÓN ÚNICA DE PDFs PERDIDOS
+
+# ==========================================================
+# RECUPERACIÓN DE PDFs GUARDADOS EN NEON
 # ==========================================================
 
-if not st.session_state.get("pdfs_recuperados_una_vez", False):
+if not st.session_state.get(
+    "pdfs_recuperados_una_vez",
+    False
+):
 
-    recuperaciones = [2, 3, 4]
+    recuperaciones = [2, 3, 4, 6]
 
     resultados_recuperacion = []
 
     for id_registro in recuperaciones:
 
-        resultado = recuperar_pdf_liquidacion_neon(
+        resultado = recuperar_pdf_original_neon(
             id_registro
         )
 
@@ -1251,24 +1030,26 @@ if not st.session_state.get("pdfs_recuperados_una_vez", False):
             )
         )
 
-    st.session_state["pdfs_recuperados_una_vez"] = True
+    st.session_state[
+        "pdfs_recuperados_una_vez"
+    ] = True
 
     for id_registro, resultado in resultados_recuperacion:
 
         if resultado:
 
             st.success(
-                f"✅ Liquidación ID {id_registro} "
-                f"recuperada y guardada en Neon."
+                f"✅ PDF de liquidación ID "
+                f"{id_registro} recuperado correctamente."
             )
 
         else:
 
             st.error(
                 f"❌ No se pudo recuperar "
-                f"la liquidación ID {id_registro}."
+                f"el PDF ID {id_registro}."
             )
-
+            
 # ==========================================================
 # GUARDAR PAGO EN NEON
 # ==========================================================
