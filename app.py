@@ -1462,17 +1462,17 @@ if menu == "🕐 MI JORNADA":
 
                         st.rerun()
 
-                else:
+            else:
 
-                    st.info(
-                     "⏰ La jornada de mañana se habilita a las 08:00."
-                    )
+                st.info(
+                 "⏰ La jornada de mañana se habilita a las 08:00."
+                )
 
-                else:
+            else:
 
-                    st.info(
-                     "🌅 No se registraron horas de mañana."
-                    )
+                st.info(
+                 "🌅 No se registraron horas de mañana."
+                )
 
         # --------------------------------------------------
         # SALIDA MAÑANA
