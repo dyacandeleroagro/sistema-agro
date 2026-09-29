@@ -1426,7 +1426,7 @@ if menu == "🕐 MI JORNADA":
                     ].strftime("%H:%M:%S")
                 )
 
-            else:
+                        else:
 
                 if (
                     ahora >= datetime.datetime.combine(
@@ -1462,18 +1462,11 @@ if menu == "🕐 MI JORNADA":
 
                         st.rerun()
 
-            else:
+                else:
 
-                st.info(
-                 "⏰ La jornada de mañana se habilita a las 08:00."
-                )
-
-            else:
-
-                st.info(
-                 "🌅 No se registraron horas de mañana."
-                )
-
+                    st.info(
+                        "🌅 No se registraron horas de mañana."
+                    )
         # --------------------------------------------------
         # SALIDA MAÑANA
         # --------------------------------------------------
