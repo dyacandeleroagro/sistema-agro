@@ -890,6 +890,7 @@ def obtener_horas_jornada_periodo(
 # ==========================================================
 
 def guardar_pago_en_neon(pago):
+    
 # ==========================================================
 # RECUPERAR PDF DE LIQUIDACIONES DESDE LOS DATOS DE NEON
 # ==========================================================
