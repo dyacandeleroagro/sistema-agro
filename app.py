@@ -1407,7 +1407,7 @@ if menu == "🕐 MI JORNADA":
 
         col_manana_1, col_manana_2 = st.columns(2)
 
-        # --------------------------------------------------
+                # --------------------------------------------------
         # ENTRADA MAÑANA
         # --------------------------------------------------
 
@@ -1426,7 +1426,7 @@ if menu == "🕐 MI JORNADA":
                     ].strftime("%H:%M:%S")
                 )
 
-                        else:
+            else:
 
                 if (
                     ahora >= datetime.datetime.combine(
@@ -1447,7 +1447,9 @@ if menu == "🕐 MI JORNADA":
                     ):
 
                         momento = datetime.datetime.now(
-                            ZoneInfo("America/Argentina/Buenos_Aires")
+                            ZoneInfo(
+                                "America/Argentina/Buenos_Aires"
+                            )
                         ).replace(tzinfo=None)
 
                         actualizar_jornada_empleado(
@@ -1462,15 +1464,25 @@ if menu == "🕐 MI JORNADA":
 
                         st.rerun()
 
+                elif ahora < datetime.datetime.combine(
+                    datetime.date.today(),
+                    datetime.time(8, 0)
+                ):
+
+                    st.info(
+                        "⏰ La jornada de mañana se habilita a las 08:00."
+                    )
+
                 else:
 
                     st.info(
                         "🌅 No se registraron horas de mañana."
                     )
+
         # --------------------------------------------------
         # SALIDA MAÑANA
         # --------------------------------------------------
-
+        
         with col_manana_2:
 
             if jornada["salida_manana"]:
