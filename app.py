@@ -886,171 +886,6 @@ def obtener_horas_jornada_periodo(
             conn.close()
 
 # ==========================================================
-# RECUPERAR PDF ORIGINAL DESDE NEON
-# ==========================================================
-
-def recuperar_pdf_original_neon(id_registro):
-
-    conn = None
-    cursor = None
-
-    try:
-
-        conn = get_conn()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT
-                id,
-                id_pago,
-                nombre_empleado,
-                pdf_liquidacion,
-                pdf_liquidacion_data
-            FROM pagos_empleados
-            WHERE id = %s
-            LIMIT 1
-            """,
-            (id_registro,)
-        )
-
-        fila = cursor.fetchone()
-
-        if not fila:
-            return None
-
-        (
-            id_db,
-            id_pago,
-            nombre_empleado,
-            nombre_pdf,
-            pdf_data
-        ) = fila
-
-        # ==========================================
-        # VERIFICAR PDF
-        # ==========================================
-
-        if not pdf_data:
-            return None
-
-        # ==========================================
-        # CREAR CARPETA
-        # ==========================================
-
-        os.makedirs(
-            "liquidaciones_pdf",
-            exist_ok=True
-        )
-
-        # ==========================================
-        # NOMBRE DEL PDF
-        # ==========================================
-
-        if not nombre_pdf:
-
-            nombre_pdf = (
-                f"liquidacion_{id_pago}.pdf"
-            )
-
-        # ==========================================
-        # RUTA
-        # ==========================================
-
-        ruta_pdf = os.path.join(
-            "liquidaciones_pdf",
-            nombre_pdf
-        )
-
-        # ==========================================
-        # GUARDAR PDF ORIGINAL
-        # ==========================================
-
-        with open(
-            ruta_pdf,
-            "wb"
-        ) as archivo_pdf:
-
-            archivo_pdf.write(
-                bytes(pdf_data)
-            )
-
-        return {
-            "id": id_db,
-            "id_pago": id_pago,
-            "empleado": nombre_empleado,
-            "nombre_pdf": nombre_pdf,
-            "ruta": ruta_pdf,
-            "tamanio": len(pdf_data)
-        }
-
-    except Exception as e:
-
-        if conn:
-            conn.rollback()
-
-        st.error(
-            f"❌ Error recuperando PDF ID {id_registro}: {e}"
-        )
-
-        return None
-
-    finally:
-
-        if cursor:
-            cursor.close()
-
-        if conn:
-            conn.close()
-
-
-# ==========================================================
-# RECUPERACIÓN DE PDFs GUARDADOS EN NEON
-# ==========================================================
-
-if not st.session_state.get(
-    "pdfs_originales_recuperados",
-    False
-):
-
-    recuperaciones = [2, 3, 4, 6]
-
-    resultados_recuperacion = []
-
-    for id_registro in recuperaciones:
-
-        resultado = recuperar_pdf_original_neon(
-            id_registro
-        )
-
-        resultados_recuperacion.append(
-            (
-                id_registro,
-                resultado
-            )
-        )
-
-    st.session_state[
-        "pdfs_originales_recuperados"
-    ] = True
-
-    for id_registro, resultado in resultados_recuperacion:
-
-        if resultado:
-
-            st.success(
-                f"✅ PDF de liquidación ID "
-                f"{id_registro} recuperado correctamente."
-            )
-
-        else:
-
-            st.error(
-                f"❌ No se pudo recuperar "
-                f"el PDF ID {id_registro}."
-            )
-            
-# ==========================================================
 # GUARDAR PAGO EN NEON
 # ==========================================================
 
@@ -5082,65 +4917,54 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                     "### 📄 Comprobantes de liquidación"
                 )
 
-                carpeta_pdfs = "liquidaciones_pdf"
+                pdfs_mostrados = False
 
-                if os.path.exists(carpeta_pdfs):
+                for _, fila_pago in df_pagos.iterrows():
 
-                    pdfs_mostrados = False
+                    nombre_pdf = fila_pago.get(
+                        "PDF Liquidacion",
+                        ""
+                    )
 
-                    for _, fila_pago in df_pagos.iterrows():
+                    if pd.isna(nombre_pdf):
 
-                        nombre_pdf = fila_pago.get(
-                            "PDF Liquidacion",
-                            ""
-                        )
+                        nombre_pdf = ""
 
-                        if pd.isna(nombre_pdf):
-                            nombre_pdf = ""
+                    nombre_pdf = str(
+                        nombre_pdf
+                    ).strip()
 
-                        nombre_pdf = str(
-                            nombre_pdf
-                        ).strip()
+                    if not nombre_pdf:
 
-                        if not nombre_pdf:
-                            continue
+                        continue
 
-                        ruta_pdf = os.path.join(
-                            carpeta_pdfs,
-                            nombre_pdf
-                        )
+                    # ==========================================
+                    # OBTENER ID DEL PAGO
+                    # ==========================================
 
-                        if os.path.isfile(ruta_pdf):
+                    id_pago = fila_pago.get(
+                        "ID_Pago",
+                        ""
+                    )
 
-                            pdfs_mostrados = True
+                    id_pago = str(
+                        id_pago
+                    ).strip()
 
-                            id_numerico = pd.to_numeric(
-                                fila_pago.get(
-                                    "ID_Pago",
-                                    ""
-                                ),
-                                errors="coerce"
-                            )
+                    datos_pdf = None
 
-                            if pd.notna(id_numerico):
+                    # ==========================================
+                    # 1. BUSCAR PDF LOCAL
+                    # ==========================================
 
-                                id_liquidacion = str(
-                                    int(id_numerico)
-                                )
+                    ruta_pdf = os.path.join(
+                        "liquidaciones_pdf",
+                        nombre_pdf
+                    )
 
-                            else:
+                    if os.path.isfile(ruta_pdf):
 
-                                id_liquidacion = str(
-                                    fila_pago.get(
-                                        "ID_Pago",
-                                        ""
-                                    )
-                                ).strip()
-
-                            st.markdown(
-                                f"**📋 Liquidación "
-                                f"#{id_liquidacion}**"
-                            )
+                        try:
 
                             with open(
                                 ruta_pdf,
@@ -5151,34 +4975,138 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                                     archivo_pdf.read()
                                 )
 
-                            st.download_button(
-                                label=(
-                                    "📄 Ver / descargar "
-                                    "comprobante de liquidación"
-                                ),
-                                data=datos_pdf,
-                                file_name=nombre_pdf,
-                                mime="application/pdf",
-                                key=(
-                                    "pdf_liquidacion_"
-                                    f"{id_liquidacion}_"
-                                    f"{nombre_pdf}"
-                                ),
-                                use_container_width=True
+                        except Exception:
+
+                            datos_pdf = None
+
+                    # ==========================================
+                    # 2. SI NO ESTÁ LOCAL → BUSCAR EN NEON
+                    # ==========================================
+
+                    if not datos_pdf and id_pago:
+
+                        conn_pdf = None
+                        cursor_pdf = None
+
+                        try:
+
+                            conn_pdf = get_conn()
+                            cursor_pdf = conn_pdf.cursor()
+
+                            cursor_pdf.execute(
+                                """
+                                SELECT
+                                    pdf_liquidacion_data
+                                FROM pagos_empleados
+                                WHERE id_pago = %s
+                                  AND pdf_liquidacion_data IS NOT NULL
+                                ORDER BY id DESC
+                                LIMIT 1
+                                """,
+                                (id_pago,)
                             )
 
-                    if not pdfs_mostrados:
+                            resultado_pdf = (
+                                cursor_pdf.fetchone()
+                            )
 
-                        st.info(
-                            "ℹ️ No hay comprobantes de "
-                            "liquidación disponibles."
+                            if resultado_pdf:
+
+                                datos_pdf = bytes(
+                                    resultado_pdf[0]
+                                )
+
+                                # ==================================
+                                # RECUPERAR TAMBIÉN EL ARCHIVO LOCAL
+                                # ==================================
+
+                                os.makedirs(
+                                    "liquidaciones_pdf",
+                                    exist_ok=True
+                                )
+
+                                with open(
+                                    ruta_pdf,
+                                    "wb"
+                                ) as archivo_pdf:
+
+                                    archivo_pdf.write(
+                                        datos_pdf
+                                    )
+
+                        except Exception as e:
+
+                            st.error(
+                                f"❌ Error buscando PDF de "
+                                f"liquidación {id_pago}: {e}"
+                            )
+
+                        finally:
+
+                            if cursor_pdf:
+
+                                cursor_pdf.close()
+
+                            if conn_pdf:
+
+                                conn_pdf.close()
+
+                    # ==========================================
+                    # MOSTRAR PDF
+                    # ==========================================
+
+                    if datos_pdf:
+
+                        pdfs_mostrados = True
+
+                        id_numerico = pd.to_numeric(
+                            id_pago,
+                            errors="coerce"
                         )
 
-                else:
+                        if pd.notna(id_numerico):
+
+                            id_liquidacion = str(
+                                int(id_numerico)
+                            )
+
+                        else:
+
+                            id_liquidacion = id_pago
+
+                        st.markdown(
+                            f"**📋 Liquidación "
+                            f"#{id_liquidacion}**"
+                        )
+
+                        st.download_button(
+                            label=(
+                                "📄 Ver / descargar "
+                                "comprobante de liquidación"
+                            ),
+                            data=datos_pdf,
+                            file_name=nombre_pdf,
+                            mime="application/pdf",
+                            key=(
+                                "pdf_liquidacion_neon_"
+                                f"{id_liquidacion}_"
+                                f"{nombre_pdf}"
+                            ),
+                            use_container_width=True
+                        )
+
+                    else:
+
+                        st.warning(
+                            f"⚠️ No se encontró el PDF "
+                            f"de la liquidación #{id_pago}."
+                        )
+
+                if not pdfs_mostrados:
 
                     st.info(
-                        "ℹ️ Todavía no hay liquidaciones "
-                        "con comprobante generado."
+                        "ℹ️ No hay comprobantes de "
+                        "liquidación disponibles."
                     )
 
     # ==========================================
