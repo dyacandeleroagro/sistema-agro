@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import datetime
+from zoneinfo import ZoneInfo
 import psycopg2
 import os
 import re
@@ -1340,7 +1341,9 @@ if menu == "🕐 MI JORNADA":
                 nombre_empleado
             )
 
-        ahora = datetime.datetime.now()
+        ahora = datetime.datetime.now(
+            ZoneInfo("America/Argentina/Buenos_Aires")
+        ).replace(tzinfo=None)
 
         # ==================================================
         # CIERRE AUTOMÁTICO DE LA MAÑANA A LAS 12:00
@@ -1443,7 +1446,9 @@ if menu == "🕐 MI JORNADA":
                         key="btn_mi_jornada_entrada_manana"
                     ):
 
-                        momento = datetime.datetime.now()
+                        momento = datetime.datetime.now(
+                            ZoneInfo("America/Argentina/Buenos_Aires")
+                        ).replace(tzinfo=None)
 
                         actualizar_jornada_empleado(
                             nombre_empleado,
@@ -1506,7 +1511,9 @@ if menu == "🕐 MI JORNADA":
                         key="btn_mi_jornada_salida_manana"
                     ):
 
-                        momento = datetime.datetime.now()
+                        momento = datetime.datetime.now(
+                            ZoneInfo("America/Argentina/Buenos_Aires")
+                        ).replace(tzinfo=None)
 
                         horas = calcular_horas_jornada(
                             jornada[
@@ -1692,7 +1699,9 @@ if menu == "🕐 MI JORNADA":
                     key="btn_mi_jornada_salida_tarde"
                 ):
 
-                    momento = datetime.datetime.now()
+                    momento = datetime.datetime.now(
+                        ZoneInfo("America/Argentina/Buenos_Aires")
+                    ).replace(tzinfo=None)
 
                     horas = calcular_horas_jornada(
                         jornada[
