@@ -831,6 +831,60 @@ def calcular_horas_jornada(
         2
     )
 
+    def obtener_horas_jornada_periodo(
+    nombre_empleado,
+    fecha_desde,
+    fecha_hasta
+):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                COALESCE(SUM(horas_totales), 0)
+            FROM jornadas_empleados
+            WHERE nombre_empleado = %s
+              AND fecha >= %s
+              AND fecha <= %s
+            """,
+            (
+                nombre_empleado,
+                fecha_desde,
+                fecha_hasta
+            )
+        )
+
+        resultado = cursor.fetchone()
+
+        if resultado and resultado[0] is not None:
+
+            return float(resultado[0])
+
+        return 0.0
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Error obteniendo horas de jornada: {e}"
+        )
+
+        return 0.0
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
 # ==========================================================
 # GUARDAR PAGO EN NEON
 # ==========================================================
@@ -3916,7 +3970,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                           if clave in st.session_state:
                              del st.session_state[clave]
                         # ==========================================
-                        # FECHA
+                        # FECHA DE LIQUIDACIÓN
                         # ==========================================
 
                         fecha_liquidacion = st.date_input(
@@ -3926,30 +3980,87 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                         )
 
                         # ==========================================
-                        # HORAS Y VALOR HORA
+                        # PERÍODO DE JORNADAS
                         # ==========================================
+
+                        st.markdown(
+                            "#### 🕐 Horas registradas en Mi Jornada"
+                        )
 
                         col1, col2 = st.columns(2)
 
                         with col1:
 
-                            horas_totales = st.number_input(
-                                "⏱️ Horas totales trabajadas",
-                                min_value=0.0,
-                                step=0.5,
-                                value=0.0,
-                                key="horas_totales_liquidacion"
+                            fecha_desde_jornada = st.date_input(
+                                "📅 Desde",
+                                value=fecha_liquidacion,
+                                key="fecha_desde_jornada_liquidacion"
                             )
 
                         with col2:
 
-                            valor_hora_total = st.number_input(
-                                "💰 Valor por hora",
-                                min_value=0.0,
-                                step=100.0,
-                                value=0.0,
-                                key="valor_hora_total_liquidacion"
+                            fecha_hasta_jornada = st.date_input(
+                                "📅 Hasta",
+                                value=fecha_liquidacion,
+                                key="fecha_hasta_jornada_liquidacion"
                             )
+
+                        # ==========================================
+                        # OBTENER HORAS AUTOMÁTICAMENTE
+                        # ==========================================
+
+                        if fecha_hasta_jornada < fecha_desde_jornada:
+
+                            st.error(
+                                "❌ La fecha hasta no puede ser anterior "
+                                "a la fecha desde."
+                            )
+
+                            horas_totales = 0.0
+
+                        else:
+
+                            horas_totales = obtener_horas_jornada_periodo(
+                                emp_liquidacion,
+                                fecha_desde_jornada,
+                                fecha_hasta_jornada
+                            )
+
+                        # ==========================================
+                        # MOSTRAR HORAS
+                        # ==========================================
+
+                        st.metric(
+                            "⏱️ Horas totales registradas",
+                            f"{horas_totales:.2f} h"
+                        )
+
+                        if horas_totales > 0:
+
+                            st.success(
+                                f"✅ Se encontraron "
+                                f"**{horas_totales:.2f} horas** "
+                                f"registradas para {emp_liquidacion}."
+                            )
+
+                        else:
+
+                            st.warning(
+                               "⚠️ No hay horas registradas en "
+                               "Mi Jornada para el período seleccionado."
+                           )
+
+                        # ==========================================
+                        # VALOR HORA
+                        # ==========================================
+
+                        valor_hora_total = st.number_input(
+                            "💰 Valor por hora",
+                            min_value=0.0,
+                            step=100.0,
+                            value=0.0,
+                            key="valor_hora_total_liquidacion"
+                        )
 
                         # ==========================================
                         # MONTO BASE
