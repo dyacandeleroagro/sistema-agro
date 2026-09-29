@@ -1226,7 +1226,48 @@ def recuperar_pdf_liquidacion_neon(id_registro):
             cursor.close()
 
         if conn:
-            conn.close()            
+            conn.close()
+
+                        # ==========================================================
+# RECUPERACIÓN ÚNICA DE PDFs PERDIDOS
+# ==========================================================
+
+if not st.session_state.get("pdfs_recuperados_una_vez", False):
+
+    recuperaciones = [2, 3, 4]
+
+    resultados_recuperacion = []
+
+    for id_registro in recuperaciones:
+
+        resultado = recuperar_pdf_liquidacion_neon(
+            id_registro
+        )
+
+        resultados_recuperacion.append(
+            (
+                id_registro,
+                resultado
+            )
+        )
+
+    st.session_state["pdfs_recuperados_una_vez"] = True
+
+    for id_registro, resultado in resultados_recuperacion:
+
+        if resultado:
+
+            st.success(
+                f"✅ Liquidación ID {id_registro} "
+                f"recuperada y guardada en Neon."
+            )
+
+        else:
+
+            st.error(
+                f"❌ No se pudo recuperar "
+                f"la liquidación ID {id_registro}."
+            )
 
 # ==========================================================
 # GUARDAR PAGO EN NEON
