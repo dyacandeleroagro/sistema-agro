@@ -886,12 +886,6 @@ def obtener_horas_jornada_periodo(
             conn.close()
 
 # ==========================================================
-# GUARDAR PAGO EN NEON
-# ==========================================================
-
-def guardar_pago_en_neon(pago):
-    
-# ==========================================================
 # RECUPERAR PDF DE LIQUIDACIONES DESDE LOS DATOS DE NEON
 # ==========================================================
 
@@ -1232,7 +1226,14 @@ def recuperar_pdf_liquidacion_neon(id_registro):
             cursor.close()
 
         if conn:
-            conn.close()
+            conn.close()            
+
+# ==========================================================
+# GUARDAR PAGO EN NEON
+# ==========================================================
+
+def guardar_pago_en_neon(pago):
+    
 
     conn = None
     cursor = None
