@@ -4954,36 +4954,10 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                     datos_pdf = None
 
                     # ==========================================
-                    # 1. BUSCAR PDF LOCAL
+                    # BUSCAR PDF DIRECTAMENTE EN NEON
                     # ==========================================
 
-                    ruta_pdf = os.path.join(
-                        "liquidaciones_pdf",
-                        nombre_pdf
-                    )
-
-                    if os.path.isfile(ruta_pdf):
-
-                        try:
-
-                            with open(
-                                ruta_pdf,
-                                "rb"
-                            ) as archivo_pdf:
-
-                                datos_pdf = (
-                                    archivo_pdf.read()
-                                )
-
-                        except Exception:
-
-                            datos_pdf = None
-
-                    # ==========================================
-                    # 2. SI NO ESTÁ LOCAL → BUSCAR EN NEON
-                    # ==========================================
-
-                    if not datos_pdf and id_pago:
+                    if id_pago:
 
                         conn_pdf = None
                         cursor_pdf = None
@@ -5015,24 +4989,6 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                                 datos_pdf = bytes(
                                     resultado_pdf[0]
                                 )
-
-                                # ==================================
-                                # RECUPERAR TAMBIÉN EL ARCHIVO LOCAL
-                                # ==================================
-
-                                os.makedirs(
-                                    "liquidaciones_pdf",
-                                    exist_ok=True
-                                )
-
-                                with open(
-                                    ruta_pdf,
-                                    "wb"
-                                ) as archivo_pdf:
-
-                                    archivo_pdf.write(
-                                        datos_pdf
-                                    )
 
                         except Exception as e:
 
@@ -5108,7 +5064,7 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                         "ℹ️ No hay comprobantes de "
                         "liquidación disponibles."
                     )
-
+                    
     # ==========================================
     # VALES Y REINTEGROS
     # ==========================================
