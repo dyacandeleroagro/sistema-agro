@@ -831,7 +831,7 @@ def calcular_horas_jornada(
         2
     )
 
-    def obtener_horas_jornada_periodo(
+def obtener_horas_jornada_periodo(
     nombre_empleado,
     fecha_desde,
     fecha_hasta
