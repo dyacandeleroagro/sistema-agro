@@ -1009,7 +1009,7 @@ def recuperar_pdf_original_neon(id_registro):
 # ==========================================================
 
 if not st.session_state.get(
-    "pdfs_recuperados_una_vez",
+    "pdfs_originales_recuperados",
     False
 ):
 
@@ -1031,7 +1031,7 @@ if not st.session_state.get(
         )
 
     st.session_state[
-        "pdfs_recuperados_una_vez"
+        "pdfs_originales_recuperados"
     ] = True
 
     for id_registro, resultado in resultados_recuperacion:
