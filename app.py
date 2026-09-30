@@ -2480,7 +2480,511 @@ def obtener_historial_jornada(id_jornada):
             cursor.close()
 
         if conn:
-            conn.close()        
+            conn.close()  
+# ==========================================================
+# PANTALLA - CONSOLA TRIPULACIÓN
+# ==========================================================
+
+if menu == "🖥️ CONSOLA TRIPULACIÓN":
+
+    st.header("🖥️ Consola Tripulación")
+
+    st.markdown(
+        "### Control y edición de jornadas de los operarios"
+    )
+
+    # ------------------------------------------------------
+    # FILTROS
+    # ------------------------------------------------------
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        fecha_desde_consola = st.date_input(
+            "📅 Desde",
+            value=datetime.date.today()
+        )
+
+    with col2:
+
+        fecha_hasta_consola = st.date_input(
+            "📅 Hasta",
+            value=datetime.date.today()
+        )
+
+    # Obtener empleados
+    jornadas_todas = obtener_jornadas_consola(
+        fecha_desde_consola,
+        fecha_hasta_consola
+    )
+
+    empleados_consola = sorted(
+        list(
+            set(
+                jornada["nombre_empleado"]
+                for jornada in jornadas_todas
+            )
+        )
+    )
+
+    with col3:
+
+        empleado_consola = st.selectbox(
+            "👤 Operario",
+            ["Todos"] + empleados_consola
+        )
+
+    # ------------------------------------------------------
+    # BUSCAR JORNADAS
+    # ------------------------------------------------------
+
+    if empleado_consola == "Todos":
+
+        jornadas_consola = jornadas_todas
+
+    else:
+
+        jornadas_consola = obtener_jornadas_consola(
+            fecha_desde_consola,
+            fecha_hasta_consola,
+            empleado_consola
+        )
+
+    st.markdown("---")
+
+    # ------------------------------------------------------
+    # RESUMEN
+    # ------------------------------------------------------
+
+    total_jornadas = len(jornadas_consola)
+
+    total_horas = sum(
+        float(jornada["horas_totales"] or 0)
+        for jornada in jornadas_consola
+    )
+
+    total_extras = sum(
+        float(jornada["horas_extras"] or 0)
+        for jornada in jornadas_consola
+    )
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        st.metric(
+            "📋 Jornadas",
+            total_jornadas
+        )
+
+    with c2:
+
+        st.metric(
+            "⏱️ Horas totales",
+            f"{total_horas:.2f}"
+        )
+
+    with c3:
+
+        st.metric(
+            "➕ Horas extras",
+            f"{total_extras:.2f}"
+        )
+
+    st.markdown("---")
+
+    # ------------------------------------------------------
+    # MOSTRAR JORNADAS
+    # ------------------------------------------------------
+
+    if not jornadas_consola:
+
+        st.info(
+            "ℹ️ No hay jornadas registradas para este período."
+        )
+
+    else:
+
+        for jornada in jornadas_consola:
+
+            fecha_jornada = jornada["fecha"]
+
+            if hasattr(fecha_jornada, "strftime"):
+
+                fecha_mostrar = fecha_jornada.strftime(
+                    "%d/%m/%Y"
+                )
+
+            else:
+
+                fecha_mostrar = str(fecha_jornada)
+
+            with st.expander(
+                f"👤 {jornada['nombre_empleado']} "
+                f"— 📅 {fecha_mostrar} "
+                f"— ⏱️ {float(jornada['horas_totales'] or 0):.2f} hs"
+            ):
+
+                # --------------------------------------------------
+                # INFORMACIÓN ACTUAL
+                # --------------------------------------------------
+
+                st.markdown("### 🕐 Jornada registrada")
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+
+                    st.write(
+                        "🌅 **Mañana**"
+                    )
+
+                    st.write(
+                        f"Entrada: "
+                        f"{jornada['entrada_manana'] or '-'}"
+                    )
+
+                    st.write(
+                        f"Salida: "
+                        f"{jornada['salida_manana'] or '-'}"
+                    )
+
+                    st.write(
+                        f"Horas: "
+                        f"{float(jornada['horas_manana'] or 0):.2f}"
+                    )
+
+                with col2:
+
+                    st.write(
+                        "🌇 **Tarde**"
+                    )
+
+                    st.write(
+                        f"Entrada: "
+                        f"{jornada['entrada_tarde'] or '-'}"
+                    )
+
+                    st.write(
+                        f"Salida: "
+                        f"{jornada['salida_tarde'] or '-'}"
+                    )
+
+                    st.write(
+                        f"Horas: "
+                        f"{float(jornada['horas_tarde'] or 0):.2f}"
+                    )
+
+                st.write(
+                    f"⏱️ **Total: "
+                    f"{float(jornada['horas_totales'] or 0):.2f} horas**"
+                )
+
+                st.write(
+                    f"➕ **Horas extras: "
+                    f"{float(jornada['horas_extras'] or 0):.2f}**"
+                )
+
+                # --------------------------------------------------
+                # EDITAR
+                # --------------------------------------------------
+
+                st.markdown("---")
+
+                st.markdown(
+                    "### ✏️ Editar jornada"
+                )
+
+                entrada_manana_actual = jornada[
+                    "entrada_manana"
+                ]
+
+                salida_manana_actual = jornada[
+                    "salida_manana"
+                ]
+
+                entrada_tarde_actual = jornada[
+                    "entrada_tarde"
+                ]
+
+                salida_tarde_actual = jornada[
+                    "salida_tarde"
+                ]
+
+                # Convertir a hora para los time_input
+
+                def convertir_hora(valor, defecto):
+
+                    if valor is None:
+
+                        return defecto
+
+                    if isinstance(
+                        valor,
+                        datetime.datetime
+                    ):
+
+                        return valor.time()
+
+                    if isinstance(
+                        valor,
+                        datetime.time
+                    ):
+
+                        return valor
+
+                    return defecto
+
+                entrada_manana_edit = st.time_input(
+                    "Entrada mañana",
+                    value=convertir_hora(
+                        entrada_manana_actual,
+                        datetime.time(8, 0)
+                    ),
+                    key=f"em_{jornada['id']}"
+                )
+
+                salida_manana_edit = st.time_input(
+                    "Salida mañana",
+                    value=convertir_hora(
+                        salida_manana_actual,
+                        datetime.time(12, 0)
+                    ),
+                    key=f"sm_{jornada['id']}"
+                )
+
+                entrada_tarde_edit = st.time_input(
+                    "Entrada tarde",
+                    value=convertir_hora(
+                        entrada_tarde_actual,
+                        datetime.time(14, 0)
+                    ),
+                    key=f"et_{jornada['id']}"
+                )
+
+                salida_tarde_edit = st.time_input(
+                    "Salida tarde",
+                    value=convertir_hora(
+                        salida_tarde_actual,
+                        datetime.time(19, 0)
+                    ),
+                    key=f"st_{jornada['id']}"
+                )
+
+                horas_extras_edit = st.number_input(
+                    "➕ Horas extras",
+                    min_value=0.0,
+                    step=0.5,
+                    value=float(
+                        jornada["horas_extras"] or 0
+                    ),
+                    key=f"extras_{jornada['id']}"
+                )
+
+                observacion_edit = st.text_area(
+                    "📝 Observación",
+                    value=jornada[
+                        "observacion_admin"
+                    ] or "",
+                    key=f"obs_{jornada['id']}"
+                )
+
+                motivo_edit = st.text_input(
+                    "Motivo del cambio",
+                    key=f"motivo_{jornada['id']}",
+                    placeholder="Ej.: Corrección de horario informada por el encargado"
+                )
+
+                # --------------------------------------------------
+                # CALCULAR NUEVAS HORAS
+                # --------------------------------------------------
+
+                fecha_base = jornada["fecha"]
+
+                if isinstance(
+                    fecha_base,
+                    datetime.datetime
+                ):
+
+                    fecha_base = fecha_base.date()
+
+                entrada_manana_dt = datetime.datetime.combine(
+                    fecha_base,
+                    entrada_manana_edit
+                )
+
+                salida_manana_dt = datetime.datetime.combine(
+                    fecha_base,
+                    salida_manana_edit
+                )
+
+                entrada_tarde_dt = datetime.datetime.combine(
+                    fecha_base,
+                    entrada_tarde_edit
+                )
+
+                salida_tarde_dt = datetime.datetime.combine(
+                    fecha_base,
+                    salida_tarde_edit
+                )
+
+                nuevas_horas_manana = calcular_horas_jornada(
+                    entrada_manana_dt,
+                    salida_manana_dt
+                )
+
+                nuevas_horas_tarde = calcular_horas_jornada(
+                    entrada_tarde_dt,
+                    salida_tarde_dt
+                )
+
+                nuevo_total = round(
+                    nuevas_horas_manana
+                    + nuevas_horas_tarde
+                    + horas_extras_edit,
+                    2
+                )
+
+                st.info(
+                    f"⏱️ Nuevo total: "
+                    f"**{nuevo_total:.2f} horas**"
+                )
+
+                # --------------------------------------------------
+                # GUARDAR
+                # --------------------------------------------------
+
+                if st.button(
+                    "💾 Guardar cambios",
+                    key=f"guardar_consola_{jornada['id']}"
+                ):
+
+                    usuario_modifica = (
+                        st.session_state.get(
+                            "nombre_usuario",
+                            st.session_state.get(
+                                "usuario",
+                                "Administrador"
+                            )
+                        )
+                    )
+
+                    motivo_final = (
+                        motivo_edit.strip()
+                        if motivo_edit.strip()
+                        else "Corrección realizada desde Consola Tripulación"
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "entrada_manana",
+                        datetime.datetime.combine(
+                            fecha_base,
+                            entrada_manana_edit
+                        ),
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "salida_manana",
+                        datetime.datetime.combine(
+                            fecha_base,
+                            salida_manana_edit
+                        ),
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "entrada_tarde",
+                        datetime.datetime.combine(
+                            fecha_base,
+                            entrada_tarde_edit
+                        ),
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "salida_tarde",
+                        datetime.datetime.combine(
+                            fecha_base,
+                            salida_tarde_edit
+                        ),
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "horas_manana",
+                        nuevas_horas_manana,
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "horas_tarde",
+                        nuevas_horas_tarde,
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "horas_extras",
+                        horas_extras_edit,
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "horas_totales",
+                        nuevo_total,
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    actualizar_jornada_consola(
+                        jornada["id"],
+                        "observacion_admin",
+                        observacion_edit,
+                        usuario_modifica,
+                        motivo_final
+                    )
+
+                    st.success(
+                        "✅ Jornada actualizada correctamente."
+                    )
+
+                    st.rerun()
+
+                # --------------------------------------------------
+                # HISTORIAL
+                # --------------------------------------------------
+
+                historial = obtener_historial_jornada(
+                    jornada["id"]
+                )
+
+                if historial:
+
+                    st.markdown(
+                        "### 📜 Historial de modificaciones"
+                    )
+
+                    st.dataframe(
+                        pd.DataFrame(historial),
+                        use_container_width=True,
+                        hide_index=True
+                    )                  
 
 # ----------------------------------------------------
 # PESTAÑA: ANALÍTICAS CENTRALES
