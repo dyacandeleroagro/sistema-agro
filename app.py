@@ -1963,8 +1963,9 @@ if menu == "🕐 MI JORNADA":
 
             cierre_tarde = datetime.datetime.combine(
                 fecha_jornada,
-                datetime.time(19, 0)
-            )
+                datetime.time(19, 0),
+                tzinfo=ZoneInfo("America/Argentina/Buenos_Aires")
+            ).replace(tzinfo=None)
 
             if ahora >= cierre_tarde:
 
@@ -2034,7 +2035,9 @@ if menu == "🕐 MI JORNADA":
                     key="btn_mi_jornada_entrada_tarde"
                 ):
 
-                    momento = datetime.datetime.now()
+                    momento = datetime.datetime.now(
+                        ZoneInfo("America/Argentina/Buenos_Aires")
+                    ).replace(tzinfo=None)
 
                     actualizar_jornada_empleado(
                         nombre_empleado,
