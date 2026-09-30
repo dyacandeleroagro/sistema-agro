@@ -333,6 +333,48 @@ def guardar_gasto_en_neon(gasto):
             valores
         )
 
+        # ==================================================
+        # MARCAR LAS JORNADAS PENDIENTES COMO LIQUIDADAS
+        # ==================================================
+
+        nombre_empleado = str(
+            pago.get(
+                "Nombre Empleado",
+                ""
+            )
+        ).strip()
+
+        id_pago = str(
+            pago.get(
+                "ID_Pago",
+                ""
+            )
+        ).strip()
+
+        if nombre_empleado and id_pago:
+
+            cursor.execute(
+                """
+                INSERT INTO jornadas_liquidadas (
+                    id_jornada,
+                    id_pago
+                )
+                SELECT
+                    j.id,
+                    %s
+                FROM jornadas_empleados j
+                LEFT JOIN jornadas_liquidadas jl
+                    ON jl.id_jornada = j.id
+                WHERE j.nombre_empleado = %s
+                  AND jl.id_jornada IS NULL
+                  AND j.estado <> 'cancelado'
+                """,
+                (
+                    id_pago,
+                    nombre_empleado
+                )
+            )
+
         conn.commit()
 
         return True
@@ -831,10 +873,65 @@ def calcular_horas_jornada(
         2
     )
 
-def obtener_horas_jornada_periodo(
-    nombre_empleado,
-    fecha_desde,
-    fecha_hasta
+def obtener_horas_jornada_periodo(nombre_empleado, fecha_desde, fecha_hasta):
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(j.horas_totales), 0)
+            FROM jornadas_empleados j
+            LEFT JOIN jornadas_liquidadas jl
+                ON jl.id_jornada = j.id
+            WHERE j.nombre_empleado = %s
+              AND j.fecha >= %s
+              AND j.fecha <= %s
+              AND jl.id_jornada IS NULL
+              AND j.estado <> 'cancelado'
+            """,
+            (
+                nombre_empleado,
+                fecha_desde,
+                fecha_hasta
+            )
+        )
+
+        resultado = cursor.fetchone()
+
+        if resultado and resultado[0] is not None:
+
+            return float(
+                resultado[0]
+            )
+
+        return 0.0
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Error obteniendo horas pendientes: {e}"
+        )
+
+        return 0.0
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+# ==========================================================
+# HORAS PENDIENTES DE PAGO
+# ==========================================================
+
+def obtener_horas_pendientes_empleado(
+    nombre_empleado
 ):
 
     conn = None
@@ -848,31 +945,34 @@ def obtener_horas_jornada_periodo(
         cursor.execute(
             """
             SELECT
-                COALESCE(SUM(horas_totales), 0)
-            FROM jornadas_empleados
-            WHERE nombre_empleado = %s
-              AND fecha >= %s
-              AND fecha <= %s
+                COALESCE(
+                    SUM(j.horas_totales),
+                    0
+                )
+            FROM jornadas_empleados j
+            LEFT JOIN jornadas_liquidadas jl
+                ON jl.id_jornada = j.id
+            WHERE j.nombre_empleado = %s
+              AND jl.id_jornada IS NULL
+              AND j.estado <> 'cancelado'
             """,
-            (
-                nombre_empleado,
-                fecha_desde,
-                fecha_hasta
-            )
+            (nombre_empleado,)
         )
 
         resultado = cursor.fetchone()
 
         if resultado and resultado[0] is not None:
 
-            return float(resultado[0])
+            return float(
+                resultado[0]
+            )
 
         return 0.0
 
     except Exception as e:
 
         st.error(
-            f"❌ Error obteniendo horas de jornada: {e}"
+            f"❌ Error obteniendo horas pendientes: {e}"
         )
 
         return 0.0
@@ -885,12 +985,151 @@ def obtener_horas_jornada_periodo(
         if conn:
             conn.close()
 
+
+# ==========================================================
+# OBTENER JORNADAS PENDIENTES
+# ==========================================================
+
+def obtener_jornadas_pendientes_empleado(
+    nombre_empleado
+):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                j.id,
+                j.fecha,
+                j.entrada_manana,
+                j.salida_manana,
+                j.entrada_tarde,
+                j.salida_tarde,
+                j.horas_manana,
+                j.horas_tarde,
+                j.horas_totales,
+                j.estado
+            FROM jornadas_empleados j
+            LEFT JOIN jornadas_liquidadas jl
+                ON jl.id_jornada = j.id
+            WHERE j.nombre_empleado = %s
+              AND jl.id_jornada IS NULL
+              AND j.estado <> 'cancelado'
+            ORDER BY j.fecha ASC
+            """,
+            (nombre_empleado,)
+        )
+
+        filas = cursor.fetchall()
+
+        columnas = [
+            "id",
+            "fecha",
+            "entrada_manana",
+            "salida_manana",
+            "entrada_tarde",
+            "salida_tarde",
+            "horas_manana",
+            "horas_tarde",
+            "horas_totales",
+            "estado"
+        ]
+
+        return [
+            dict(zip(columnas, fila))
+            for fila in filas
+        ]
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Error obteniendo jornadas pendientes: {e}"
+        )
+
+        return []
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
+
+# ==========================================================
+# MARCAR JORNADAS COMO LIQUIDADAS
+# ==========================================================
+
+def marcar_jornadas_como_liquidadas(
+    nombre_empleado,
+    id_pago
+):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO jornadas_liquidadas (
+                id_jornada,
+                id_pago
+            )
+            SELECT
+                j.id,
+                %s
+            FROM jornadas_empleados j
+            LEFT JOIN jornadas_liquidadas jl
+                ON jl.id_jornada = j.id
+            WHERE j.nombre_empleado = %s
+              AND jl.id_jornada IS NULL
+              AND j.estado <> 'cancelado'
+            """,
+            (
+                str(id_pago),
+                nombre_empleado
+            )
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        st.error(
+            f"❌ Error marcando jornadas como pagadas: {e}"
+        )
+
+        return False
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()            
+
 # ==========================================================
 # GUARDAR PAGO EN NEON
 # ==========================================================
 
 def guardar_pago_en_neon(pago):
-    
 
     conn = None
     cursor = None
@@ -945,7 +1184,7 @@ def guardar_pago_en_neon(pago):
                     pdf_data = archivo_pdf.read()
 
         # ==================================================
-        # GUARDAR LIQUIDACIÓN + PDF EN NEON
+        # GUARDAR PAGO + PDF EN NEON
         # ==================================================
 
         query = """
@@ -1149,6 +1388,95 @@ def guardar_pago_en_neon(pago):
             query,
             valores
         )
+
+        # ==================================================
+        # MARCAR JORNADAS COMO LIQUIDADAS
+        # SOLAMENTE EN LIQUIDACIÓN ESPECIAL PAGADA
+        # ==================================================
+
+        liquidar_jornadas = (
+            pago.get(
+                "Liquidar Jornadas",
+                False
+            )
+            is True
+        )
+
+        estado_pago = str(
+            pago.get(
+                "Estado Pago",
+                ""
+            )
+        ).strip()
+
+        tipo_registro = str(
+            pago.get(
+                "Tipo Registro",
+                ""
+            )
+        ).strip()
+
+        nombre_empleado = str(
+            pago.get(
+                "Nombre Empleado",
+                ""
+            )
+        ).strip()
+
+        fecha_desde = pago.get(
+            "Fecha Desde Jornadas"
+        )
+
+        fecha_hasta = pago.get(
+            "Fecha Hasta Jornadas"
+        )
+
+        id_pago = str(
+            pago.get(
+                "ID_Pago",
+                ""
+            )
+        ).strip()
+
+        if (
+            liquidar_jornadas
+            and estado_pago == "Pagado"
+            and tipo_registro == "Liquidación / Pago"
+            and nombre_empleado
+            and id_pago
+            and fecha_desde
+            and fecha_hasta
+        ):
+
+            cursor.execute(
+                """
+                INSERT INTO jornadas_liquidadas (
+                    id_jornada,
+                    id_pago
+                )
+                SELECT
+                    j.id,
+                    %s
+                FROM jornadas_empleados j
+                LEFT JOIN jornadas_liquidadas jl
+                    ON jl.id_jornada = j.id
+                WHERE j.nombre_empleado = %s
+                  AND j.fecha >= %s
+                  AND j.fecha <= %s
+                  AND jl.id_jornada IS NULL
+                  AND j.estado <> 'cancelado'
+                """,
+                (
+                    id_pago,
+                    nombre_empleado,
+                    fecha_desde,
+                    fecha_hasta
+                )
+            )
+
+        # ==================================================
+        # CONFIRMAR TODO EN UNA SOLA TRANSACCIÓN
+        # ==================================================
 
         conn.commit()
 
@@ -4681,7 +5009,16 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
 
                                 "PDF Liquidacion":
                                     nombre_pdf
-                            }
+                            
+                                "Liquidar Jornadas":
+                                    True,
+
+                                "Fecha Desde Jornadas":
+                                    fecha_desde_jornada,
+
+                                "Fecha Hasta Jornadas":
+                                    fecha_hasta_jornada
+                            }        
 
                             # ======================================
                             # AGREGAR A LA TABLA
@@ -5064,7 +5401,7 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
                         "ℹ️ No hay comprobantes de "
                         "liquidación disponibles."
                     )
-                    
+
     # ==========================================
     # VALES Y REINTEGROS
     # ==========================================
