@@ -4885,7 +4885,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             # NUEVO MOVIMIENTO
                             # ======================================
 
-                                                        nuevo_pago = {
+                            nuevo_pago = {
 
                                 "ID_Pago":
                                     str(nuevo_id),
