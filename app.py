@@ -1626,8 +1626,11 @@ if tiene_rol("Dueño","Administrador","Contador"):
 if tiene_rol("Dueño","Administrador","Encargado"):
     opciones.append("👥 SISTEMA DE TRIPULACIÓN")
 
-if tiene_rol("Operario", "Maquinista", "Dueño"):
-    opciones.append("🕐 MI JORNADA")    
+if tiene_rol("Operario", "Maquinista","Encargado" ):
+    opciones.append("🕐 MI JORNADA")
+
+if tiene_rol("Dueño", "Administrador"):
+    opciones.append("🖥️ CONSOLA TRIPULACIÓN")        
 
 if tiene_rol("Dueño","Administrador","Encargado","Operario","Maquinista"):
     opciones.append("📋 RENDICIÓN POR OPERARIO")
@@ -2165,6 +2168,319 @@ if menu == "🕐 MI JORNADA":
             "con la hora del sistema. No se pueden modificar "
             "manualmente."
         )
+# ==========================================================
+# CONSOLA TRIPULACIÓN
+# FUNCIONES DE ADMINISTRACIÓN DE JORNADAS
+# ==========================================================
+
+def obtener_jornadas_consola(
+    fecha_desde,
+    fecha_hasta,
+    empleado=None
+):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        if empleado:
+
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    nombre_empleado,
+                    fecha,
+                    entrada_manana,
+                    salida_manana,
+                    entrada_tarde,
+                    salida_tarde,
+                    horas_manana,
+                    horas_tarde,
+                    horas_totales,
+                    COALESCE(horas_extras, 0),
+                    COALESCE(observacion_admin, ''),
+                    estado
+                FROM jornadas_empleados
+                WHERE fecha >= %s
+                  AND fecha <= %s
+                  AND nombre_empleado = %s
+                ORDER BY fecha DESC, nombre_empleado
+                """,
+                (
+                    fecha_desde,
+                    fecha_hasta,
+                    empleado
+                )
+            )
+
+        else:
+
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    nombre_empleado,
+                    fecha,
+                    entrada_manana,
+                    salida_manana,
+                    entrada_tarde,
+                    salida_tarde,
+                    horas_manana,
+                    horas_tarde,
+                    horas_totales,
+                    COALESCE(horas_extras, 0),
+                    COALESCE(observacion_admin, ''),
+                    estado
+                FROM jornadas_empleados
+                WHERE fecha >= %s
+                  AND fecha <= %s
+                ORDER BY fecha DESC, nombre_empleado
+                """,
+                (
+                    fecha_desde,
+                    fecha_hasta
+                )
+            )
+
+        filas = cursor.fetchall()
+
+        columnas = [
+            "id",
+            "nombre_empleado",
+            "fecha",
+            "entrada_manana",
+            "salida_manana",
+            "entrada_tarde",
+            "salida_tarde",
+            "horas_manana",
+            "horas_tarde",
+            "horas_totales",
+            "horas_extras",
+            "observacion_admin",
+            "estado"
+        ]
+
+        return [
+            dict(zip(columnas, fila))
+            for fila in filas
+        ]
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Error obteniendo jornadas: {e}"
+        )
+
+        return []
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
+
+def actualizar_jornada_consola(
+    id_jornada,
+    campo,
+    valor_nuevo,
+    modificado_por,
+    motivo
+):
+
+    campos_permitidos = {
+        "entrada_manana",
+        "salida_manana",
+        "entrada_tarde",
+        "salida_tarde",
+        "horas_manana",
+        "horas_tarde",
+        "horas_totales",
+        "horas_extras",
+        "observacion_admin"
+    }
+
+    if campo not in campos_permitidos:
+
+        st.error(
+            "❌ Campo no permitido."
+        )
+
+        return False
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"""
+            SELECT
+                nombre_empleado,
+                {campo}
+            FROM jornadas_empleados
+            WHERE id = %s
+            """,
+            (
+                id_jornada,
+            )
+        )
+
+        resultado = cursor.fetchone()
+
+        if not resultado:
+
+            st.error(
+                "❌ No se encontró la jornada."
+            )
+
+            return False
+
+        empleado = resultado[0]
+        valor_anterior = resultado[1]
+
+        cursor.execute(
+            f"""
+            UPDATE jornadas_empleados
+            SET {campo} = %s,
+                actualizado_en = CURRENT_TIMESTAMP
+            WHERE id = %s
+            """,
+            (
+                valor_nuevo,
+                id_jornada
+            )
+        )
+
+        cursor.execute(
+            """
+            INSERT INTO historial_jornadas (
+                id_jornada,
+                empleado,
+                campo_modificado,
+                valor_anterior,
+                valor_nuevo,
+                motivo,
+                modificado_por
+            )
+            VALUES (
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
+            )
+            """,
+            (
+                id_jornada,
+                empleado,
+                campo,
+                str(valor_anterior)
+                if valor_anterior is not None
+                else "",
+                str(valor_nuevo)
+                if valor_nuevo is not None
+                else "",
+                motivo,
+                modificado_por
+            )
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        st.error(
+            f"❌ Error modificando la jornada: {e}"
+        )
+
+        return False
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
+
+def obtener_historial_jornada(id_jornada):
+
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                fecha_modificacion,
+                modificado_por,
+                campo_modificado,
+                valor_anterior,
+                valor_nuevo,
+                motivo
+            FROM historial_jornadas
+            WHERE id_jornada = %s
+            ORDER BY fecha_modificacion DESC
+            """,
+            (
+                id_jornada,
+            )
+        )
+
+        filas = cursor.fetchall()
+
+        columnas = [
+            "Fecha",
+            "Modificado por",
+            "Campo",
+            "Antes",
+            "Después",
+            "Motivo"
+        ]
+
+        return [
+            dict(zip(columnas, fila))
+            for fila in filas
+        ]
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Error obteniendo historial: {e}"
+        )
+
+        return []
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()        
 
 # ----------------------------------------------------
 # PESTAÑA: ANALÍTICAS CENTRALES
