@@ -4885,7 +4885,7 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                             # NUEVO MOVIMIENTO
                             # ======================================
 
-                            nuevo_pago = {
+                                                        nuevo_pago = {
 
                                 "ID_Pago":
                                     str(nuevo_id),
@@ -4917,9 +4917,6 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                         2
                                     ),
 
-                                # IMPORTANTE:
-                                # ESTE ES EL MONTO QUE
-                                # REALMENTE INGRESÓ EL USUARIO
                                 "Monto (ARS)":
                                     round(
                                         monto_pagado,
@@ -5008,8 +5005,8 @@ if menu == "👥 SISTEMA DE TRIPULACIÓN":
                                     ),
 
                                 "PDF Liquidacion":
-                                    nombre_pdf
-                            
+                                    nombre_pdf,
+
                                 "Liquidar Jornadas":
                                     True,
 
