@@ -290,7 +290,6 @@ df_facturas["ID"] = (
 
 def guardar_gasto_en_neon(gasto, comprobante_data=None):
 
-```
 conn = None
 cursor = None
 
