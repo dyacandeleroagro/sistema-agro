@@ -282,81 +282,78 @@ df_facturas["ID"] = (
     .fillna("")
     .astype(str)
 )
-# ==========================================================
 
+# ==========================================================
 # GUARDAR GASTO EN NEON
-
 # ==========================================================
-
 
 def guardar_gasto_en_neon(gasto, comprobante_data=None):
 
     conn = None
     cursor = None
 
-try:
+    try:
 
-    conn = get_conn()
-    cursor = conn.cursor()
+        conn = get_conn()
+        cursor = conn.cursor()
 
-    query = """
-        INSERT INTO gastos_comerciales (
-            id_gasto,
-            fecha_registro,
-            proveedor,
-            monto_original,
-            moneda,
-            monto_ars,
-            categoria,
-            lote_asignado,
-            estado_pago,
-            archivo_comprobante,
+        query = """
+            INSERT INTO gastos_comerciales (
+                id_gasto,
+                fecha_registro,
+                proveedor,
+                monto_original,
+                moneda,
+                monto_ars,
+                categoria,
+                lote_asignado,
+                estado_pago,
+                archivo_comprobante,
+                comprobante_data
+            )
+            VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s
+            )
+        """
+
+        valores = (
+            str(gasto.get("ID", "")),
+            gasto.get("Fecha Registro") or None,
+            gasto.get("Proveedor", ""),
+            float(gasto.get("Monto Original", 0) or 0),
+            gasto.get("Moneda", "ARS"),
+            float(gasto.get("Monto (ARS)", 0) or 0),
+            gasto.get("Categoría", ""),
+            gasto.get("Lote Asignado", ""),
+            gasto.get("Estado Pago", ""),
+            gasto.get("Archivo Comprobante", ""),
             comprobante_data
         )
-        VALUES (
-            %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s
+
+        cursor.execute(query, valores)
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        st.error(
+            f"❌ Error guardando gasto en Neon: {e}"
         )
-    """
 
-    valores = (
-        str(gasto.get("ID", "")),
-        gasto.get("Fecha Registro") or None,
-        gasto.get("Proveedor", ""),
-        float(gasto.get("Monto Original", 0) or 0),
-        gasto.get("Moneda", "ARS"),
-        float(gasto.get("Monto (ARS)", 0) or 0),
-        gasto.get("Categoría", ""),
-        gasto.get("Lote Asignado", ""),
-        gasto.get("Estado Pago", ""),
-        gasto.get("Archivo Comprobante", ""),
-        comprobante_data
-    )
+        return False
 
-    cursor.execute(query, valores)
-    conn.commit()
+    finally:
 
-    return True
+        if cursor:
+            cursor.close()
 
-except Exception as e:
-
-    if conn:
-        conn.rollback()
-
-    st.error(
-        f"❌ Error guardando gasto en Neon: {e}"
-    )
-
-    return False
-
-finally:
-
-    if cursor:
-        cursor.close()
-
-    if conn:
-        conn.close()
-
+        if conn:
+            conn.close()
 
 
 
