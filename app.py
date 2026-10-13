@@ -192,7 +192,7 @@ def cargar_gastos_desde_neon():
                 estado_pago,
                 archivo_comprobante
             FROM gastos_comerciales
-            ORDER BY fecha_registro, id
+            ORDER BY fecha_registro, id_gasto
         """
 
         df = pd.read_sql_query(
@@ -283,120 +283,83 @@ df_facturas["ID"] = (
     .astype(str)
 )
 # ==========================================================
+
 # GUARDAR GASTO EN NEON
+
 # ==========================================================
 
-def guardar_gasto_en_neon(gasto):
+def guardar_gasto_en_neon(gasto, comprobante_data=None):
 
-    conn = None
-    cursor = None
+```
+conn = None
+cursor = None
 
-    try:
+try:
 
-        conn = get_conn()
-        cursor = conn.cursor()
+    conn = get_conn()
+    cursor = conn.cursor()
 
-        query = """
-            INSERT INTO gastos_comerciales (
-                id_gasto,
-                fecha_registro,
-                proveedor,
-                monto_original,
-                moneda,
-                monto_ars,
-                categoria,
-                lote_asignado,
-                estado_pago,
-                archivo_comprobante
-            )
-            VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s
-            )
-        """
-
-        valores = (
-            str(gasto.get("ID", "")),
-            gasto.get("Fecha Registro") or None,
-            gasto.get("Proveedor", ""),
-            float(gasto.get("Monto Original", 0) or 0),
-            gasto.get("Moneda", "ARS"),
-            float(gasto.get("Monto (ARS)", 0) or 0),
-            gasto.get("Categoría", ""),
-            gasto.get("Lote Asignado", ""),
-            gasto.get("Estado Pago", ""),
-            gasto.get("Archivo Comprobante", "")
+    query = """
+        INSERT INTO gastos_comerciales (
+            id_gasto,
+            fecha_registro,
+            proveedor,
+            monto_original,
+            moneda,
+            monto_ars,
+            categoria,
+            lote_asignado,
+            estado_pago,
+            archivo_comprobante,
+            comprobante_data
         )
-
-        cursor.execute(
-            query,
-            valores
+        VALUES (
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s
         )
+    """
 
-        # ==================================================
-        # MARCAR LAS JORNADAS PENDIENTES COMO LIQUIDADAS
-        # ==================================================
+    valores = (
+        str(gasto.get("ID", "")),
+        gasto.get("Fecha Registro") or None,
+        gasto.get("Proveedor", ""),
+        float(gasto.get("Monto Original", 0) or 0),
+        gasto.get("Moneda", "ARS"),
+        float(gasto.get("Monto (ARS)", 0) or 0),
+        gasto.get("Categoría", ""),
+        gasto.get("Lote Asignado", ""),
+        gasto.get("Estado Pago", ""),
+        gasto.get("Archivo Comprobante", ""),
+        comprobante_data
+    )
 
-        nombre_empleado = str(
-            pago.get(
-                "Nombre Empleado",
-                ""
-            )
-        ).strip()
+    cursor.execute(query, valores)
+    conn.commit()
 
-        id_pago = str(
-            pago.get(
-                "ID_Pago",
-                ""
-            )
-        ).strip()
+    return True
 
-        if nombre_empleado and id_pago:
+except Exception as e:
 
-            cursor.execute(
-                """
-                INSERT INTO jornadas_liquidadas (
-                    id_jornada,
-                    id_pago
-                )
-                SELECT
-                    j.id,
-                    %s
-                FROM jornadas_empleados j
-                LEFT JOIN jornadas_liquidadas jl
-                    ON jl.id_jornada = j.id
-                WHERE j.nombre_empleado = %s
-                  AND jl.id_jornada IS NULL
-                  AND j.estado <> 'cancelado'
-                """,
-                (
-                    id_pago,
-                    nombre_empleado
-                )
-            )
+    if conn:
+        conn.rollback()
 
-        conn.commit()
+    st.error(
+        f"❌ Error guardando gasto en Neon: {e}"
+    )
 
-        return True
+    return False
 
-    except Exception as e:
+finally:
 
-        if conn:
-            conn.rollback()
+    if cursor:
+        cursor.close()
 
-        st.error(
-            f"❌ Error guardando gasto en Neon: {e}"
-        )
+    if conn:
+        conn.close()
 
-        return False
 
-    finally:
 
-        if cursor:
-            cursor.close()
 
-        if conn:
-            conn.close()
 if not os.path.exists("registro_telemetria.csv"):
     pd.DataFrame(columns=["Fecha", "Maquinaria", "Lote", "Has Trabajadas", "Gasoil Consumido (L)", "Eficiencia (L/Ha)"]).to_csv("registro_telemetria.csv", index=False)
 df_telemetria = pd.read_csv("registro_telemetria.csv")
@@ -3440,6 +3403,7 @@ if menu == "🚜 LABORES Y LOTES":
         st.info(
             "Todavía no hay partes diarios cargados"
         )
+
 # ----------------------------------------------------
 # PESTAÑA: GASTOS COMERCIALES
 # ----------------------------------------------------
@@ -3458,9 +3422,7 @@ if menu == "🧾 GASTOS COMERCIALES":
                 value=datetime.date.today()
             )
 
-            proveedor = st.text_input(
-                "Proveedor"
-            )
+            proveedor = st.text_input("Proveedor")
 
             categoria = st.selectbox(
                 "Categoría",
@@ -3484,98 +3446,71 @@ if menu == "🧾 GASTOS COMERCIALES":
 
             estado = st.selectbox(
                 "Estado",
-                [
-                    "Pendiente de Pago",
-                    "Pagado"
-                ]
+                ["Pendiente de Pago", "Pagado"]
             )
 
-            lote = st.text_input(
-                "Lote / Destino"
-            )
+            lote = st.text_input("Lote / Destino")
 
             archivo_adjunto = st.file_uploader(
                 "📎 Subir comprobante",
                 type=["pdf", "png", "jpg", "jpeg"]
             )
 
-        guardar = st.form_submit_button(
-            "💾 Guardar gasto"
-        )
+        guardar = st.form_submit_button("💾 Guardar gasto")
 
     if guardar:
 
-        os.makedirs("comprobantes", exist_ok=True)
+        ahora = datetime.datetime.now()
 
         nombre_archivo_guardado = ""
+        comprobante_data = None
 
         if archivo_adjunto is not None:
 
             nombre_archivo_guardado = (
-                f"{int(datetime.datetime.now().timestamp())}_"
+                f"{int(ahora.timestamp())}_"
                 f"{archivo_adjunto.name}"
             )
 
-            ruta_comprobante = os.path.join(
-                "comprobantes",
-                nombre_archivo_guardado
-            )
-
-            with open(
-                ruta_comprobante,
-                "wb"
-            ) as archivo:
-
-                archivo.write(
-                    archivo_adjunto.getbuffer()
-                )
+            comprobante_data = archivo_adjunto.getvalue()
 
         nuevo = {
-
-            "ID": str(int(datetime.datetime.now().timestamp())),
-
+            "ID": str(int(ahora.timestamp() * 1000000)),
             "Fecha Registro": fecha.strftime("%Y-%m-%d"),
-
             "Proveedor": proveedor,
-
             "Monto Original": monto,
-
             "Moneda": "ARS",
-
             "Monto (ARS)": monto,
-
             "Categoría": categoria,
-
             "Lote Asignado": lote,
-
             "Estado Pago": estado,
-
             "Archivo Comprobante": nombre_archivo_guardado
-
         }
 
-        df_facturas = pd.concat(
-            [
-                df_facturas,
-                pd.DataFrame([nuevo])
-            ],
-            ignore_index=True
+        guardado = guardar_gasto_en_neon(
+            nuevo,
+            comprobante_data
         )
 
-        guardar_gasto_en_neon(nuevo)
+        if guardado:
 
-        df_facturas.to_csv(
-            "datos_facturas.csv",
-            index=False
-        )
+            st.success(
+                "✅ Gasto y comprobante guardados en Neon."
+            )
 
-        st.success("Gasto guardado correctamente")
-
-        st.rerun()
+            st.rerun()
 
     st.divider()
 
     st.subheader("📋 Gastos registrados")
+
+    # Recargar los datos desde Neon para no depender del CSV local.
+    df_facturas = cargar_gastos_desde_neon()
+
+    for columna, valor in columnas_facturas.items():
+
+        if columna not in df_facturas.columns:
+            df_facturas[columna] = valor
 
     if not df_facturas.empty:
 
@@ -3584,11 +3519,18 @@ if menu == "🧾 GASTOS COMERCIALES":
             use_container_width=True
         )
 
-        total = df_facturas["Monto (ARS)"].sum()
+        total = pd.to_numeric(
+            df_facturas["Monto (ARS)"],
+            errors="coerce"
+        ).fillna(0).sum()
 
-        pendientes = df_facturas[
-            df_facturas["Estado Pago"] == "Pendiente de Pago"
-        ]["Monto (ARS)"].sum()
+        pendientes = pd.to_numeric(
+            df_facturas.loc[
+                df_facturas["Estado Pago"] == "Pendiente de Pago",
+                "Monto (ARS)"
+            ],
+            errors="coerce"
+        ).fillna(0).sum()
 
         c1, c2 = st.columns(2)
 
@@ -3604,9 +3546,90 @@ if menu == "🧾 GASTOS COMERCIALES":
                 f"$ {pendientes:,.2f}"
             )
 
+        st.divider()
+
+        st.subheader("📎 Comprobantes guardados")
+
+        conn_comprobantes = None
+        cursor_comprobantes = None
+
+        try:
+
+            conn_comprobantes = get_conn()
+            cursor_comprobantes = conn_comprobantes.cursor()
+
+            cursor_comprobantes.execute(
+                """
+                SELECT
+                    id_gasto,
+                    archivo_comprobante,
+                    comprobante_data
+                FROM gastos_comerciales
+                ORDER BY fecha_registro DESC
+                """
+            )
+
+            comprobantes = cursor_comprobantes.fetchall()
+
+            for id_gasto, nombre_archivo, contenido in comprobantes:
+
+                if not contenido:
+                    continue
+
+                nombre_mostrar = (
+                    nombre_archivo
+                    or f"comprobante_{id_gasto}"
+                )
+
+                with st.expander(
+                    f"📄 Gasto {id_gasto} — {nombre_mostrar}"
+                ):
+
+                    st.download_button(
+                        label="⬇️ Descargar comprobante",
+                        data=bytes(contenido),
+                        file_name=nombre_mostrar,
+                        mime=(
+                            "application/pdf"
+                            if nombre_mostrar.lower().endswith(".pdf")
+                            else (
+                                "image/png"
+                                if nombre_mostrar.lower().endswith(".png")
+                                else (
+                                    "image/jpeg"
+                                    if nombre_mostrar.lower().endswith(
+                                        (".jpg", ".jpeg")
+                                    )
+                                    else "application/octet-stream"
+                                )
+                            )
+                        ),
+                        key=f"descargar_gasto_{id_gasto}"
+                    )
+
+                    if nombre_mostrar.lower().endswith(
+                        (".png", ".jpg", ".jpeg")
+                    ):
+
+                        st.image(bytes(contenido))
+
+        except Exception as e:
+
+            st.error(
+                f"❌ No se pudieron recuperar los comprobantes: {e}"
+            )
+
+        finally:
+
+            if cursor_comprobantes:
+                cursor_comprobantes.close()
+
+            if conn_comprobantes:
+                conn_comprobantes.close()
+
     else:
 
-        st.info("Todavía no hay gastos cargados.")        
+        st.info("Todavía no hay gastos cargados en Neon.")  
 # ----------------------------------------------------
 # PESTAÑA: CUENTAS PENDIENTES
 # ----------------------------------------------------
