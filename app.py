@@ -32,11 +32,7 @@ from pages.mantenimiento import pantalla_mantenimiento
 from pages.administracion import pantalla_administracion
 from pages.panel_dueno import pantalla_panel_dueno
 from database import get_conn
-#from operaciones_db import (
-#    cargar_seguros_desde_neon,
-#    guardar_seguro_neon,
-#    eliminar_seguro_neon,
-#)
+# Imports de seguros: se cargan dentro de la pestaña
 from operaciones_db import (
     cargar_labores_desde_neon,
     guardar_labor_neon,
@@ -6362,6 +6358,12 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
     if not tiene_rol("Dueño", "Administrador"):
         st.error("No tiene permisos.")
         st.stop()
+        
+    from operaciones_db import (
+        cargar_seguros_desde_neon,
+        guardar_seguro_neon,
+        eliminar_seguro_neon,
+    )    
 
     st.header("🛡 Control de Pólizas y Seguros")
 
