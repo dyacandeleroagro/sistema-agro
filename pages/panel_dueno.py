@@ -13,6 +13,28 @@ def leer_csv(nombre, columnas=None):
     return pd.DataFrame(columns=columnas if columnas else [])
 
 
+def cargar_labores_desde_neon():
+    """Carga las labores y lotes directamente desde Neon."""
+    conn = None
+
+    try:
+        from operaciones_db import cargar_labores_desde_neon as cargar_labores
+        return cargar_labores()
+
+    except Exception as e:
+        st.error(f"❌ No se pudieron cargar las labores y lotes desde Neon: {e}")
+        return pd.DataFrame(
+            columns=[
+                "ID",
+                "Fecha",
+                "Maquinaria",
+                "Lote",
+                "Has Trabajadas",
+                "Gasoil Consumido (L)",
+                "Eficiencia (L/Ha)"
+            ]
+        )
+
 def cargar_gastos_desde_neon():
     conn = None
 
