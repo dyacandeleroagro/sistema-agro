@@ -515,3 +515,194 @@ def eliminar_ingreso_neon(id_ingreso):
             cur.close()
         if conn:
             conn.close()
+
+# ==========================================
+# SEGUROS Y COBERTURAS - NEON
+# ==========================================
+
+def asegurar_tabla_seguros():
+    conn = None
+    cur = None
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS seguros_coberturas (
+                id_seguro TEXT PRIMARY KEY,
+                compania TEXT NOT NULL DEFAULT '',
+                tipo_cobertura TEXT NOT NULL DEFAULT '',
+                bien_asegurado TEXT NOT NULL DEFAULT '',
+                vencimiento DATE NOT NULL,
+                monto_prima NUMERIC(14,2) NOT NULL DEFAULT 0,
+                estado_pago TEXT NOT NULL DEFAULT 'Pendiente',
+                creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        conn.commit()
+
+        # Importar el CSV solamente si Neon no tiene seguros.
+        cur.execute("SELECT COUNT(*) FROM seguros_coberturas")
+        tabla_vacia = cur.fetchone()[0] == 0
+
+        if tabla_vacia and os.path.exists("registro_seguros.csv"):
+            df = pd.read_csv(
+                "registro_seguros.csv",
+                dtype=str
+            ).fillna("")
+
+            for indice, fila in df.iterrows():
+                identificador = (
+                    fila.get("ID_Seguro", "").strip()
+                    or f"seg_csv_{indice}"
+                )
+
+                vencimiento = _fecha_sql(
+                    fila.get("Vencimiento", "")
+                )
+
+                if vencimiento is None:
+                    continue
+
+                monto = _numero(
+                    fila.get("Monto Prima (ARS)", 0)
+                )
+
+                cur.execute("""
+                    INSERT INTO seguros_coberturas (
+                        id_seguro, compania, tipo_cobertura,
+                        bien_asegurado, vencimiento,
+                        monto_prima, estado_pago
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id_seguro) DO NOTHING
+                """, (
+                    identificador,
+                    fila.get("Compañía", ""),
+                    fila.get("Tipo Cobertura", ""),
+                    fila.get("Bien Asegurado", ""),
+                    vencimiento,
+                    monto,
+                    fila.get("Estado Pago", "Pendiente")
+                    or "Pendiente"
+                ))
+
+            conn.commit()
+
+    except Exception:
+        if conn:
+            conn.rollback()
+        raise
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+def cargar_seguros_desde_neon():
+    asegurar_tabla_seguros()
+
+    conn = None
+
+    try:
+        conn = get_conn()
+
+        df = pd.read_sql_query("""
+            SELECT
+                id_seguro AS "ID_Seguro",
+                compania AS "Compañía",
+                tipo_cobertura AS "Tipo Cobertura",
+                bien_asegurado AS "Bien Asegurado",
+                TO_CHAR(vencimiento, 'YYYY-MM-DD') AS "Vencimiento",
+                monto_prima AS "Monto Prima (ARS)",
+                estado_pago AS "Estado Pago"
+            FROM seguros_coberturas
+            ORDER BY vencimiento ASC
+        """, conn)
+
+        df["Monto Prima (ARS)"] = pd.to_numeric(
+            df["Monto Prima (ARS)"],
+            errors="coerce"
+        ).fillna(0)
+
+        return df
+
+    finally:
+        if conn:
+            conn.close()
+
+
+def guardar_seguro_neon(seguro):
+    conn = None
+    cur = None
+
+    try:
+        asegurar_tabla_seguros()
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            INSERT INTO seguros_coberturas (
+                id_seguro, compania, tipo_cobertura,
+                bien_asegurado, vencimiento,
+                monto_prima, estado_pago
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id_seguro) DO NOTHING
+        """, (
+            str(seguro["ID_Seguro"]),
+            str(seguro.get("Compañía", "")),
+            str(seguro.get("Tipo Cobertura", "")),
+            str(seguro.get("Bien Asegurado", "")),
+            _fecha_sql(seguro["Vencimiento"]),
+            _numero(seguro.get("Monto Prima (ARS)", 0)),
+            str(seguro.get("Estado Pago", "Pendiente"))
+        ))
+
+        conn.commit()
+        return cur.rowcount > 0
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+        st.error(f"No se pudo guardar el seguro en Neon: {exc}")
+        return False
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+def eliminar_seguro_neon(id_seguro):
+    conn = None
+    cur = None
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute(
+            "DELETE FROM seguros_coberturas WHERE id_seguro = %s",
+            (str(id_seguro),)
+        )
+
+        conn.commit()
+        return cur.rowcount > 0
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+        st.error(f"No se pudo eliminar el seguro de Neon: {exc}")
+        return False
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()            

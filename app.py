@@ -33,6 +33,11 @@ from pages.administracion import pantalla_administracion
 from pages.panel_dueno import pantalla_panel_dueno
 from database import get_conn
 from operaciones_db import (
+    cargar_seguros_desde_neon,
+    guardar_seguro_neon,
+    eliminar_seguro_neon,
+)
+from operaciones_db import (
     cargar_labores_desde_neon,
     guardar_labor_neon,
     actualizar_labor_neon,
@@ -6349,6 +6354,7 @@ if menu == "🔔 NOTIFICACIONES":
     st.divider()
 
     mostrar_notificaciones()
+
 # ----------------------------------------------------
 # PESTAÑA: SEGUROS Y COBERTURAS
 # ----------------------------------------------------
@@ -6358,28 +6364,122 @@ if menu == "🛡 SEGUROS Y COBERTURAS":
         st.stop()
 
     st.header("🛡 Control de Pólizas y Seguros")
+
+    try:
+        df_seguros = cargar_seguros_desde_neon()
+    except Exception as e:
+        st.error(f"No se pudieron cargar los seguros desde Neon: {e}")
+        st.stop()
+
     with st.form("form_seguros", clear_on_submit=True):
         s1, s2, s3 = st.columns(3)
+
         with s1:
             seg_comp = st.text_input("Compañía Aseguradora")
-            seg_tipo = st.selectbox("Tipo Cobertura", ["Maquinaria Agrícola", "Granizo / Multiriesgo", "Responsabilidad Civil", "Otros"])
+            seg_tipo = st.selectbox(
+                "Tipo Cobertura",
+                [
+                    "Maquinaria Agrícola",
+                    "Granizo / Multiriesgo",
+                    "Responsabilidad Civil",
+                    "Otros",
+                ],
+            )
+
         with s2:
             seg_bien = st.text_input("Bien Asegurado")
-            seg_venc = st.date_input("Vencimiento", value=datetime.date.today())
-        with s3:
-            seg_monto = st.number_input("Monto Cuota ($ ARS)", min_value=0.0)
-            seg_estado = st.radio("Estado:", ["Pagado", "Pendiente"], horizontal=True)
-        btn_seguro = st.form_submit_button("💾 Archivar")
-        if btn_seguro and seg_comp and seg_monto > 0:
-                nuevo_seg = {
-                    "ID_Seguro": f"seg_{int(datetime.datetime.now().timestamp())}", "Compañía": seg_comp.strip(), "Tipo Cobertura": seg_tipo,
-                    "Bien Asegurado": seg_bien.strip(), "Vencimiento": seg_venc.strftime("%Y-%m-%d"), "Monto Prima (ARS)": seg_monto, "Estado Pago": seg_estado
-                }
-                df_seguros = pd.concat([df_seguros, pd.DataFrame([nuevo_seg])], ignore_index=True)
-                df_seguros.to_csv("registro_seguros.csv", index=False)
-                st.rerun()
-        if not df_seguros.empty: st.dataframe(df_seguros, use_container_width=True)
+            seg_venc = st.date_input(
+                "Vencimiento",
+                value=datetime.date.today(),
+            )
 
+        with s3:
+            seg_monto = st.number_input(
+                "Monto Cuota ($ ARS)",
+                min_value=0.0,
+            )
+            seg_estado = st.radio(
+                "Estado:",
+                ["Pagado", "Pendiente"],
+                horizontal=True,
+            )
+
+        btn_seguro = st.form_submit_button("💾 Archivar")
+
+    if btn_seguro:
+        if not seg_comp.strip():
+            st.warning("Ingresá la compañía aseguradora.")
+        elif not seg_bien.strip():
+            st.warning("Ingresá el bien asegurado.")
+        elif seg_monto <= 0:
+            st.warning("El monto debe ser mayor que cero.")
+        else:
+            nuevo_seg = {
+                "ID_Seguro": (
+                    "seg_"
+                    + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+                ),
+                "Compañía": seg_comp.strip(),
+                "Tipo Cobertura": seg_tipo,
+                "Bien Asegurado": seg_bien.strip(),
+                "Vencimiento": seg_venc.strftime("%Y-%m-%d"),
+                "Monto Prima (ARS)": seg_monto,
+                "Estado Pago": seg_estado,
+            }
+
+            if guardar_seguro_neon(nuevo_seg):
+                st.success("✅ Seguro archivado correctamente en Neon.")
+                st.rerun()
+            else:
+                st.error(
+                    "No se pudo guardar el seguro. "
+                    "Revisá el mensaje de error anterior."
+                )
+
+    st.divider()
+    st.subheader("📋 Seguros registrados")
+
+    try:
+        df_seguros = cargar_seguros_desde_neon()
+    except Exception as e:
+        st.error(f"No se pudieron actualizar los seguros: {e}")
+        st.stop()
+
+    if df_seguros.empty:
+        st.info("Todavía no hay seguros registrados.")
+    else:
+        st.dataframe(
+            df_seguros.drop(columns=["ID_Seguro"]),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.subheader("🗑️ Eliminar un seguro")
+
+        for _, fila in df_seguros.iterrows():
+            id_seguro = str(fila["ID_Seguro"])
+
+            c_info, c_boton = st.columns([5, 1])
+
+            with c_info:
+                st.write(
+                    f"**{fila['Compañía']}** | "
+                    f"{fila['Bien Asegurado']} | "
+                    f"Vence: {fila['Vencimiento']} | "
+                    f"$ {float(fila['Monto Prima (ARS)'] or 0):,.2f} | "
+                    f"{fila['Estado Pago']}"
+                )
+
+            with c_boton:
+                if st.button(
+                    "🗑️ Borrar",
+                    key=f"borrar_seguro_{id_seguro}",
+                ):
+                    if eliminar_seguro_neon(id_seguro):
+                        st.success("Seguro eliminado correctamente.")
+                        st.rerun()
+                    else:
+                        st.error("No se pudo eliminar el seguro.")
 # ----------------------------------------------------
 # PESTAÑA SECRETA: CONTROL DE ERRORES
 # ----------------------------------------------------
