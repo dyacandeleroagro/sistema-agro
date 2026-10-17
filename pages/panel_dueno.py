@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-from operaciones_db import cargar_labores_desde_neon, cargar_combustible_desde_neon
 
 
 def leer_csv(nombre, columnas=None):
@@ -30,7 +29,9 @@ def pantalla_panel_dueno():
         "datos_facturas.csv"
     )
 
-    combustible = cargar_combustible_desde_neon()
+    combustible = leer_csv(
+        "registro_combustible.csv"
+    )
 
     agenda = leer_csv(
         "agenda.csv"
@@ -40,7 +41,9 @@ def pantalla_panel_dueno():
         "registro_pagos_empleados.csv"
     )
 
-    telemetria = cargar_labores_desde_neon()
+    telemetria = leer_csv(
+        "registro_telemetria.csv"
+    )
 
 
 
@@ -55,37 +58,27 @@ def pantalla_panel_dueno():
 
     if not ingresos.empty:
 
-        columna_monto_ingresos = (
+        total_ingresos = ingresos[
             "Monto Total (ARS)"
-            if "Monto Total (ARS)" in ingresos.columns
-            else "Monto"
-        )
-
-        if columna_monto_ingresos in ingresos.columns:
-            total_ingresos = pd.to_numeric(
-                ingresos[columna_monto_ingresos],
-                errors="coerce"
-            ).fillna(0).sum()
+        ].sum()
 
 
     total_gastos = 0
 
-    if not gastos.empty and "Monto (ARS)" in gastos.columns:
+    if not gastos.empty:
 
-        total_gastos = pd.to_numeric(
-            gastos["Monto (ARS)"],
-            errors="coerce"
-        ).fillna(0).sum()
+        total_gastos = gastos[
+            "Monto (ARS)"
+        ].sum()
 
 
     total_combustible = 0
 
-    if not combustible.empty and "Total" in combustible.columns:
+    if not combustible.empty:
 
-        total_combustible = pd.to_numeric(
-            combustible["Total"],
-            errors="coerce"
-        ).fillna(0).sum()
+        total_combustible = combustible[
+            "Total"
+        ].sum()
 
 
     resultado = (
@@ -152,15 +145,14 @@ def pantalla_panel_dueno():
 
     if not telemetria.empty:
 
-        hectareas = pd.to_numeric(
-            telemetria["Has Trabajadas"],
-            errors="coerce"
-        ).fillna(0).sum()
+        hectareas = telemetria[
+            "Has Trabajadas"
+        ].sum()
 
-        litros = pd.to_numeric(
-            telemetria["Gasoil Consumido (L)"],
-            errors="coerce"
-        ).fillna(0).sum()
+
+        litros = telemetria[
+            "Gasoil Consumido (L)"
+        ].sum()
 
 
 
