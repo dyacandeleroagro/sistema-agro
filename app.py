@@ -32,6 +32,13 @@ from pages.mantenimiento import pantalla_mantenimiento
 from pages.administracion import pantalla_administracion
 from pages.panel_dueno import pantalla_panel_dueno
 from database import get_conn
+from operaciones_db import (
+    cargar_labores_desde_neon,
+    guardar_labor_neon,
+    actualizar_labor_neon,
+    eliminar_labor_neon,
+    cargar_combustible_desde_neon,
+)
 from notificaciones import (
     mostrar_notificaciones,
     contar_notificaciones_no_leidas
@@ -99,7 +106,24 @@ st.markdown("""
         color: #FFFFFF!important;
         font-weight: bold!important;
         border-radius: 8px!important;
+        border: 1px solid #1E4620!important;
+        padding: 0.55rem 1rem!important;
+        transition: all 0.15s ease-in-out;
     }
+ .stButton>button:hover {
+        background-color: #2D6530!important;
+        border-color: #8B733A!important;
+        transform: translateY(-1px);
+    }
+ .block-container { padding-top: 1.4rem; padding-bottom: 2.5rem; }
+ div[data-testid="stMetric"] {
+        background: rgba(30, 70, 32, 0.045);
+        border: 1px solid rgba(30, 70, 32, 0.18);
+        border-radius: 12px;
+        padding: 14px 16px;
+    }
+ .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+ .stTabs [data-baseweb="tab"] { border-radius: 8px 8px 0 0; padding: 8px 14px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -357,9 +381,10 @@ def guardar_gasto_en_neon(gasto, comprobante_data=None):
 
 
 
-if not os.path.exists("registro_telemetria.csv"):
-    pd.DataFrame(columns=["Fecha", "Maquinaria", "Lote", "Has Trabajadas", "Gasoil Consumido (L)", "Eficiencia (L/Ha)"]).to_csv("registro_telemetria.csv", index=False)
-df_telemetria = pd.read_csv("registro_telemetria.csv")
+# Las labores y las cargas de combustible se leen desde Neon para que
+# permanezcan disponibles después de reinicios o nuevas implementaciones.
+df_telemetria = cargar_labores_desde_neon()
+df_combustible = cargar_combustible_desde_neon()
 
 if not os.path.exists("registro_empleados.csv"):
     df_inicial_emp = pd.DataFrame([
@@ -1479,8 +1504,13 @@ TIPO_CAMBIO_OFICIAL = 950.0
 st.markdown('<div class="header-container">', unsafe_allow_html=True)
 col_logo, col_titulo, col_user = st.columns([1, 3, 1])
 with col_logo:
-    if os.path.exists("logo.png"): st.image("logo.png", width=130)
-    else: st.markdown("<h1 style='font-size: 40pt; margin: 0;'>🚜</h1>", unsafe_allow_html=True)
+    ruta_logo = "logo.png" if os.path.exists("logo.png") else (
+        "static/logo.png" if os.path.exists("static/logo.png") else None
+    )
+    if ruta_logo:
+        st.image(ruta_logo, width=130)
+    else:
+        st.markdown("<h1 style='font-size: 40pt; margin: 0;'>🚜</h1>", unsafe_allow_html=True)
 with col_titulo:
     st.markdown('<div class="main-title">D&A CANDELERO AGRO</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="subtitle">Sesión iniciada: <b>{st.session_state["nombre_usuario"]}</b> ({st.session_state["rol"]})</div>', unsafe_allow_html=True)
@@ -2975,10 +3005,22 @@ if menu == "📈 ANALÍTICAS CENTRALES":
         if not df_pagos_empleados.empty else 0.0
     )
 
-    total_ingresos_global = (
-        df_ingresos["Monto Total (ARS)"].sum()
-        if not df_ingresos.empty else 0.0
-    )
+    if not df_ingresos.empty:
+        columna_monto_ingresos = (
+            "Monto Total (ARS)"
+            if "Monto Total (ARS)" in df_ingresos.columns
+            else "Monto"
+        )
+        total_ingresos_global = (
+            pd.to_numeric(
+                df_ingresos[columna_monto_ingresos],
+                errors="coerce"
+            ).fillna(0).sum()
+            if columna_monto_ingresos in df_ingresos.columns
+            else 0.0
+        )
+    else:
+        total_ingresos_global = 0.0
 
     total_has_global = (
         df_telemetria["Has Trabajadas"].sum()
@@ -2988,6 +3030,16 @@ if menu == "📈 ANALÍTICAS CENTRALES":
     total_litros_global = (
         df_telemetria["Gasoil Consumido (L)"].sum()
         if not df_telemetria.empty else 0.0
+    )
+
+    total_litros_cargados = (
+        pd.to_numeric(df_combustible["Litros"], errors="coerce").fillna(0).sum()
+        if not df_combustible.empty else 0.0
+    )
+
+    total_gasto_combustible = (
+        pd.to_numeric(df_combustible["Total"], errors="coerce").fillna(0).sum()
+        if not df_combustible.empty else 0.0
     )
 
     eficiencia_flota = (
@@ -3059,18 +3111,14 @@ if menu == "📈 ANALÍTICAS CENTRALES":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    c5, c6 = st.columns(2)
+    c5, c6, c7, c8 = st.columns(4)
 
     with c5:
         st.markdown(
             f"""
             <div class="card-box">
-                <div class="card-title-custom">
-                    🌾 Superficie Total Operada
-                </div>
-                <div class="card-value-custom">
-                    {total_has_global:,.1f} Has
-                </div>
+                <div class="card-title-custom">🌾 Superficie Total Operada</div>
+                <div class="card-value-custom">{total_has_global:,.1f} Has</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -3080,12 +3128,30 @@ if menu == "📈 ANALÍTICAS CENTRALES":
         st.markdown(
             f"""
             <div class="card-box">
-                <div class="card-title-custom">
-                    ⛽ Promedio Gasoil Flota
-                </div>
-                <div class="card-value-custom">
-                    {eficiencia_flota:.2f} L/Ha
-                </div>
+                <div class="card-title-custom">⚙️ Consumo Estimado por Labor</div>
+                <div class="card-value-custom">{eficiencia_flota:.2f} L/Ha</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c7:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">⛽ Litros Cargados</div>
+                <div class="card-value-custom">{total_litros_cargados:,.0f} L</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with c8:
+        st.markdown(
+            f"""
+            <div class="card-box">
+                <div class="card-title-custom">💳 Gasto en Combustible</div>
+                <div class="card-value-custom">$ {total_gasto_combustible:,.2f}</div>
             </div>
             """,
             unsafe_allow_html=True
@@ -3145,54 +3211,21 @@ if menu == "🚜 LABORES Y LOTES":
             )
 
 
-    if btn_lab and lote_labor and has_labor > 0:
+    if btn_lab:
 
-        litros_totales = round(
-            has_labor * eficiencia_labor,
-            2
-        )
-
-        nueva_labor = {
-
-            "Fecha": fecha_labor.strftime("%Y-%m-%d"),
-
-            "Maquinaria": maquina_labor,
-
-            "Lote": lote_labor.strip(),
-
-            "Has Trabajadas": has_labor,
-
-            "Gasoil Consumido (L)": litros_totales,
-
-            "Eficiencia (L/Ha)": round(
-                eficiencia_labor,
-                2
-            )
-        }
-
-
-        df_telemetria = pd.concat(
-            [
-                df_telemetria,
-                pd.DataFrame([nueva_labor])
-            ],
-            ignore_index=True
-        )
-
-
-        df_telemetria.to_csv(
-            "registro_telemetria.csv",
-            index=False
-        )
-
-
-        st.success(
-            "✅ Trabajo guardado correctamente"
-        )
-
-        st.rerun()
-
-
+        if not lote_labor.strip():
+            st.warning("Ingresá el nombre del campo o lote.")
+        elif has_labor <= 0:
+            st.warning("Las hectáreas trabajadas deben ser mayores a cero.")
+        elif guardar_labor_neon(
+            fecha_labor,
+            maquina_labor,
+            lote_labor.strip(),
+            has_labor,
+            eficiencia_labor,
+        ):
+            st.success("✅ Trabajo guardado permanentemente en Neon.")
+            st.rerun()
 
     st.divider()
 
@@ -3205,8 +3238,9 @@ if menu == "🚜 LABORES Y LOTES":
     if not df_telemetria.empty:
 
         st.dataframe(
-            df_telemetria,
-            use_container_width=True
+            df_telemetria.drop(columns=["ID"], errors="ignore"),
+            use_container_width=True,
+            hide_index=True
         )
 
 
@@ -3314,57 +3348,16 @@ if menu == "🚜 LABORES Y LOTES":
                 key="guardar_parte_diario"
             ):
 
-
-                df_telemetria.loc[
-                    labor,
-                    "Fecha"
-                ] = fecha_edit.strftime("%Y-%m-%d")
-
-
-                df_telemetria.loc[
-                    labor,
-                    "Maquinaria"
-                ] = maquina_edit
-
-
-                df_telemetria.loc[
-                    labor,
-                    "Lote"
-                ] = lote_edit
-
-
-                df_telemetria.loc[
-                    labor,
-                    "Has Trabajadas"
-                ] = has_edit
-
-
-                df_telemetria.loc[
-                    labor,
-                    "Eficiencia (L/Ha)"
-                ] = eficiencia_edit
-
-
-                df_telemetria.loc[
-                    labor,
-                    "Gasoil Consumido (L)"
-                ] = round(
-                    has_edit * eficiencia_edit,
-                    2
-                )
-
-
-                df_telemetria.to_csv(
-                    "registro_telemetria.csv",
-                    index=False
-                )
-
-
-                st.success(
-                    "✅ Parte diario actualizado"
-                )
-
-                st.rerun()
+                if actualizar_labor_neon(
+                    fila["ID"],
+                    fecha_edit,
+                    maquina_edit,
+                    lote_edit.strip(),
+                    has_edit,
+                    eficiencia_edit,
+                ):
+                    st.success("✅ Parte diario actualizado en Neon.")
+                    st.rerun()
 
 
 
@@ -3376,23 +3369,10 @@ if menu == "🚜 LABORES Y LOTES":
                 key="eliminar_parte_diario"
             ):
 
+                if eliminar_labor_neon(fila["ID"]):
+                    st.success("✅ Parte diario eliminado de Neon.")
+                    st.rerun()
 
-                df_telemetria = df_telemetria.drop(
-                    labor
-                )
-
-
-                df_telemetria.to_csv(
-                    "registro_telemetria.csv",
-                    index=False
-                )
-
-
-                st.success(
-                    "✅ Parte diario eliminado"
-                )
-
-                st.rerun()
 
 
     else:

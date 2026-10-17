@@ -1,44 +1,19 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import os
-
-
-ARCHIVO_COMBUSTIBLE = "registro_combustible.csv"
+from operaciones_db import cargar_combustible_desde_neon, guardar_combustible_neon
 
 
 def cargar_combustible():
-
-    if not os.path.exists(ARCHIVO_COMBUSTIBLE):
-
-        pd.DataFrame(
-            columns=[
-                "ID",
-                "Fecha",
-                "Máquina",
-                "Proveedor",
-                "Litros",
-                "Precio Litro",
-                "Total",
-                "Responsable",
-                "Observaciones"
-            ]
-        ).to_csv(
-            ARCHIVO_COMBUSTIBLE,
-            index=False
-        )
-
-
-    return pd.read_csv(
-        ARCHIVO_COMBUSTIBLE
-    )
+    """Recupera el historial persistente desde Neon."""
+    return cargar_combustible_desde_neon()
 
 
 
 def pantalla_combustible():
 
     st.header("⛽ Control de Combustible")
-
+    st.caption("Registro persistente de cargas, costos y consumo por máquina.")
 
     df = cargar_combustible()
 
@@ -137,57 +112,19 @@ def pantalla_combustible():
 
 
                 nueva = {
-
-                    "ID":
-                    int(datetime.now().timestamp()),
-
-                    "Fecha":
-                    fecha.strftime("%Y-%m-%d"),
-
-                    "Máquina":
-                    maquina,
-
-                    "Proveedor":
-                    proveedor,
-
-                    "Litros":
-                    litros,
-
-                    "Precio Litro":
-                    precio,
-
-                    "Total":
-                    total,
-
-                    "Responsable":
-                    responsable,
-
-                    "Observaciones":
-                    observaciones
-
+                    "Fecha": fecha.strftime("%Y-%m-%d"),
+                    "Máquina": maquina,
+                    "Proveedor": proveedor,
+                    "Litros": litros,
+                    "Precio Litro": precio,
+                    "Total": total,
+                    "Responsable": responsable,
+                    "Observaciones": observaciones,
                 }
 
-
-                df = pd.concat(
-                    [
-                        df,
-                        pd.DataFrame([nueva])
-                    ],
-                    ignore_index=True
-                )
-
-
-                df.to_csv(
-                    ARCHIVO_COMBUSTIBLE,
-                    index=False
-                )
-
-
-                st.success(
-                    "Carga registrada correctamente"
-                )
-
-                st.rerun()
+                if guardar_combustible_neon(nueva):
+                    st.success("Carga registrada y guardada permanentemente en Neon.")
+                    st.rerun()
 
 
 
@@ -205,8 +142,9 @@ def pantalla_combustible():
         if not df.empty:
 
             st.dataframe(
-                df,
-                use_container_width=True
+                df.drop(columns=["ID"], errors="ignore"),
+                use_container_width=True,
+                hide_index=True
             )
 
         else:
