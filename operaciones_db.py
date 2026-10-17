@@ -325,3 +325,193 @@ def guardar_combustible_neon(registro):
             cur.close()
         if conn:
             conn.close()
+
+# ==========================================
+# INGRESOS POR TRABAJOS - NEON
+# ==========================================
+
+def asegurar_tabla_ingresos():
+    conn = None
+    cur = None
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ingresos_trabajos (
+                id TEXT PRIMARY KEY,
+                fecha DATE NOT NULL,
+                cliente TEXT NOT NULL DEFAULT '',
+                servicio TEXT NOT NULL DEFAULT '',
+                lote TEXT NOT NULL DEFAULT '',
+                hectareas NUMERIC(14,2) NOT NULL DEFAULT 0,
+                monto NUMERIC(14,2) NOT NULL DEFAULT 0,
+                detalle TEXT NOT NULL DEFAULT '',
+                creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        conn.commit()
+
+        # Importar el CSV únicamente si Neon todavía no tiene ingresos.
+        cur.execute("SELECT COUNT(*) FROM ingresos_trabajos")
+        tabla_vacia = cur.fetchone()[0] == 0
+
+        if tabla_vacia and os.path.exists("registro_ingresos.csv"):
+            df = pd.read_csv("registro_ingresos.csv", dtype=str).fillna("")
+
+            for indice, fila in df.iterrows():
+                identificador = (
+                    fila.get("ID")
+                    or fila.get("ID_Ingreso")
+                    or ""
+                ).strip()
+
+                if not identificador:
+                    identificador = f"csv-{indice}"
+
+                fecha = _fecha_sql(fila.get("Fecha"))
+                if fecha is None:
+                    continue
+
+                cliente = fila.get("Cliente", "")
+                servicio = (
+                    fila.get("Servicio")
+                    or fila.get("Tipo Servicio")
+                    or ""
+                )
+                lote = (
+                    fila.get("Lote")
+                    or fila.get("Lote/Establecimiento")
+                    or ""
+                )
+                hectareas = _numero(fila.get("Hectáreas"))
+                monto = _numero(
+                    fila.get("Monto")
+                    or fila.get("Monto Total (ARS)")
+                )
+                detalle = fila.get("Detalle", "")
+
+                cur.execute("""
+                    INSERT INTO ingresos_trabajos
+                        (id, fecha, cliente, servicio, lote,
+                         hectareas, monto, detalle)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO NOTHING
+                """, (
+                    identificador, fecha, cliente, servicio, lote,
+                    hectareas, monto, detalle
+                ))
+
+            conn.commit()
+
+    except Exception:
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+def cargar_ingresos_desde_neon():
+    asegurar_tabla_ingresos()
+
+    conn = None
+    try:
+        conn = get_conn()
+        df = pd.read_sql_query("""
+            SELECT
+                id AS "ID",
+                TO_CHAR(fecha, 'YYYY-MM-DD') AS "Fecha",
+                cliente AS "Cliente",
+                servicio AS "Servicio",
+                lote AS "Lote",
+                hectareas AS "Hectáreas",
+                monto AS "Monto",
+                detalle AS "Detalle"
+            FROM ingresos_trabajos
+            ORDER BY fecha DESC, id DESC
+        """, conn)
+
+        for columna in ["Hectáreas", "Monto"]:
+            df[columna] = pd.to_numeric(
+                df[columna], errors="coerce"
+            ).fillna(0)
+
+        return df
+    finally:
+        if conn:
+            conn.close()
+
+
+def guardar_ingreso_neon(ingreso):
+    conn = None
+    cur = None
+
+    try:
+        asegurar_tabla_ingresos()
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            INSERT INTO ingresos_trabajos
+                (id, fecha, cliente, servicio, lote,
+                 hectareas, monto, detalle)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO NOTHING
+        """, (
+            str(ingreso["ID"]),
+            _fecha_sql(ingreso["Fecha"]),
+            str(ingreso.get("Cliente", "")),
+            str(ingreso.get("Servicio", "")),
+            str(ingreso.get("Lote", "")),
+            _numero(ingreso.get("Hectáreas")),
+            _numero(ingreso.get("Monto")),
+            str(ingreso.get("Detalle", ""))
+        ))
+
+        conn.commit()
+        return cur.rowcount > 0
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+        st.error(f"No se pudo guardar el ingreso en Neon: {exc}")
+        return False
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+def eliminar_ingreso_neon(id_ingreso):
+    conn = None
+    cur = None
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute(
+            "DELETE FROM ingresos_trabajos WHERE id = %s",
+            (str(id_ingreso),)
+        )
+
+        conn.commit()
+        return cur.rowcount > 0
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+        st.error(f"No se pudo eliminar el ingreso de Neon: {exc}")
+        return False
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
