@@ -96,10 +96,10 @@ def pantalla_panel_dueno():
 
     ingresos = leer_csv("registro_ingresos.csv")
     gastos = cargar_gastos_desde_neon()
-    combustible = leer_csv("registro_combustible.csv")
+    combustible = cargar_combustible_desde_neon()
     agenda = leer_csv("agenda.csv")
     pagos = leer_csv("registro_pagos_empleados.csv")
-    telemetria = leer_csv("registro_telemetria.csv")
+    telemetria = cargar_labores_desde_neon()
 
     # ==========================
     # FINANZAS
@@ -172,6 +172,30 @@ def pantalla_panel_dueno():
         st.metric("⛽ Litros consumidos", f"{litros:,.0f} L")
 
     st.divider()
+
+
+    st.markdown("### 📋 Detalle de labores y lotes")
+
+    if telemetria.empty:
+        st.info("Todavía no hay labores registradas en Neon.")
+    else:
+        columnas_labores = [
+            columna for columna in [
+                "Fecha",
+                "Maquinaria",
+                "Lote",
+                "Has Trabajadas",
+                "Gasoil Consumido (L)",
+                "Eficiencia (L/Ha)"
+            ]
+            if columna in telemetria.columns
+        ]
+
+        st.dataframe(
+            telemetria[columnas_labores],
+            use_container_width=True,
+            hide_index=True
+        )
 
     # ==========================
     # ALERTAS
