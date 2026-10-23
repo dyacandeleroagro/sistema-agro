@@ -4,3 +4,4 @@
    bcrypt
    streamlit-authenticator
    reportlab
+pdfplumber>=0.11.0

@@ -22,6 +22,7 @@ from reportlab.platypus import (
 )
 from pwa.pwa import activar_pwa
 from pages.ingresos import pantalla_ingresos
+from pages.movimientos_bancarios import pantalla_movimientos_bancarios
 from pages.clientes import pantalla_clientes
 from pages.servicios import pantalla_servicios
 from pages.campanas import pantalla_campanas
@@ -1610,6 +1611,9 @@ if tiene_rol("Dueño","Administrador","Contador"):
 
 if tiene_rol("Dueño","Administrador","Contador"):
     opciones.append("🧾 GASTOS COMERCIALES")
+
+if tiene_rol("Dueño","Administrador","Contador"):
+    opciones.append("🏦 MOVIMIENTOS BANCARIOS")
 
 if tiene_rol("Dueño","Administrador","Contador"):
     opciones.append("🔍 CUENTAS PENDIENTES")
@@ -6277,6 +6281,10 @@ if menu == "📋 RENDICIÓN POR OPERARIO":
 if menu == "💰 INGRESOS POR TRABAJOS":
 
     pantalla_ingresos()
+
+if menu == "🏦 MOVIMIENTOS BANCARIOS":
+
+    pantalla_movimientos_bancarios()
 
 if menu == "👥 CLIENTES":
 
