@@ -494,7 +494,6 @@ def generar_analisis_resumen(texto):
         "errores": errores,
         "cantidad_movimientos": len(movimientos_brutos),
     }
-
 def pantalla_movimientos_bancarios():
     st.header("🏦 Movimientos bancarios")
     st.caption("Importación del extracto a Neon. Los movimientos quedan pendientes de revisión; nada se contabiliza sin confirmación.")
