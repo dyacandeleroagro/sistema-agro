@@ -300,9 +300,226 @@ def contabilizar(mid):
         conn.close()
 
 
+def generar_analisis_resumen(texto):
+    """Analiza un resumen bancario sin guardar ni modificar datos."""
+    import io
+
+    lineas = [l.strip() for l in texto.splitlines() if l.strip()]
+
+    if not lineas:
+        return None
+
+    patron_importe = re.compile(
+        r"(?<!\w)[+-]?\$?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}"
+        r"|(?<!\w)[+-]?\$?\s*-?\d+,\d{2}"
+    )
+
+    ingresos = []
+    egresos = []
+    sin_clasificar = []
+    saldos = []
+    destacados = []
+
+    palabras_ingreso = (
+        "CREDITO", "CRÉDITO", "ACREDITACION", "ACREDITACIÓN",
+        "DEPOSITO", "DEPÓSITO", "COBRO", "TRANSFERENCIA RECIBIDA",
+        "HABER", "INGRESO"
+    )
+    palabras_egreso = (
+        "DEBITO", "DÉBITO", "PAGO", "COMISION", "COMISIÓN",
+        "IMPUESTO", "EXTRACCION", "EXTRACCIÓN", "TRANSFERENCIA ENVIADA",
+        "COMPRA", "CHEQUE", "RETENCION", "RETENCIÓN", "EGRESO"
+    )
+    palabras_saldo = (
+        "SALDO INICIAL", "SALDO ANTERIOR", "SALDO FINAL",
+        "SALDO ACTUAL", "SALDO AL CIERRE", "SALDO ULTIMO",
+        "SALDO ÚLTIMO"
+    )
+
+    for linea in lineas:
+        mayus = linea.upper()
+        importes_txt = patron_importe.findall(linea)
+
+        if not importes_txt:
+            continue
+
+        # El saldo no es un movimiento: no se suma a ingresos ni egresos.
+        if any(p in mayus for p in palabras_saldo):
+            saldos.append((linea, numero_ar(importes_txt[-1].replace("$", "").strip())))
+            continue
+
+        # No contar encabezados ni totales del resumen como operaciones.
+        if any(p in mayus for p in (
+            "TOTAL DEBITOS", "TOTAL DÉBITOS", "TOTAL CREDITOS",
+            "TOTAL CRÉDITOS", "TOTAL DE MOVIMIENTOS",
+            "RESUMEN DE CUENTA", "SALDO PROMEDIO"
+        )):
+            continue
+
+        # En una fila de movimientos, el último importe suele ser
+        # el importe de la operación o el saldo, según el formato.
+        # Solo clasificamos si el texto indica claramente el sentido.
+        try:
+            importe = abs(numero_ar(importes_txt[0].replace("$", "").strip()))
+        except (ValueError, TypeError):
+            continue
+
+        es_ingreso = any(p in mayus for p in palabras_ingreso)
+        es_egreso = any(p in mayus for p in palabras_egreso)
+
+        if es_ingreso and not es_egreso:
+            ingresos.append((linea, importe))
+        elif es_egreso and not es_ingreso:
+            egresos.append((linea, importe))
+        else:
+            sin_clasificar.append((linea, importe))
+
+        if any(p in mayus for p in (
+            "COMISION", "COMISIÓN", "RECHAZ", "RECHAZO",
+            "RETENCION", "RETENCIÓN", "DESCUBIERTO",
+            "TRANSFERENCIA", "CHEQUE RECHAZADO"
+        )):
+            destacados.append(linea)
+
+    total_ingresos = sum(monto for _, monto in ingresos)
+    total_egresos = sum(monto for _, monto in egresos)
+
+    return {
+        "lineas": lineas,
+        "ingresos": ingresos,
+        "egresos": egresos,
+        "sin_clasificar": sin_clasificar,
+        "saldos": saldos,
+        "destacados": destacados,
+        "total_ingresos": total_ingresos,
+        "total_egresos": total_egresos,
+        "variacion_identificada": total_ingresos - total_egresos,
+    }
+
+
 def pantalla_movimientos_bancarios():
     st.header("🏦 Movimientos bancarios")
     st.caption("Importación del extracto a Neon. Los movimientos quedan pendientes de revisión; nada se contabiliza sin confirmación.")
+
+
+    with st.expander("📊 Analizar resumen bancario (sin contabilizar)", expanded=False):
+        st.write(
+            "Pegá el texto del resumen o cargá un PDF para obtener un "
+            "informe independiente. Este análisis no guarda movimientos "
+            "ni modifica la contabilidad."
+        )
+
+        texto_resumen = st.text_area(
+            "Pegá aquí el texto del resumen bancario",
+            height=200,
+            key="texto_analisis_resumen_bancario",
+            placeholder="Pegá el texto copiado del resumen bancario..."
+        )
+
+        pdf_resumen = st.file_uploader(
+            "O cargá un PDF del resumen",
+            type=["pdf"],
+            key="pdf_analisis_resumen_bancario"
+        )
+
+        if st.button(
+            "Analizar resumen",
+            type="primary",
+            key="btn_analizar_resumen_bancario"
+        ):
+            texto_a_analizar = texto_resumen.strip()
+
+            if pdf_resumen is not None:
+                try:
+                    import io
+
+                    with pdfplumber.open(
+                        io.BytesIO(pdf_resumen.getvalue())
+                    ) as pdf:
+                        texto_a_analizar = "\n".join(
+                            pagina.extract_text() or ""
+                            for pagina in pdf.pages
+                        ).strip()
+                except Exception as e:
+                    st.error(f"No se pudo leer el PDF: {e}")
+                    texto_a_analizar = ""
+
+            if not texto_a_analizar:
+                st.warning("Pegá un texto o seleccioná un PDF antes de analizar.")
+            else:
+                resultado = generar_analisis_resumen(texto_a_analizar)
+
+                if resultado is None:
+                    st.warning("No se encontró texto para analizar.")
+                else:
+                    st.subheader("📋 Resultado del análisis")
+
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric(
+                        "Ingresos identificados",
+                        f"$ {resultado['total_ingresos']:,.2f}"
+                    )
+                    c2.metric(
+                        "Egresos identificados",
+                        f"$ {resultado['total_egresos']:,.2f}"
+                    )
+                    c3.metric(
+                        "Diferencia identificada",
+                        f"$ {resultado['variacion_identificada']:,.2f}"
+                    )
+
+                    st.info(
+                        "La diferencia es la resta entre los ingresos y "
+                        "egresos que se pudieron identificar. No representa "
+                        "necesariamente la variación real del saldo bancario."
+                    )
+
+                    st.markdown("#### 🧾 ¿Qué pasó en el resumen?")
+
+                    st.write(
+                        f"Se analizaron {len(resultado['lineas'])} líneas "
+                        "de texto. Se identificaron "
+                        f"{len(resultado['ingresos'])} posibles ingresos y "
+                        f"{len(resultado['egresos'])} posibles egresos."
+                    )
+
+                    if resultado["ingresos"]:
+                        with st.expander("Ver ingresos identificados"):
+                            for descripcion, monto in resultado["ingresos"]:
+                                st.write(f"- {descripcion} · $ {monto:,.2f}")
+
+                    if resultado["egresos"]:
+                        with st.expander("Ver egresos identificados"):
+                            for descripcion, monto in resultado["egresos"]:
+                                st.write(f"- {descripcion} · $ {monto:,.2f}")
+
+                    if resultado["saldos"]:
+                        st.markdown("#### 💰 Saldos encontrados")
+                        for descripcion, saldo in resultado["saldos"]:
+                            st.write(f"- {descripcion}: $ {saldo:,.2f}")
+
+                    if resultado["destacados"]:
+                        st.markdown("#### 🔎 Movimientos para revisar")
+                        for descripcion in resultado["destacados"]:
+                            st.write(f"- {descripcion}")
+
+                    if resultado["sin_clasificar"]:
+                        with st.expander(
+                            f"Movimientos sin clasificar "
+                            f"({len(resultado['sin_clasificar'])})"
+                        ):
+                            st.caption(
+                                "No se suman a ingresos ni egresos porque "
+                                "el texto no permite determinar su sentido."
+                            )
+                            for descripcion, monto in resultado["sin_clasificar"]:
+                                st.write(f"- {descripcion} · $ {monto:,.2f}")
+
+                    st.caption(
+                        "Análisis automático por palabras clave. Revisá los "
+                        "importes y las clasificaciones antes de usar el "
+                        "resultado para tomar decisiones contables."
+                    )
 
     try:
         asegurar_tabla()
