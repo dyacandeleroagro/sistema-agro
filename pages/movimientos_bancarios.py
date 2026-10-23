@@ -301,88 +301,174 @@ def contabilizar(mid):
 
 
 def generar_analisis_resumen(texto):
-    """Analiza un resumen bancario sin guardar ni modificar datos."""
-    import io
+    """Analiza el extracto Macro sin guardar ni modificar datos."""
 
-    lineas = [l.strip() for l in texto.splitlines() if l.strip()]
+    from decimal import Decimal, InvalidOperation
 
-    if not lineas:
+    if not texto or not texto.strip():
         return None
 
-    patron_importe = re.compile(
-        r"(?<!\w)[+-]?\$?\s*-?\d{1,3}(?:\.\d{3})*,\d{2}"
-        r"|(?<!\w)[+-]?\$?\s*-?\d+,\d{2}"
-    )
+    lineas = [linea.strip() for linea in texto.splitlines() if linea.strip()]
+
+    def importe_decimal(valor):
+        valor = str(valor).strip().replace("$", "").replace(" ", "")
+        valor = valor.replace(".", "").replace(",", ".")
+        return Decimal(valor)
+
+    patron_fecha = re.compile(r"^\s*(\d{2}/\d{2}/\d{2})\s+(.+?)\s*$")
+    patron_importe = re.compile(r"(?<![\w/])-?\d{1,3}(?:\.\d{3})+,\d{2}|(?<![\w/])-?\d+,\d{2}")
+
+    dentro_cuenta_corriente = False
+    saldo_inicial = None
+    saldo_final = None
+    movimientos_brutos = []
+    saldos = []
+    errores = []
+    destacados = []
+    filas_vistas = set()
+
+    for linea in lineas:
+        mayus = linea.upper()
+
+        # Analizar solamente la cuenta corriente en pesos.
+        if "CUENTA CORRIENTE BANCARIA NRO" in mayus:
+            dentro_cuenta_corriente = True
+            continue
+
+        if not dentro_cuenta_corriente:
+            continue
+
+        # Saldo inicial de la cuenta corriente.
+        if "SALDO ULTIMO EXTRACTO" in mayus or "SALDO ÚLTIMO EXTRACTO" in mayus:
+            importes = patron_importe.findall(linea)
+            if importes:
+                try:
+                    saldo_inicial = importe_decimal(importes[-1])
+                    saldos.append((linea, float(saldo_inicial)))
+                except InvalidOperation:
+                    errores.append(f"No se pudo interpretar el saldo inicial: {linea}")
+            continue
+
+        # Saldo final de la cuenta corriente.
+        if "SALDO FINAL AL DIA" in mayus or "SALDO FINAL AL DÍA" in mayus:
+            importes = patron_importe.findall(linea)
+            if importes:
+                try:
+                    saldo_final = importe_decimal(importes[-1])
+                    saldos.append((linea, float(saldo_final)))
+                except InvalidOperation:
+                    errores.append(f"No se pudo interpretar el saldo final: {linea}")
+            continue
+
+        # Ignorar líneas informativas que no son movimientos.
+        m = patron_fecha.match(linea)
+        if not m:
+            continue
+
+        fecha_txt, resto = m.groups()
+        importes = patron_importe.findall(resto)
+
+        # Un movimiento normal contiene el importe y el saldo posterior.
+        if len(importes) < 2:
+            errores.append(f"Movimiento sin importe y saldo identificables: {linea}")
+            continue
+
+        try:
+            saldo_movimiento = importe_decimal(importes[-1])
+        except InvalidOperation:
+            errores.append(f"Saldo ilegible: {linea}")
+            continue
+
+        descripcion = resto[:resto.rfind(importes[-2])].strip()
+
+        if not descripcion:
+            errores.append(f"Movimiento sin descripción: {linea}")
+            continue
+
+        # Identificador para detectar una fila repetida en el texto.
+        clave = (fecha_txt, descripcion, str(saldo_movimiento))
+        if clave in filas_vistas:
+            continue
+        filas_vistas.add(clave)
+
+        movimientos_brutos.append({
+            "fecha_txt": fecha_txt,
+            "descripcion": descripcion,
+            "saldo": saldo_movimiento,
+            "linea": linea,
+        })
 
     ingresos = []
     egresos = []
     sin_clasificar = []
-    saldos = []
-    destacados = []
 
-    palabras_ingreso = (
-        "CREDITO", "CRÉDITO", "ACREDITACION", "ACREDITACIÓN",
-        "DEPOSITO", "DEPÓSITO", "COBRO", "TRANSFERENCIA RECIBIDA",
-        "HABER", "INGRESO"
-    )
-    palabras_egreso = (
-        "DEBITO", "DÉBITO", "PAGO", "COMISION", "COMISIÓN",
-        "IMPUESTO", "EXTRACCION", "EXTRACCIÓN", "TRANSFERENCIA ENVIADA",
-        "COMPRA", "CHEQUE", "RETENCION", "RETENCIÓN", "EGRESO"
-    )
-    palabras_saldo = (
-        "SALDO INICIAL", "SALDO ANTERIOR", "SALDO FINAL",
-        "SALDO ACTUAL", "SALDO AL CIERRE", "SALDO ULTIMO",
-        "SALDO ÚLTIMO"
-    )
+    total_ingresos = Decimal("0.00")
+    total_egresos = Decimal("0.00")
+    saldo_previo = saldo_inicial
 
-    for linea in lineas:
-        mayus = linea.upper()
-        importes_txt = patron_importe.findall(linea)
+    for movimiento in movimientos_brutos:
+        saldo_actual = movimiento["saldo"]
+        descripcion = movimiento["descripcion"]
+        linea = movimiento["linea"]
 
-        if not importes_txt:
+        if saldo_previo is None:
+            errores.append(
+                "No se puede determinar el sentido de los movimientos: "
+                "falta el saldo inicial de la cuenta corriente."
+            )
+            sin_clasificar.append((linea, 0.0))
+            saldo_previo = saldo_actual
             continue
 
-        # El saldo no es un movimiento: no se suma a ingresos ni egresos.
-        if any(p in mayus for p in palabras_saldo):
-            saldos.append((linea, numero_ar(importes_txt[-1].replace("$", "").strip())))
-            continue
+        diferencia = (saldo_actual - saldo_previo).quantize(Decimal("0.01"))
 
-        # No contar encabezados ni totales del resumen como operaciones.
-        if any(p in mayus for p in (
-            "TOTAL DEBITOS", "TOTAL DÉBITOS", "TOTAL CREDITOS",
-            "TOTAL CRÉDITOS", "TOTAL DE MOVIMIENTOS",
-            "RESUMEN DE CUENTA", "SALDO PROMEDIO"
-        )):
-            continue
-
-        # En una fila de movimientos, el último importe suele ser
-        # el importe de la operación o el saldo, según el formato.
-        # Solo clasificamos si el texto indica claramente el sentido.
-        try:
-            importe = abs(numero_ar(importes_txt[0].replace("$", "").strip()))
-        except (ValueError, TypeError):
-            continue
-
-        es_ingreso = any(p in mayus for p in palabras_ingreso)
-        es_egreso = any(p in mayus for p in palabras_egreso)
-
-        if es_ingreso and not es_egreso:
-            ingresos.append((linea, importe))
-        elif es_egreso and not es_ingreso:
-            egresos.append((linea, importe))
+        if diferencia > 0:
+            monto = diferencia
+            total_ingresos += monto
+            ingresos.append((linea, float(monto)))
+        elif diferencia < 0:
+            monto = abs(diferencia)
+            total_egresos += monto
+            egresos.append((linea, float(monto)))
         else:
-            sin_clasificar.append((linea, importe))
+            # Una variación cero no se cuenta como ingreso ni egreso.
+            monto = Decimal("0.00")
+            sin_clasificar.append((linea, 0.0))
 
-        if any(p in mayus for p in (
-            "COMISION", "COMISIÓN", "RECHAZ", "RECHAZO",
-            "RETENCION", "RETENCIÓN", "DESCUBIERTO",
-            "TRANSFERENCIA", "CHEQUE RECHAZADO"
+        if any(p in descripcion.upper() for p in (
+            "COMISION", "COMISIÓN", "RECHAZ", "RETENCION",
+            "RETENCIÓN", "DBCR", "IMPUESTO", "TRANSF", "CHEQUE"
         )):
             destacados.append(linea)
 
-    total_ingresos = sum(monto for _, monto in ingresos)
-    total_egresos = sum(monto for _, monto in egresos)
+        saldo_previo = saldo_actual
+
+    variacion = total_ingresos - total_egresos
+    conciliacion_calculada = None
+    diferencia_conciliacion = None
+    conciliado = False
+
+    if saldo_inicial is not None and saldo_final is not None:
+        conciliacion_calculada = (
+            saldo_inicial + total_ingresos - total_egresos
+        ).quantize(Decimal("0.01"))
+
+        diferencia_conciliacion = (
+            saldo_final - conciliacion_calculada
+        ).quantize(Decimal("0.01"))
+
+        conciliado = diferencia_conciliacion == Decimal("0.00")
+
+        if not conciliado:
+            errores.append(
+                "La conciliación no coincide: la suma del saldo inicial "
+                "y los movimientos no llega al saldo final."
+            )
+    else:
+        errores.append(
+            "No se encontraron ambos saldos (inicial y final) de la "
+            "cuenta corriente. El análisis no puede validarse."
+        )
 
     return {
         "lineas": lineas,
@@ -391,11 +477,23 @@ def generar_analisis_resumen(texto):
         "sin_clasificar": sin_clasificar,
         "saldos": saldos,
         "destacados": destacados,
-        "total_ingresos": total_ingresos,
-        "total_egresos": total_egresos,
-        "variacion_identificada": total_ingresos - total_egresos,
+        "total_ingresos": float(total_ingresos),
+        "total_egresos": float(total_egresos),
+        "variacion_identificada": float(variacion),
+        "saldo_inicial": float(saldo_inicial) if saldo_inicial is not None else None,
+        "saldo_final": float(saldo_final) if saldo_final is not None else None,
+        "conciliacion_calculada": (
+            float(conciliacion_calculada)
+            if conciliacion_calculada is not None else None
+        ),
+        "diferencia_conciliacion": (
+            float(diferencia_conciliacion)
+            if diferencia_conciliacion is not None else None
+        ),
+        "conciliado": conciliado,
+        "errores": errores,
+        "cantidad_movimientos": len(movimientos_brutos),
     }
-
 
 def pantalla_movimientos_bancarios():
     st.header("🏦 Movimientos bancarios")
