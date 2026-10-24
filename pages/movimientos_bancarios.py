@@ -198,7 +198,8 @@ def extraer_movimientos_pdf(datos, nombre_archivo):
             # Sin saldo inicial no es seguro inferir el sentido del movimiento.
             saldo_anterior = saldo
             continue
-                delta = round(saldo - saldo_anterior, 2)
+
+        delta = round(saldo - saldo_anterior, 2)
 
         # El importe de la operación debe coincidir con el cambio del saldo.
         if abs(delta) < 0.005:
@@ -969,7 +970,7 @@ def pantalla_movimientos_bancarios():
                         for descripcion, saldo in resultado["saldos"]:
                             st.write(f"- {descripcion}: $ {saldo:,.2f}")
 
-                                        if resultado.get("conceptos_reconocidos"):
+                    if resultado.get("conceptos_reconocidos"):
                         with st.expander(
                             f"Conceptos reconocidos ({len(resultado['conceptos_reconocidos'])})"
                         ):
