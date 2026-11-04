@@ -595,7 +595,8 @@ def contabilizar(mid):
         if conn:
             conn.close()
 
-            # ==========================================================
+
+# ==========================================================
 # CONTABILIZACIÓN MASIVA SEGURA
 # ==========================================================
 
@@ -617,7 +618,9 @@ def movimiento_apto_para_contabilizar(fila):
         "Proveedor / compra",
     }
 
-    if str(fila.get("estado_revision", "")) != "Revisado":
+    estado = str(fila.get("estado_revision", "")).strip()
+
+    if estado in ("Contabilizado", "No contabilizar"):
         return False
 
     tipo = str(fila.get("tipo", "")).strip()
@@ -663,21 +666,32 @@ def contabilizar_lote_bancario(movimientos):
     exitosos = 0
     errores = []
 
-    for mid in movimientos:
+    for movimiento in movimientos:
+
+        mid = str(movimiento["id"])
 
         try:
-            contabilizar(str(mid))
+            # El botón general aprueba la clasificación
+            # que el usuario revisó visualmente.
+
+            actualizar_movimiento(
+                mid,
+                movimiento["tipo"],
+                movimiento["categoria"],
+                "Revisado"
+            )
+
+            contabilizar(mid)
             exitosos += 1
 
         except Exception as e:
+
             errores.append({
-                "id": str(mid),
+                "id": mid,
                 "error": str(e),
             })
 
     return exitosos, errores
-
-
 def generar_analisis_resumen(texto):
     """Analiza un extracto sin guardar datos ni modificar la contabilidad."""
 
@@ -1209,28 +1223,25 @@ def pantalla_movimientos_bancarios():
         "arriba. Revisá los importes antes de confirmar."
     )
 
-    confirmar_lote = st.checkbox(
-        "Confirmo que revisé y aprobé todos los movimientos listos.",
-        key="confirmar_lote_bancario"
-    )
-
-    if st.button(
-        "🚀 CONTABILIZAR TODOS LOS REVISADOS",
+        if st.button(
+        "🚀 CONTABILIZAR TODO",
         type="primary",
-        disabled=(len(candidatos) == 0 or not confirmar_lote),
+        disabled=(len(candidatos) == 0),
         key="btn_contabilizar_lote_bancario"
     ):
 
-        ids_lote = candidatos["id"].astype(str).tolist()
+        movimientos_lote = candidatos[
+            ["id", "tipo", "categoria"]
+        ].to_dict("records")
 
-        exitosos, errores = contabilizar_lote_bancario(ids_lote)
+        exitosos, errores = contabilizar_lote_bancario(
+            movimientos_lote
+        )
 
         st.session_state["resultado_lote_bancario"] = {
             "exitosos": exitosos,
             "errores": errores,
         }
-
-        st.session_state["confirmar_lote_bancario"] = False
 
         st.rerun()
 
