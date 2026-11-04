@@ -692,6 +692,7 @@ def contabilizar_lote_bancario(movimientos):
             })
 
     return exitosos, errores
+
 def generar_analisis_resumen(texto):
     """Analiza un extracto sin guardar datos ni modificar la contabilidad."""
 
@@ -1223,7 +1224,7 @@ def pantalla_movimientos_bancarios():
         "arriba. Revisá los importes antes de confirmar."
     )
 
-        if st.button(
+    if st.button(
         "🚀 CONTABILIZAR TODO",
         type="primary",
         disabled=(len(candidatos) == 0),
