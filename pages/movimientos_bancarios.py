@@ -1172,6 +1172,7 @@ def pantalla_movimientos_bancarios():
     mes_options = sorted(df["fecha"].dropna().dt.strftime("%Y-%m").unique(), reverse=True)
     mes = st.selectbox("Mes", ["Todos"] + mes_options)
     filtrado = df if mes == "Todos" else df[df["fecha"].dt.strftime("%Y-%m") == mes]
+        diagnostico_movimientos(filtrado)
     total_ingresos = filtrado.loc[filtrado["tipo"] == "Ingreso", "monto"].sum()
     total_egresos = filtrado.loc[filtrado["tipo"] == "Egreso", "monto"].sum()
     c1, c2, c3 = st.columns(3)
