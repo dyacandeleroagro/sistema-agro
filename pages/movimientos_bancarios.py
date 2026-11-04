@@ -1123,7 +1123,7 @@ def pantalla_movimientos_bancarios():
     total_ingresos = filtrado.loc[filtrado["tipo"] == "Ingreso", "monto"].sum()
     total_egresos = filtrado.loc[filtrado["tipo"] == "Egreso", "monto"].sum()
     c1, c2, c3 = st.columns(3)
-        c1.metric("Movimientos", len(filtrado))
+    c1.metric("Movimientos", len(filtrado))
     c2.metric("Ingresos identificados", f"$ {total_ingresos:,.2f}")
     c3.metric("Egresos identificados", f"$ {total_egresos:,.2f}")
 
