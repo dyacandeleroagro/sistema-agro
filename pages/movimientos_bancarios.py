@@ -659,6 +659,43 @@ def movimiento_apto_para_contabilizar(fila):
         return False
 
     return True
+    def diagnostico_movimientos(filtrado):
+
+    st.subheader("🔎 Diagnóstico de movimientos")
+
+    st.write("Total de movimientos:", len(filtrado))
+
+    st.write("Por estado:")
+    st.dataframe(
+        filtrado["estado_revision"]
+        .fillna("Sin estado")
+        .value_counts()
+        .reset_index()
+    )
+
+    st.write("Por tipo:")
+    st.dataframe(
+        filtrado["tipo"]
+        .fillna("Sin tipo")
+        .value_counts()
+        .reset_index()
+    )
+
+    st.write("Por categoría:")
+    st.dataframe(
+        filtrado["categoria"]
+        .fillna("Sin categoría")
+        .value_counts()
+        .reset_index()
+    )
+
+    st.write("Por moneda:")
+    st.dataframe(
+        filtrado["moneda"]
+        .fillna("Sin moneda")
+        .value_counts()
+        .reset_index()
+    )
 
 
 def contabilizar_lote_bancario(movimientos):
