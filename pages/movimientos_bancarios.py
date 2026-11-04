@@ -441,16 +441,14 @@ def contabilizar(mid):
                     "movimientos personales quedan fuera de estos módulos."
                 )
 
-            if tipo == "Ingreso" and categoria in categorias_de_egreso:
+            if tipo == "Ingreso" and categoria not in categorias_de_ingreso:
                 raise ValueError(
-                    "La categoría elegida corresponde a un gasto, "
-                    "no a un ingreso. Corregí la clasificación."
+                "La categoría no está habilitada para contabilizar ingresos."
                 )
 
-            if tipo == "Egreso" and categoria in categorias_de_ingreso:
+            if tipo == "Egreso" and categoria not in categorias_de_egreso:
                 raise ValueError(
-                    "La categoría elegida corresponde a un ingreso, "
-                    "no a un gasto. Corregí la clasificación."
+                "La categoría no está habilitada para contabilizar gastos."
                 )
 
             if moneda != "ARS":
@@ -553,7 +551,7 @@ def contabilizar(mid):
                         monto_decimal,
                         categoria,
                         "",
-                        "Pendiente de Pago",
+                        "Pagado",
                         str(comprobante_nombre or ""),
                         comprobante_data,
                     ),
@@ -596,6 +594,88 @@ def contabilizar(mid):
     finally:
         if conn:
             conn.close()
+
+            # ==========================================================
+# CONTABILIZACIÓN MASIVA SEGURA
+# ==========================================================
+
+def movimiento_apto_para_contabilizar(fila):
+
+    categorias_ingreso = {
+        "Cobro de cliente",
+        "Venta de cosecha",
+        "Servicio / trabajo",
+    }
+
+    categorias_egreso = {
+        "Combustible",
+        "Reparación / repuesto",
+        "Sueldos / jornales",
+        "Seguro",
+        "Impuestos",
+        "Comisiones bancarias",
+        "Proveedor / compra",
+    }
+
+    if str(fila.get("estado_revision", "")) != "Revisado":
+        return False
+
+    tipo = str(fila.get("tipo", "")).strip()
+    categoria = str(fila.get("categoria", "")).strip()
+    moneda = str(fila.get("moneda", "")).strip().upper()
+
+    if moneda != "ARS":
+        return False
+
+    try:
+        monto = Decimal(str(fila.get("monto", 0)))
+    except Exception:
+        return False
+
+    if not monto.is_finite() or monto <= 0:
+        return False
+
+    if tipo == "Ingreso":
+        if categoria not in categorias_ingreso:
+            return False
+
+    elif tipo == "Egreso":
+        if categoria not in categorias_egreso:
+            return False
+
+    else:
+        return False
+
+    id_ingreso = fila.get("id_ingreso")
+    id_gasto = fila.get("id_gasto")
+
+    if pd.notna(id_ingreso) and str(id_ingreso).strip():
+        return False
+
+    if pd.notna(id_gasto) and str(id_gasto).strip():
+        return False
+
+    return True
+
+
+def contabilizar_lote_bancario(movimientos):
+
+    exitosos = 0
+    errores = []
+
+    for mid in movimientos:
+
+        try:
+            contabilizar(str(mid))
+            exitosos += 1
+
+        except Exception as e:
+            errores.append({
+                "id": str(mid),
+                "error": str(e),
+            })
+
+    return exitosos, errores
 
 
 def generar_analisis_resumen(texto):
@@ -1043,9 +1123,151 @@ def pantalla_movimientos_bancarios():
     total_ingresos = filtrado.loc[filtrado["tipo"] == "Ingreso", "monto"].sum()
     total_egresos = filtrado.loc[filtrado["tipo"] == "Egreso", "monto"].sum()
     c1, c2, c3 = st.columns(3)
-    c1.metric("Movimientos", len(filtrado))
+        c1.metric("Movimientos", len(filtrado))
     c2.metric("Ingresos identificados", f"$ {total_ingresos:,.2f}")
     c3.metric("Egresos identificados", f"$ {total_egresos:,.2f}")
+
+    # ==========================================================
+    # PANEL DE CONTABILIZACIÓN MASIVA
+    # ==========================================================
+
+    st.divider()
+
+    st.subheader("🚀 Contabilización masiva")
+
+    st.caption(
+        "Se contabilizan únicamente los movimientos revisados "
+        "y aprobados. Los personales, transferencias y dudosos "
+        "permanecen fuera de la contabilidad."
+    )
+
+    candidatos = filtrado[
+        filtrado.apply(
+            movimiento_apto_para_contabilizar,
+            axis=1
+        )
+    ]
+
+    cantidad_ingresos = int(
+        (candidatos["tipo"] == "Ingreso").sum()
+    )
+
+    cantidad_egresos = int(
+        (candidatos["tipo"] == "Egreso").sum()
+    )
+
+    total_ingresos_lote = pd.to_numeric(
+        candidatos.loc[
+            candidatos["tipo"] == "Ingreso",
+            "monto"
+        ],
+        errors="coerce"
+    ).fillna(0).sum()
+
+    total_egresos_lote = pd.to_numeric(
+        candidatos.loc[
+            candidatos["tipo"] == "Egreso",
+            "monto"
+        ],
+        errors="coerce"
+    ).fillna(0).sum()
+
+    pendientes_revision = int(
+        (filtrado["estado_revision"] == "Pendiente de revisión contable").sum()
+    )
+
+    ya_contabilizados = int(
+        (filtrado["estado_revision"] == "Contabilizado").sum()
+    )
+
+    personal_y_excluidos = int(
+        (filtrado["tipo"].isin(["Personal", "Transferencia", "Otro"])).sum()
+    )
+
+    m1, m2, m3 = st.columns(3)
+
+    m1.metric("Listos para contabilizar", len(candidatos))
+    m2.metric("Ingresos aprobados", cantidad_ingresos)
+    m3.metric("Egresos aprobados", cantidad_egresos)
+
+    st.write(
+        f"**Total de ingresos:** $ {total_ingresos_lote:,.2f}"
+    )
+
+    st.write(
+        f"**Total de egresos:** $ {total_egresos_lote:,.2f}"
+    )
+
+    with st.expander("Ver movimientos que quedan fuera del lote"):
+
+        st.write(f"Pendientes de revisión: {pendientes_revision}")
+        st.write(f"Ya contabilizados: {ya_contabilizados}")
+        st.write(f"Personales, transferencias y otros tipos: {personal_y_excluidos}")
+
+    st.warning(
+        "La contabilización utilizará el filtro de mes seleccionado "
+        "arriba. Revisá los importes antes de confirmar."
+    )
+
+    confirmar_lote = st.checkbox(
+        "Confirmo que revisé y aprobé todos los movimientos listos.",
+        key="confirmar_lote_bancario"
+    )
+
+    if st.button(
+        "🚀 CONTABILIZAR TODOS LOS REVISADOS",
+        type="primary",
+        disabled=(len(candidatos) == 0 or not confirmar_lote),
+        key="btn_contabilizar_lote_bancario"
+    ):
+
+        ids_lote = candidatos["id"].astype(str).tolist()
+
+        exitosos, errores = contabilizar_lote_bancario(ids_lote)
+
+        st.session_state["resultado_lote_bancario"] = {
+            "exitosos": exitosos,
+            "errores": errores,
+        }
+
+        st.session_state["confirmar_lote_bancario"] = False
+
+        st.rerun()
+
+
+    # Mostrar resultado de la última ejecución.
+
+    if "resultado_lote_bancario" in st.session_state:
+
+        resultado_lote = st.session_state["resultado_lote_bancario"]
+
+        st.success(
+            f"Contabilización terminada: "
+            f"{resultado_lote['exitosos']} movimientos contabilizados."
+        )
+
+        if resultado_lote["errores"]:
+
+            with st.expander(
+                f"Movimientos con errores ({len(resultado_lote['errores'])})"
+            ):
+
+                for error in resultado_lote["errores"]:
+
+                    st.error(
+                        f"Movimiento {error['id']}: {error['error']}"
+                    )
+
+        if st.button(
+            "Cerrar resultado",
+            key="cerrar_resultado_lote"
+        ):
+
+            del st.session_state["resultado_lote_bancario"]
+            st.rerun()
+
+
+    st.divider()
 
     st.subheader("Movimientos guardados")
     st.caption("Revisá tipo y categoría. Los movimientos personales o transferencias no se contabilizan en Ingresos/Gastos.")
@@ -1099,7 +1321,7 @@ def pantalla_movimientos_bancarios():
                     key=f"descargar_comp_{mid}",
                 )
 
-            if fila["estado_revision"] != "Contabilizado":
+            if fila["estado_revision"] != "Contabilizado" and estado != "No contabilizar":
                 if st.button("Confirmar y contabilizar", type="primary", key=f"contabilizar_{mid}"):
                     try:
                         # Persistir la revisión elegida antes de contabilizar.
