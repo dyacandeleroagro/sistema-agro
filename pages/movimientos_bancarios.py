@@ -1266,7 +1266,7 @@ def pantalla_movimientos_bancarios():
     st.divider()
 
     st.subheader("🚀 Contabilización masiva")
-        st.warning(
+    st.warning(
         "Esta acción clasificará y marcará como revisados "
         "todos los movimientos bancarios pendientes. "
         "No realizará ninguna contabilización."
