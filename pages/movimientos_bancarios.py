@@ -700,6 +700,7 @@ def diagnostico_movimientos(filtrado):
         .reset_index()
     )
 
+
 def contabilizar_lote_bancario(movimientos):
 
     exitosos = 0
@@ -710,18 +711,14 @@ def contabilizar_lote_bancario(movimientos):
         mid = str(movimiento["id"])
 
         try:
-            # El botón general aprueba la clasificación
-            # que el usuario revisó visualmente.
+            # No aprobar automáticamente.
+            # contabilizar() verifica que el estado sea Revisado
+            # y vuelve a validar todo dentro de la transacción.
 
-            actualizar_movimiento(
-                mid,
-                movimiento["tipo"],
-                movimiento["categoria"],
-                "Revisado"
-            )
+            resultado = contabilizar(mid)
 
-            contabilizar(mid)
-            exitosos += 1
+            if resultado:
+                exitosos += 1
 
         except Exception as e:
 
