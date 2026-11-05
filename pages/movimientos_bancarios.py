@@ -658,8 +658,10 @@ def movimiento_apto_para_contabilizar(fila):
     if pd.notna(id_gasto) and str(id_gasto).strip():
         return False
 
-    return True
-    def diagnostico_movimientos(filtrado):
+        return True
+
+
+def diagnostico_movimientos(filtrado):
 
     st.subheader("🔎 Diagnóstico de movimientos")
 
@@ -696,7 +698,6 @@ def movimiento_apto_para_contabilizar(fila):
         .value_counts()
         .reset_index()
     )
-
 
 def contabilizar_lote_bancario(movimientos):
 
