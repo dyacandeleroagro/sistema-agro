@@ -1278,7 +1278,6 @@ def pantalla_movimientos_bancarios():
         use_container_width=True,
         key="btn_clasificar_todos"
     ):
-
         try:
             procesados, excluidos, pendientes = clasificar_y_revisar_todos()
 
