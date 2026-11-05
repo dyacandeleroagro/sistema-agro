@@ -600,6 +600,7 @@ def contabilizar(mid):
 # CONTABILIZACIÓN MASIVA SEGURA
 # ==========================================================
 
+
 def movimiento_apto_para_contabilizar(fila):
 
     categorias_ingreso = {
@@ -620,7 +621,8 @@ def movimiento_apto_para_contabilizar(fila):
 
     estado = str(fila.get("estado_revision", "")).strip()
 
-    if estado in ("Contabilizado", "No contabilizar"):
+    # Solamente movimientos revisados manualmente.
+    if estado != "Revisado":
         return False
 
     tipo = str(fila.get("tipo", "")).strip()
@@ -658,8 +660,7 @@ def movimiento_apto_para_contabilizar(fila):
     if pd.notna(id_gasto) and str(id_gasto).strip():
         return False
 
-        return True
-
+    return True
 
 def diagnostico_movimientos(filtrado):
 
