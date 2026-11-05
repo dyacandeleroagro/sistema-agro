@@ -1195,12 +1195,16 @@ def pantalla_movimientos_bancarios():
         "permanecen fuera de la contabilidad."
     )
 
-    candidatos = filtrado[
+    mascara_candidatos = (
         filtrado.apply(
             movimiento_apto_para_contabilizar,
             axis=1
         )
-    ]
+        .fillna(False)
+        .astype(bool)
+    )
+
+    candidatos = filtrado.loc[mascara_candidatos].copy()
 
     cantidad_ingresos = int(
         (candidatos["tipo"] == "Ingreso").sum()
