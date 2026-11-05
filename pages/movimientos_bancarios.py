@@ -71,78 +71,100 @@ def numero_ar(valor):
 
 
 def clasificar(descripcion, tipo):
-    """
-    Clasifica de forma conservadora.
-    Reconoce el concepto, pero no supone que una transferencia
-    sea un movimiento entre cuentas propias.
-    """
     d = re.sub(r"\s+", " ", str(descripcion or "").upper()).strip()
     tipo = str(tipo or "Otro").strip()
 
-    # Transferencias: reconocerlas, pero no asumir quién es la contraparte.
-    if any(x in d for x in ("TRANSF", "TRPRO", "DEBTRF", "EGRESO:")):
-        return "Pendiente de clasificar", tipo
-
-    if any(x in d for x in ("EXTRACCION", "EXTRACCIÓN", "CAJERO")):
-        return "Extracción / efectivo", "Personal"
-
-    # Comisiones bancarias específicas.
+    # Movimientos personales
     if any(x in d for x in (
-        "COMISION ADM.VALORES",
-        "COMISIÓN ADM.VALORES",
-        "COMISION",
-        "COMISIÓN",
-        "PAQUETE BANCARIO",
+        "EXTRACCION", "EXTRACCIÓN", "CAJERO",
+        "COMPRA DEBITO", "COMPRA DÉBITO",
+        "GASTO PERSONAL",
     )):
-        return "Comisiones bancarias", tipo
+        return "Gasto personal" if "COMPRA" in d else "Extracción / efectivo", "Personal"
 
-    # Retenciones, percepciones y débitos/créditos impositivos.
+    # Transferencias: no se contabilizan automáticamente.
     if any(x in d for x in (
-        "RETENCION IVA",
-        "RETENCIÓN IVA",
-        "PERCEPCION IVA",
-        "PERCEPCIÓN IVA",
-        "IIBB",
-        "AFIP",
-        "IMPUESTO",
-        "TASA GRAL",
+        "TRANSF", "TRPRO", "DEBTRF", "CREDIN",
+        "TRANSFERENCIA",
+    )):
+        return "Transferencia entre cuentas", "Transferencia"
+
+    # Comisiones bancarias
+    if any(x in d for x in (
+        "COMISION", "COMISIÓN", "PAQUETE BANCARIO",
+        "ADM.VALORES",
+    )):
+        return "Comisiones bancarias", "Egreso"
+
+    # Impuestos
+    if any(x in d for x in (
+        "RETENCION IVA", "RETENCIÓN IVA",
+        "PERCEPCION IVA", "PERCEPCIÓN IVA",
+        "IIBB", "AFIP", "IMPUESTO", "TASA GRAL",
         "DBCR",
     )):
         return "Impuestos", tipo
 
+    # Seguros
     if any(x in d for x in (
-        "SEGURO",
-        "SAN CRISTOBAL",
-        "SAN CRISTÓBAL",
-        "SANCOR",
+        "SEGURO", "SAN CRISTOBAL",
+        "SAN CRISTÓBAL", "SANCOR",
     )):
-        return "Seguro", tipo
+        return "Seguro", "Egreso"
 
+    # Combustible
     if any(x in d for x in (
-        "COMBUST",
-        "YPF",
-        "SHELL",
-        "AXION",
+        "COMBUST", "YPF", "SHELL", "AXION",
+        "GNC", "ESTACION DE SERVICIO",
+        "ESTACIÓN DE SERVICIO",
     )):
-        return "Combustible", tipo
+        return "Combustible", "Egreso"
 
-    # No asumir que el nombre de una empresa implica un cobro o pago.
-    # Se necesita verificar la contraparte y el motivo.
+    # Reparaciones y repuestos
     if any(x in d for x in (
-        "ACREDITACION CHEQUE REMESAS",
-        "ACREDITACIÓN CHEQUE REMESAS",
-        "CHEQUE",
-        "FAC ",
-        "FACTURA",
-        "AGROP",
-        "COOP GAN",
-        "COOP. GAN",
-        "CREDIN:",
+        "REPUESTO", "TALLER", "MECANICA",
+        "MECÁNICA", "REPARACION", "REPARACIÓN",
+        "NEUMATICO", "NEUMÁTICO",
     )):
-        return "Pendiente de clasificar", tipo
+        return "Reparación / repuesto", "Egreso"
 
+    # Sueldos y jornales
+    if any(x in d for x in (
+        "SUELDO", "JORNAL", "HABERES",
+        "LIQUIDACION SUELDO", "LIQUIDACIÓN SUELDO",
+    )):
+        return "Sueldos / jornales", "Egreso"
+
+    # Ingresos identificables
+    if tipo == "Ingreso":
+        if any(x in d for x in (
+            "COBRO CLIENTE", "COBRO DE CLIENTE",
+            "PAGO CLIENTE", "PAGO DE CLIENTE",
+        )):
+            return "Cobro de cliente", "Ingreso"
+
+        if any(x in d for x in (
+            "VENTA DE CEREAL", "VENTA DE GRANOS",
+            "LIQUIDACION GRANOS", "LIQUIDACIÓN GRANOS",
+            "ACOPIO DE CEREALES", "COSECHA",
+        )):
+            return "Venta de cosecha", "Ingreso"
+
+        if any(x in d for x in (
+            "COBRO SERVICIO", "COBRO DE SERVICIO",
+            "SERVICIO PRESTADO",
+        )):
+            return "Servicio / trabajo", "Ingreso"
+
+    # Compras comerciales claramente identificadas
+    if tipo == "Egreso" and any(x in d for x in (
+        "PROVEEDOR", "COMPRA INSUMOS",
+        "COMPRA DE INSUMOS",
+    )):
+        return "Proveedor / compra", "Egreso"
+
+    # No inventar una clasificación cuando falta información.
     return "Pendiente de clasificar", tipo
-
 
 
 def extraer_movimientos_pdf(datos, nombre_archivo):
@@ -300,6 +322,64 @@ def actualizar_movimiento(mid, tipo, categoria, estado):
     finally:
         conn.close()
 
+def clasificar_y_revisar_todos():
+
+    conn = get_conn()
+    procesados = 0
+    excluidos = 0
+    pendientes = 0
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                SELECT id, descripcion, tipo
+                FROM movimientos_bancarios
+                WHERE estado_revision = 'Pendiente de revisión contable'
+                  AND id_ingreso IS NULL
+                  AND id_gasto IS NULL
+            """)
+
+            movimientos = cur.fetchall()
+
+            for mid, descripcion, tipo_original in movimientos:
+
+                categoria, tipo_nuevo = clasificar(
+                    descripcion,
+                    tipo_original
+                )
+
+                cur.execute("""
+                    UPDATE movimientos_bancarios
+                    SET tipo = %s,
+                        categoria = %s,
+                        estado_revision = 'Revisado',
+                        actualizado_en = NOW()
+                    WHERE id = %s
+                      AND estado_revision = 'Pendiente de revisión contable'
+                      AND id_ingreso IS NULL
+                      AND id_gasto IS NULL
+                """, (tipo_nuevo, categoria, mid))
+
+                if cur.rowcount == 1:
+                    procesados += 1
+
+                    if tipo_nuevo in ("Personal", "Transferencia"):
+                        excluidos += 1
+
+                    if categoria == "Pendiente de clasificar":
+                        pendientes += 1
+
+        conn.commit()
+
+        return procesados, excluidos, pendientes
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
 
 def guardar_comprobante(mid, archivo):
     conn = get_conn()
@@ -1186,6 +1266,35 @@ def pantalla_movimientos_bancarios():
     st.divider()
 
     st.subheader("🚀 Contabilización masiva")
+        st.warning(
+        "Esta acción clasificará y marcará como revisados "
+        "todos los movimientos bancarios pendientes. "
+        "No realizará ninguna contabilización."
+    )
+
+    if st.button(
+        "⚡ CLASIFICAR Y MARCAR TODOS COMO REVISADOS",
+        type="primary",
+        use_container_width=True,
+        key="btn_clasificar_todos"
+    ):
+
+        try:
+            procesados, excluidos, pendientes = clasificar_y_revisar_todos()
+
+            st.success(
+                f"Proceso terminado: {procesados} movimientos revisados."
+            )
+
+            st.info(
+                f"Personales y transferencias excluidos: {excluidos} | "
+                f"Pendientes de clasificación: {pendientes}"
+            )
+
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"No se pudo completar la clasificación: {e}")
 
     st.caption(
         "Se contabilizan únicamente los movimientos revisados "
