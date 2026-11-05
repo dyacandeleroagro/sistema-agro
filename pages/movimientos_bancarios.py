@@ -662,44 +662,44 @@ def movimiento_apto_para_contabilizar(fila):
 
     return True
 
+
 def diagnostico_movimientos(filtrado):
 
     st.subheader("🔎 Diagnóstico de movimientos")
 
     st.write("Total de movimientos:", len(filtrado))
 
-    st.write("Por estado:")
-    st.dataframe(
+    st.markdown("#### Por estado")
+
+    estados = (
         filtrado["estado_revision"]
         .fillna("Sin estado")
         .value_counts()
-        .reset_index()
     )
 
-    st.write("Por tipo:")
-    st.dataframe(
-        filtrado["tipo"]
-        .fillna("Sin tipo")
-        .value_counts()
-        .reset_index()
-    )
+    for nombre, cantidad in estados.items():
+        st.write(f"- **{nombre}:** {cantidad}")
 
-    st.write("Por categoría:")
-    st.dataframe(
-        filtrado["categoria"]
-        .fillna("Sin categoría")
-        .value_counts()
-        .reset_index()
-    )
+    st.markdown("#### Por tipo")
 
-    st.write("Por moneda:")
-    st.dataframe(
-        filtrado["moneda"]
-        .fillna("Sin moneda")
-        .value_counts()
-        .reset_index()
-    )
+    tipos = filtrado["tipo"].fillna("Sin tipo").value_counts()
 
+    for nombre, cantidad in tipos.items():
+        st.write(f"- **{nombre}:** {cantidad}")
+
+    st.markdown("#### Por categoría")
+
+    categorias = filtrado["categoria"].fillna("Sin categoría").value_counts()
+
+    for nombre, cantidad in categorias.items():
+        st.write(f"- **{nombre}:** {cantidad}")
+
+    st.markdown("#### Por moneda")
+
+    monedas = filtrado["moneda"].fillna("Sin moneda").value_counts()
+
+    for nombre, cantidad in monedas.items():
+        st.write(f"- **{nombre}:** {cantidad}")
 
 def contabilizar_lote_bancario(movimientos):
 
