@@ -1,8 +1,10 @@
+
 import hashlib
 import re
 import uuid
+import io
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import pandas as pd
 import streamlit as st
@@ -28,14 +30,27 @@ CATEGORIAS = [
     "Gasto personal",
     "Otro",
 ]
-TIPOS = ["Ingreso", "Egreso", "Transferencia", "Personal", "Otro"]
-ESTADOS = ["Pendiente de revisión contable", "Revisado", "No contabilizar"]
 
+TIPOS = ["Ingreso", "Egreso", "Transferencia", "Personal", "Otro"]
+
+ESTADOS = [
+    "Pendiente de revisión contable",
+    "Revisado",
+    "No contabilizar",
+]
+
+
+# ==========================================================
+# BASE DE DATOS
+# ==========================================================
 
 def asegurar_tabla():
+
     conn = get_conn()
+
     try:
         with conn.cursor() as cur:
+
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS movimientos_bancarios (
                     id TEXT PRIMARY KEY,
@@ -60,83 +75,98 @@ def asegurar_tabla():
                     actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
+
         conn.commit()
+
     finally:
         conn.close()
 
 
 def numero_ar(valor):
-    return float(str(valor).replace(".", "").replace(",", "."))
+
+    return float(
+        str(valor)
+        .replace(".", "")
+        .replace(",", ".")
+    )
 
 
+# ==========================================================
+# CLASIFICACIÓN ORIGINAL DE LA IMPORTACIÓN
+# ==========================================================
 
 def clasificar(descripcion, tipo):
-    d = re.sub(r"\s+", " ", str(descripcion or "").upper()).strip()
+
+    d = re.sub(
+        r"\s+",
+        " ",
+        str(descripcion or "").upper()
+    ).strip()
+
     tipo = str(tipo or "Otro").strip()
 
-    # Movimientos personales
     if any(x in d for x in (
         "EXTRACCION", "EXTRACCIÓN", "CAJERO",
         "COMPRA DEBITO", "COMPRA DÉBITO",
         "GASTO PERSONAL",
     )):
-        return "Gasto personal" if "COMPRA" in d else "Extracción / efectivo", "Personal"
+        return (
+            "Gasto personal" if "COMPRA" in d
+            else "Extracción / efectivo",
+            "Personal"
+        )
 
-    # Transferencias: no se contabilizan automáticamente.
     if any(x in d for x in (
-        "TRANSF", "TRPRO", "DEBTRF", "CREDIN",
+        "TRANSF", "TRPRO", "DEBTRF",
         "TRANSFERENCIA",
     )):
         return "Transferencia entre cuentas", "Transferencia"
 
-    # Comisiones bancarias
     if any(x in d for x in (
-        "COMISION", "COMISIÓN", "PAQUETE BANCARIO",
-        "ADM.VALORES",
+        "COMISION", "COMISIÓN",
+        "PAQUETE BANCARIO", "ADM.VALORES",
     )):
         return "Comisiones bancarias", "Egreso"
 
-    # Impuestos
     if any(x in d for x in (
         "RETENCION IVA", "RETENCIÓN IVA",
         "PERCEPCION IVA", "PERCEPCIÓN IVA",
-        "IIBB", "AFIP", "IMPUESTO", "TASA GRAL",
-        "DBCR",
+        "IIBB", "AFIP", "IMPUESTO",
+        "TASA GRAL", "DBCR",
     )):
         return "Impuestos", tipo
 
-    # Seguros
     if any(x in d for x in (
         "SEGURO", "SAN CRISTOBAL",
         "SAN CRISTÓBAL", "SANCOR",
     )):
         return "Seguro", "Egreso"
 
-    # Combustible
     if any(x in d for x in (
-        "COMBUST", "YPF", "SHELL", "AXION",
-        "GNC", "ESTACION DE SERVICIO",
+        "COMBUST", "YPF", "SHELL",
+        "AXION", "GNC",
+        "ESTACION DE SERVICIO",
         "ESTACIÓN DE SERVICIO",
     )):
         return "Combustible", "Egreso"
 
-    # Reparaciones y repuestos
     if any(x in d for x in (
-        "REPUESTO", "TALLER", "MECANICA",
-        "MECÁNICA", "REPARACION", "REPARACIÓN",
+        "REPUESTO", "TALLER",
+        "MECANICA", "MECÁNICA",
+        "REPARACION", "REPARACIÓN",
         "NEUMATICO", "NEUMÁTICO",
     )):
         return "Reparación / repuesto", "Egreso"
 
-    # Sueldos y jornales
     if any(x in d for x in (
         "SUELDO", "JORNAL", "HABERES",
-        "LIQUIDACION SUELDO", "LIQUIDACIÓN SUELDO",
+        "LIQUIDACION SUELDO",
+        "LIQUIDACIÓN SUELDO",
     )):
         return "Sueldos / jornales", "Egreso"
 
-    # Ingresos identificables
     if tipo == "Ingreso":
+
         if any(x in d for x in (
             "COBRO CLIENTE", "COBRO DE CLIENTE",
             "PAGO CLIENTE", "PAGO DE CLIENTE",
@@ -145,7 +175,8 @@ def clasificar(descripcion, tipo):
 
         if any(x in d for x in (
             "VENTA DE CEREAL", "VENTA DE GRANOS",
-            "LIQUIDACION GRANOS", "LIQUIDACIÓN GRANOS",
+            "LIQUIDACION GRANOS",
+            "LIQUIDACIÓN GRANOS",
             "ACOPIO DE CEREALES", "COSECHA",
         )):
             return "Venta de cosecha", "Ingreso"
@@ -156,96 +187,148 @@ def clasificar(descripcion, tipo):
         )):
             return "Servicio / trabajo", "Ingreso"
 
-    # Compras comerciales claramente identificadas
     if tipo == "Egreso" and any(x in d for x in (
         "PROVEEDOR", "COMPRA INSUMOS",
         "COMPRA DE INSUMOS",
     )):
         return "Proveedor / compra", "Egreso"
 
-    # No inventar una clasificación cuando falta información.
     return "Pendiente de clasificar", tipo
 
 
+# ==========================================================
+# IMPORTACIÓN DEL PDF BANCARIO
+# ==========================================================
+
 def extraer_movimientos_pdf(datos, nombre_archivo):
+
     lineas = []
-    with pdfplumber.open(__import__("io").BytesIO(datos)) as pdf:
+
+    with pdfplumber.open(io.BytesIO(datos)) as pdf:
+
         for pagina in pdf.pages:
+
             texto = pagina.extract_text() or ""
             lineas.extend(texto.splitlines())
 
-    # El saldo anterior de la cuenta corriente permite reconocer débitos y créditos
-    # por la variación de saldo, aunque el PDF no mantenga las columnas al extraer texto.
     saldo_anterior = None
     dentro_cuenta_corriente = False
+
     for linea in lineas:
+
         if "CUENTA CORRIENTE BANCARIA NRO" in linea.upper():
             dentro_cuenta_corriente = True
-        if dentro_cuenta_corriente and "SALDO ULTIMO EXTRACTO" in linea.upper():
-            m = re.search(r"([\d.]+,\d{2})\s*$", linea)
+
+        if (
+            dentro_cuenta_corriente
+            and "SALDO ULTIMO EXTRACTO" in linea.upper()
+        ):
+
+            m = re.search(
+                r"([\d.]+,\d{2})\s*$",
+                linea
+            )
+
             if m:
                 saldo_anterior = numero_ar(m.group(1))
                 break
 
-    patron_fecha = re.compile(r"^\s*(\d{2}/\d{2}/\d{2})\s+(.+?)\s*$")
-    patron_importe = re.compile(r"-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2}")
+    patron_fecha = re.compile(
+        r"^\s*(\d{2}/\d{2}/\d{2})\s+(.+?)\s*$"
+    )
+
+    patron_importe = re.compile(
+        r"-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2}"
+    )
+
     movimientos = []
     dentro_cuenta_corriente = False
+
     for linea in lineas:
+
         if "CUENTA CORRIENTE BANCARIA NRO" in linea.upper():
             dentro_cuenta_corriente = True
+
         if not dentro_cuenta_corriente:
             continue
+
         m = patron_fecha.match(linea)
+
         if not m:
             continue
+
         fecha_txt, resto = m.groups()
+
         importes = patron_importe.findall(resto)
+
         if len(importes) < 2:
             continue
+
         try:
             importe_linea = numero_ar(importes[-2])
             saldo = numero_ar(importes[-1])
+
         except Exception:
             continue
-        descripcion = resto
-        # Retira del final los dos importes (importe del movimiento y saldo).
+
         idx = resto.rfind(importes[-2])
         descripcion = resto[:idx].strip()
-        # Evitar tomar renglones que no son movimientos de una cuenta.
+
         if not descripcion or "SALDO" in descripcion.upper():
             saldo_anterior = saldo
             continue
+
         if saldo_anterior is None:
-            # Sin saldo inicial no es seguro inferir el sentido del movimiento.
             saldo_anterior = saldo
             continue
 
         delta = round(saldo - saldo_anterior, 2)
 
-        # El importe de la operación debe coincidir con el cambio del saldo.
         if abs(delta) < 0.005:
             saldo_anterior = saldo
             continue
 
         if abs(abs(delta) - abs(importe_linea)) > 0.01:
+
             raise ValueError(
-                "Importación cancelada por seguridad: el importe del movimiento "
-                f"no coincide con la variación del saldo. Línea: {linea}. "
+                "Importación cancelada por seguridad: "
+                "el importe del movimiento no coincide "
+                "con la variación del saldo. "
+                f"Línea: {linea}. "
                 f"Importe de línea: $ {abs(importe_linea):,.2f}; "
                 f"variación calculada: $ {abs(delta):,.2f}. "
-                "No se guardó esta importación. Revisá el PDF y su extracción."
+                "No se guardó esta importación."
             )
 
         tipo = "Ingreso" if delta > 0 else "Egreso"
+
         monto = abs(delta)
+
         saldo_anterior = saldo
-        fecha = date(2000 + int(fecha_txt[-2:]), int(fecha_txt[3:5]), int(fecha_txt[:2]))
-        # La referencia se conserva como texto íntegro; evita perder códigos del banco.
-        categoria, tipo_sugerido = clasificar(descripcion, tipo)
-        base = f"{fecha.isoformat()}|{descripcion.upper()}|{monto:.2f}|{tipo}"
-        huella = hashlib.sha256(base.encode("utf-8")).hexdigest()
+
+        fecha = date(
+            2000 + int(fecha_txt[-2:]),
+            int(fecha_txt[3:5]),
+            int(fecha_txt[:2])
+        )
+
+        categoria, tipo_sugerido = clasificar(
+            descripcion,
+            tipo
+        )
+
+        base = (
+            f"{fecha.isoformat()}|"
+            f"{descripcion.upper()}|"
+            f"{monto:.2f}|{tipo}"
+        )
+
+        huella = hashlib.sha256(
+            base.encode("utf-8")
+        ).hexdigest()
+
         movimientos.append({
+
             "id": str(uuid.uuid4()),
             "huella": huella,
             "fecha": fecha,
@@ -259,149 +342,159 @@ def extraer_movimientos_pdf(datos, nombre_archivo):
             "estado_revision": "Pendiente de revisión contable",
             "origen": "Banco Macro",
             "archivo_origen": nombre_archivo,
+
         })
+
     return movimientos
 
 
 def importar_movimientos(movimientos):
+
     conn = get_conn()
+
     insertados = 0
     duplicados = 0
+
     try:
+
         with conn.cursor() as cur:
+
             for m in movimientos:
+
                 cur.execute("""
                     INSERT INTO movimientos_bancarios
-                    (id, huella, fecha, descripcion, referencia, tipo, categoria,
-                     moneda, monto, saldo, estado_revision, origen, archivo_origen)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    (
+                        id, huella, fecha, descripcion,
+                        referencia, tipo, categoria,
+                        moneda, monto, saldo,
+                        estado_revision, origen, archivo_origen
+                    )
+                    VALUES (
+                        %s,%s,%s,%s,%s,%s,%s,
+                        %s,%s,%s,%s,%s,%s
+                    )
                     ON CONFLICT (huella) DO NOTHING
                 """, (
-                    m["id"], m["huella"], m["fecha"], m["descripcion"], m["referencia"],
-                    m["tipo"], m["categoria"], m["moneda"], m["monto"], m["saldo"],
-                    m["estado_revision"], m["origen"], m["archivo_origen"]
+                    m["id"],
+                    m["huella"],
+                    m["fecha"],
+                    m["descripcion"],
+                    m["referencia"],
+                    m["tipo"],
+                    m["categoria"],
+                    m["moneda"],
+                    m["monto"],
+                    m["saldo"],
+                    m["estado_revision"],
+                    m["origen"],
+                    m["archivo_origen"],
                 ))
+
                 if cur.rowcount:
                     insertados += 1
                 else:
                     duplicados += 1
+
         conn.commit()
+
         return insertados, duplicados
+
     except Exception:
+
         conn.rollback()
         raise
+
     finally:
         conn.close()
 
 
+# ==========================================================
+# CONSULTA Y ACTUALIZACIÓN DE MOVIMIENTOS
+# ==========================================================
+
 def cargar_movimientos():
+
     conn = get_conn()
+
     try:
+
         return pd.read_sql("""
-            SELECT id, fecha, descripcion, referencia, tipo, categoria, moneda,
-                   monto, saldo, estado_revision, origen, archivo_origen,
-                   comprobante_nombre, comprobante_mime, comprobante_data,
-                   id_ingreso, id_gasto
+            SELECT
+                id, fecha, descripcion, referencia,
+                tipo, categoria, moneda, monto, saldo,
+                estado_revision, origen, archivo_origen,
+                comprobante_nombre, comprobante_mime,
+                comprobante_data, id_ingreso, id_gasto
             FROM movimientos_bancarios
             ORDER BY fecha DESC, creado_en DESC
         """, conn)
+
     finally:
         conn.close()
 
 
 def actualizar_movimiento(mid, tipo, categoria, estado):
+
     conn = get_conn()
+
     try:
+
         with conn.cursor() as cur:
+
             cur.execute("""
                 UPDATE movimientos_bancarios
-                SET tipo=%s, categoria=%s, estado_revision=%s, actualizado_en=NOW()
-                WHERE id=%s
-            """, (tipo, categoria, estado, mid))
-        conn.commit()
-    finally:
-        conn.close()
-
-def clasificar_y_revisar_todos():
-
-    conn = get_conn()
-    procesados = 0
-    excluidos = 0
-    pendientes = 0
-
-    try:
-        with conn.cursor() as cur:
-
-            cur.execute("""
-                SELECT id, descripcion, tipo
-                FROM movimientos_bancarios
-                WHERE estado_revision = 'Pendiente de revisión contable'
-                  AND id_ingreso IS NULL
-                  AND id_gasto IS NULL
-            """)
-
-            movimientos = cur.fetchall()
-
-            for mid, descripcion, tipo_original in movimientos:
-
-                categoria, tipo_nuevo = clasificar(
-                    descripcion,
-                    tipo_original
-                )
-
-                cur.execute("""
-                    UPDATE movimientos_bancarios
-                    SET tipo = %s,
-                        categoria = %s,
-                        estado_revision = 'Revisado',
-                        actualizado_en = NOW()
-                    WHERE id = %s
-                      AND estado_revision = 'Pendiente de revisión contable'
-                      AND id_ingreso IS NULL
-                      AND id_gasto IS NULL
-                """, (tipo_nuevo, categoria, mid))
-
-                if cur.rowcount == 1:
-                    procesados += 1
-
-                    if tipo_nuevo in ("Personal", "Transferencia"):
-                        excluidos += 1
-
-                    if categoria == "Pendiente de clasificar":
-                        pendientes += 1
+                SET tipo = %s,
+                    categoria = %s,
+                    estado_revision = %s,
+                    actualizado_en = NOW()
+                WHERE id = %s
+            """, (
+                tipo,
+                categoria,
+                estado,
+                mid,
+            ))
 
         conn.commit()
 
-        return procesados, excluidos, pendientes
-
-    except Exception:
-        conn.rollback()
-        raise
-
     finally:
         conn.close()
+
 
 def guardar_comprobante(mid, archivo):
+
     conn = get_conn()
+
     try:
+
         with conn.cursor() as cur:
+
             cur.execute("""
                 UPDATE movimientos_bancarios
-                SET comprobante_nombre=%s, comprobante_mime=%s,
-                    comprobante_data=%s, actualizado_en=NOW()
-                WHERE id=%s
-            """, (archivo.name, archivo.type or "application/octet-stream", archivo.getvalue(), mid))
+                SET comprobante_nombre = %s,
+                    comprobante_mime = %s,
+                    comprobante_data = %s,
+                    actualizado_en = NOW()
+                WHERE id = %s
+            """, (
+                archivo.name,
+                archivo.type or "application/octet-stream",
+                archivo.getvalue(),
+                mid,
+            ))
+
         conn.commit()
+
     finally:
         conn.close()
 
 
+# ==========================================================
+# CONTABILIZACIÓN INDIVIDUAL SEGURA
+# ==========================================================
 
 def contabilizar(mid):
-    """
-    Contabiliza un movimiento bancario en Neon de forma transaccional.
-    Bloquea categorías personales, transferencias y registros duplicados.
-    """
+
     conn = None
 
     categorias_personales_o_no_contables = {
@@ -409,6 +502,7 @@ def contabilizar(mid):
         "Transferencia entre cuentas",
         "Extracción / efectivo",
         "Pendiente de clasificar",
+        "Otro",
     }
 
     categorias_de_ingreso = {
@@ -428,12 +522,12 @@ def contabilizar(mid):
     }
 
     try:
+
         conn = get_conn()
 
         with conn.cursor() as cur:
-            # Bloquea el movimiento para impedir contabilizaciones simultáneas.
-            cur.execute(
-                """
+
+            cur.execute("""
                 SELECT
                     fecha,
                     descripcion,
@@ -449,14 +543,14 @@ def contabilizar(mid):
                 FROM movimientos_bancarios
                 WHERE id = %s
                 FOR UPDATE
-                """,
-                (mid,),
-            )
+            """, (mid,))
 
             row = cur.fetchone()
 
             if not row:
-                raise ValueError("No se encontró el movimiento bancario.")
+                raise ValueError(
+                    "No se encontró el movimiento bancario."
+                )
 
             (
                 fecha,
@@ -472,36 +566,43 @@ def contabilizar(mid):
                 id_gasto_existente,
             ) = row
 
-            # Una operación ya contabilizada no debe volver a insertarse.
             if estado_revision == "Contabilizado":
+
                 if tipo == "Ingreso" and id_ingreso_existente:
-                    cur.execute(
-                        "SELECT 1 FROM ingresos_trabajos WHERE id = %s",
-                        (id_ingreso_existente,),
-                    )
+
+                    cur.execute("""
+                        SELECT 1
+                        FROM ingresos_trabajos
+                        WHERE id = %s
+                    """, (id_ingreso_existente,))
+
                     if cur.fetchone():
                         conn.commit()
                         return id_ingreso_existente
 
                 elif tipo == "Egreso" and id_gasto_existente:
-                    cur.execute(
-                        "SELECT 1 FROM gastos_comerciales WHERE id_gasto = %s",
-                        (id_gasto_existente,),
-                    )
+
+                    cur.execute("""
+                        SELECT 1
+                        FROM gastos_comerciales
+                        WHERE id_gasto = %s
+                    """, (id_gasto_existente,))
+
                     if cur.fetchone():
                         conn.commit()
                         return id_gasto_existente
 
                 raise ValueError(
-                    "El movimiento figura como contabilizado, pero su "
-                    "registro vinculado no existe o no es válido. "
-                    "Requiere revisión manual; no se creará otro registro."
+                    "El movimiento figura como contabilizado, "
+                    "pero su registro vinculado no existe. "
+                    "Requiere revisión manual."
                 )
 
-            # Solo se contabilizan movimientos revisados expresamente.
             if estado_revision != "Revisado":
+
                 raise ValueError(
-                    "Primero guardá la revisión del movimiento."
+                    "El movimiento debe estar revisado antes "
+                    "de contabilizarse."
                 )
 
             tipo = str(tipo or "").strip()
@@ -509,53 +610,68 @@ def contabilizar(mid):
             moneda = str(moneda or "").strip().upper()
 
             if categoria in categorias_personales_o_no_contables:
+
                 raise ValueError(
-                    f"La categoría '{categoria}' no se puede contabilizar "
-                    "como ingreso o gasto comercial. Revisá su clasificación."
+                    f"La categoría '{categoria}' no se puede "
+                    "contabilizar como ingreso o gasto comercial."
                 )
 
             if tipo not in ("Ingreso", "Egreso"):
+
                 raise ValueError(
-                    "Solo se pueden contabilizar ingresos y egresos "
-                    "comerciales. Las transferencias, extracciones y "
-                    "movimientos personales quedan fuera de estos módulos."
+                    "Solo se contabilizan ingresos y egresos. "
+                    "Personales y transferencias quedan afuera."
                 )
 
-            if tipo == "Ingreso" and categoria not in categorias_de_ingreso:
+            if (
+                tipo == "Ingreso"
+                and categoria not in categorias_de_ingreso
+            ):
+
                 raise ValueError(
-                "La categoría no está habilitada para contabilizar ingresos."
+                    "La categoría no está habilitada "
+                    "para contabilizar ingresos."
                 )
 
-            if tipo == "Egreso" and categoria not in categorias_de_egreso:
+            if (
+                tipo == "Egreso"
+                and categoria not in categorias_de_egreso
+            ):
+
                 raise ValueError(
-                "La categoría no está habilitada para contabilizar gastos."
+                    "La categoría no está habilitada "
+                    "para contabilizar gastos."
                 )
 
             if moneda != "ARS":
+
                 raise ValueError(
-                    "La contabilización automática solo admite ARS. "
-                    "La moneda debe revisarse antes de continuar."
+                    "La contabilización automática solo admite ARS."
                 )
 
             monto_decimal = Decimal(str(monto))
 
-            if not monto_decimal.is_finite() or monto_decimal <= 0:
+            if (
+                not monto_decimal.is_finite()
+                or monto_decimal <= 0
+            ):
+
                 raise ValueError(
-                    "El importe debe ser un número válido mayor que cero."
+                    "El importe debe ser válido y mayor que cero."
                 )
 
-            # Si ya hay un vínculo parcial, no generar un segundo registro.
             if id_ingreso_existente or id_gasto_existente:
+
                 raise ValueError(
                     "El movimiento ya tiene un vínculo contable. "
-                    "Se requiere revisar ese vínculo antes de continuar."
+                    "Se requiere revisar ese vínculo."
                 )
 
             registro_id = "BAN-" + str(mid)[:12]
 
             if tipo == "Ingreso":
-                cur.execute(
-                    """
+
+                cur.execute("""
                     INSERT INTO ingresos_trabajos (
                         id,
                         fecha,
@@ -566,45 +682,43 @@ def contabilizar(mid):
                         monto,
                         detalle
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                     ON CONFLICT (id) DO NOTHING
                     RETURNING id
-                    """,
-                    (
-                        registro_id,
-                        fecha,
-                        "Por identificar",
-                        "Ingreso bancario",
-                        "",
-                        0,
-                        monto_decimal,
-                        f"Importado desde Banco Macro: {descripcion}",
-                    ),
-                )
+                """, (
+                    registro_id,
+                    fecha,
+                    "Por identificar",
+                    "Ingreso bancario",
+                    "",
+                    0,
+                    monto_decimal,
+                    f"Importado desde Banco Macro: {descripcion}",
+                ))
 
                 insertado = cur.fetchone()
 
                 if not insertado:
+
                     raise ValueError(
-                        "Ya existe un ingreso con el identificador "
-                        f"{registro_id}. No se vinculó ni contabilizó "
-                        "automáticamente para evitar duplicados."
+                        f"Ya existe el ingreso {registro_id}. "
+                        "No se generó un duplicado."
                     )
 
-                cur.execute(
-                    """
+                cur.execute("""
                     UPDATE movimientos_bancarios
                     SET id_ingreso = %s,
                         estado_revision = 'Contabilizado',
                         actualizado_en = NOW()
                     WHERE id = %s
-                    """,
-                    (registro_id, mid),
-                )
+                """, (
+                    registro_id,
+                    mid,
+                ))
 
             else:
-                cur.execute(
-                    """
+
+                cur.execute("""
                     INSERT INTO gastos_comerciales (
                         id_gasto,
                         fecha_registro,
@@ -618,70 +732,75 @@ def contabilizar(mid):
                         archivo_comprobante,
                         comprobante_data
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     ON CONFLICT (id_gasto) DO NOTHING
                     RETURNING id_gasto
-                    """,
-                    (
-                        registro_id,
-                        fecha,
-                        str(descripcion or ""),
-                        monto_decimal,
-                        moneda,
-                        monto_decimal,
-                        categoria,
-                        "",
-                        "Pagado",
-                        str(comprobante_nombre or ""),
-                        comprobante_data,
-                    ),
-                )
+                """, (
+                    registro_id,
+                    fecha,
+                    str(descripcion or ""),
+                    monto_decimal,
+                    moneda,
+                    monto_decimal,
+                    categoria,
+                    "",
+                    "Pagado",
+                    str(comprobante_nombre or ""),
+                    comprobante_data,
+                ))
 
                 insertado = cur.fetchone()
 
                 if not insertado:
+
                     raise ValueError(
-                        "Ya existe un gasto con el identificador "
-                        f"{registro_id}. No se vinculó ni contabilizó "
-                        "automáticamente para evitar duplicados."
+                        f"Ya existe el gasto {registro_id}. "
+                        "No se generó un duplicado."
                     )
 
-                cur.execute(
-                    """
+                cur.execute("""
                     UPDATE movimientos_bancarios
                     SET id_gasto = %s,
                         estado_revision = 'Contabilizado',
                         actualizado_en = NOW()
                     WHERE id = %s
-                    """,
-                    (registro_id, mid),
-                )
+                """, (
+                    registro_id,
+                    mid,
+                ))
 
             if cur.rowcount != 1:
+
                 raise ValueError(
                     "No se pudo actualizar el vínculo del movimiento."
                 )
 
-        # El registro contable y su vínculo se confirman juntos.
         conn.commit()
+
         return registro_id
 
     except Exception:
+
         if conn:
             conn.rollback()
+
         raise
 
     finally:
+
         if conn:
             conn.close()
 
 
 # ==========================================================
-# CONTABILIZACIÓN MASIVA SEGURA
+# CONTABILIZACIÓN MASIVA DE MOVIMIENTOS YA CLASIFICADOS
 # ==========================================================
 
+def contabilizar_clasificados_existentes(df):
 
-def movimiento_apto_para_contabilizar(fila):
+    exitosos = 0
+    excluidos = 0
+    errores = []
 
     categorias_ingreso = {
         "Cobro de cliente",
@@ -699,49 +818,96 @@ def movimiento_apto_para_contabilizar(fila):
         "Proveedor / compra",
     }
 
-    estado = str(fila.get("estado_revision", "")).strip()
+    for _, fila in df.iterrows():
 
-    # Solamente movimientos revisados manualmente.
-    if estado != "Revisado":
-        return False
+        mid = str(fila["id"])
 
-    tipo = str(fila.get("tipo", "")).strip()
-    categoria = str(fila.get("categoria", "")).strip()
-    moneda = str(fila.get("moneda", "")).strip().upper()
+        tipo = str(fila.get("tipo") or "").strip()
+        categoria = str(fila.get("categoria") or "").strip()
+        estado = str(fila.get("estado_revision") or "").strip()
+        moneda = str(fila.get("moneda") or "").strip().upper()
 
-    if moneda != "ARS":
-        return False
+        # No procesar estados cerrados o excluidos.
+        if estado not in (
+            "Pendiente de revisión contable",
+            "Revisado",
+        ):
+            continue
 
-    try:
-        monto = Decimal(str(fila.get("monto", 0)))
-    except Exception:
-        return False
+        # Excluir personales y transferencias.
+        if tipo in (
+            "Personal",
+            "Transferencia",
+            "Otro",
+        ):
+            excluidos += 1
+            continue
 
-    if not monto.is_finite() or monto <= 0:
-        return False
+        # Respetar la categoría existente.
+        if (
+            tipo == "Ingreso"
+            and categoria not in categorias_ingreso
+        ):
+            excluidos += 1
+            continue
 
-    if tipo == "Ingreso":
-        if categoria not in categorias_ingreso:
-            return False
+        if (
+            tipo == "Egreso"
+            and categoria not in categorias_egreso
+        ):
+            excluidos += 1
+            continue
 
-    elif tipo == "Egreso":
-        if categoria not in categorias_egreso:
-            return False
+        if tipo not in ("Ingreso", "Egreso"):
+            excluidos += 1
+            continue
 
-    else:
-        return False
+        if moneda != "ARS":
+            excluidos += 1
+            continue
 
-    id_ingreso = fila.get("id_ingreso")
-    id_gasto = fila.get("id_gasto")
+        # Verificar que no exista un vínculo anterior.
+        id_ingreso = fila.get("id_ingreso")
+        id_gasto = fila.get("id_gasto")
 
-    if pd.notna(id_ingreso) and str(id_ingreso).strip():
-        return False
+        if pd.notna(id_ingreso) and str(id_ingreso).strip():
+            excluidos += 1
+            continue
 
-    if pd.notna(id_gasto) and str(id_gasto).strip():
-        return False
+        if pd.notna(id_gasto) and str(id_gasto).strip():
+            excluidos += 1
+            continue
 
-    return True
+        try:
 
+            # Solo cambia el estado. NO cambia tipo ni categoría.
+            if estado == "Pendiente de revisión contable":
+
+                actualizar_movimiento(
+                    mid,
+                    tipo,
+                    categoria,
+                    "Revisado",
+                )
+
+            # Contabilizar vuelve a validar todo dentro de Neon.
+            contabilizar(mid)
+
+            exitosos += 1
+
+        except Exception as e:
+
+            errores.append({
+                "id": mid,
+                "error": str(e),
+            })
+
+    return exitosos, excluidos, errores
+
+
+# ==========================================================
+# DIAGNÓSTICO
+# ==========================================================
 
 def diagnostico_movimientos(filtrado):
 
@@ -762,66 +928,65 @@ def diagnostico_movimientos(filtrado):
 
     st.markdown("#### Por tipo")
 
-    tipos = filtrado["tipo"].fillna("Sin tipo").value_counts()
+    tipos = (
+        filtrado["tipo"]
+        .fillna("Sin tipo")
+        .value_counts()
+    )
 
     for nombre, cantidad in tipos.items():
         st.write(f"- **{nombre}:** {cantidad}")
 
     st.markdown("#### Por categoría")
 
-    categorias = filtrado["categoria"].fillna("Sin categoría").value_counts()
+    categorias = (
+        filtrado["categoria"]
+        .fillna("Sin categoría")
+        .value_counts()
+    )
 
     for nombre, cantidad in categorias.items():
         st.write(f"- **{nombre}:** {cantidad}")
 
     st.markdown("#### Por moneda")
 
-    monedas = filtrado["moneda"].fillna("Sin moneda").value_counts()
+    monedas = (
+        filtrado["moneda"]
+        .fillna("Sin moneda")
+        .value_counts()
+    )
 
     for nombre, cantidad in monedas.items():
         st.write(f"- **{nombre}:** {cantidad}")
 
-def contabilizar_lote_bancario(movimientos):
 
-    exitosos = 0
-    errores = []
-
-    for movimiento in movimientos:
-
-        mid = str(movimiento["id"])
-
-        try:
-            # No aprobar automáticamente.
-            # contabilizar() verifica que el estado sea Revisado
-            # y vuelve a validar todo dentro de la transacción.
-
-            resultado = contabilizar(mid)
-
-            if resultado:
-                exitosos += 1
-
-        except Exception as e:
-
-            errores.append({
-                "id": mid,
-                "error": str(e),
-            })
-
-    return exitosos, errores
+# ==========================================================
+# ANALIZADOR INDEPENDIENTE DEL RESUMEN
+# NO GUARDA NI MODIFICA CONTABILIDAD
+# ==========================================================
 
 def generar_analisis_resumen(texto):
-    """Analiza un extracto sin guardar datos ni modificar la contabilidad."""
-
-    from decimal import Decimal, InvalidOperation
 
     if not texto or not texto.strip():
         return None
 
-    lineas = [x.strip() for x in texto.splitlines() if x.strip()]
+    lineas = [
+        x.strip()
+        for x in texto.splitlines()
+        if x.strip()
+    ]
 
     def importe_decimal(valor):
-        valor = str(valor).strip().replace("$", "").replace(" ", "")
+
+        valor = (
+            str(valor)
+            .strip()
+            .replace("$", "")
+            .replace(" ", "")
+        )
+
         valor = valor.replace(".", "").replace(",", ".")
+
         resultado = Decimal(valor)
 
         if not resultado.is_finite():
@@ -841,6 +1006,7 @@ def generar_analisis_resumen(texto):
     dentro_cuenta = False
     saldo_inicial = None
     saldo_final = None
+
     movimientos = []
     saldos = []
     errores = []
@@ -848,6 +1014,7 @@ def generar_analisis_resumen(texto):
     filas_vistas = set()
 
     for linea in lineas:
+
         mayus = linea.upper()
 
         if "CUENTA CORRIENTE BANCARIA NRO" in mayus:
@@ -861,56 +1028,104 @@ def generar_analisis_resumen(texto):
             "SALDO ULTIMO EXTRACTO" in mayus
             or "SALDO ÚLTIMO EXTRACTO" in mayus
         ):
+
             importes = patron_importe.findall(linea)
+
             if importes:
+
                 try:
                     saldo_inicial = importe_decimal(importes[-1])
-                    saldos.append((linea, float(saldo_inicial)))
+
+                    saldos.append((
+                        linea,
+                        float(saldo_inicial)
+                    ))
+
                 except (InvalidOperation, ValueError):
-                    errores.append(f"Saldo inicial ilegible: {linea}")
+                    errores.append(
+                        f"Saldo inicial ilegible: {linea}"
+                    )
+
             continue
 
-        if "SALDO FINAL AL DIA" in mayus or "SALDO FINAL AL DÍA" in mayus:
+        if (
+            "SALDO FINAL AL DIA" in mayus
+            or "SALDO FINAL AL DÍA" in mayus
+        ):
+
             importes = patron_importe.findall(linea)
+
             if importes:
+
                 try:
                     saldo_final = importe_decimal(importes[-1])
-                    saldos.append((linea, float(saldo_final)))
+
+                    saldos.append((
+                        linea,
+                        float(saldo_final)
+                    ))
+
                 except (InvalidOperation, ValueError):
-                    errores.append(f"Saldo final ilegible: {linea}")
+                    errores.append(
+                        f"Saldo final ilegible: {linea}"
+                    )
+
             continue
 
         m = patron_fecha.match(linea)
+
         if not m:
             continue
 
         fecha_txt, resto = m.groups()
+
         importes = patron_importe.findall(resto)
 
         if len(importes) < 2:
+
             errores.append(
-                f"No se identificaron importe y saldo posterior: {linea}"
+                "No se identificaron importe y saldo posterior: "
+                + linea
             )
+
             destacados.append(linea)
             continue
 
         try:
-            importe_linea = abs(importe_decimal(importes[-2]))
+
+            importe_linea = abs(
+                importe_decimal(importes[-2])
+            )
+
             saldo = importe_decimal(importes[-1])
+
         except (InvalidOperation, ValueError):
-            errores.append(f"Importe o saldo ilegible: {linea}")
+
+            errores.append(
+                f"Importe o saldo ilegible: {linea}"
+            )
+
             destacados.append(linea)
             continue
 
         posicion = resto.rfind(importes[-2])
+
         descripcion = resto[:posicion].strip()
 
         if not descripcion:
-            errores.append(f"Movimiento sin descripción: {linea}")
+
+            errores.append(
+                f"Movimiento sin descripción: {linea}"
+            )
+
             destacados.append(linea)
             continue
 
-        clave = (fecha_txt, descripcion.upper(), str(saldo))
+        clave = (
+            fecha_txt,
+            descripcion.upper(),
+            str(saldo),
+        )
 
         if clave in filas_vistas:
             continue
@@ -933,72 +1148,133 @@ def generar_analisis_resumen(texto):
     total_ingresos = Decimal("0.00")
     total_egresos = Decimal("0.00")
     variacion_bancaria = Decimal("0.00")
+
     saldo_previo = saldo_inicial
 
     for mov in movimientos:
+
         saldo_actual = mov["saldo"]
         importe_linea = mov["importe_linea"]
         descripcion = mov["descripcion"]
         linea = mov["linea"]
 
         if saldo_previo is None:
+
             errores.append(
                 "Falta el saldo inicial: no se puede verificar "
                 "el sentido ni el importe de este movimiento."
             )
-            sin_clasificar.append((linea, float(importe_linea)))
+
+            sin_clasificar.append((
+                linea,
+                float(importe_linea)
+            ))
+
             destacados.append(linea)
             saldo_previo = saldo_actual
             continue
 
-        diferencia = (saldo_actual - saldo_previo).quantize(
-            Decimal("0.01")
-        )
+        diferencia = (
+            saldo_actual - saldo_previo
+        ).quantize(Decimal("0.01"))
+
         variacion_bancaria += diferencia
 
         if diferencia == Decimal("0.00"):
+
             errores.append(
-                f"El saldo no cambió pese a que aparece un movimiento: {linea}"
+                "El saldo no cambió pese a que aparece "
+                f"un movimiento: {linea}"
             )
-            sin_clasificar.append((linea, float(importe_linea)))
+
+            sin_clasificar.append((
+                linea,
+                float(importe_linea)
+            ))
+
             destacados.append(linea)
             saldo_previo = saldo_actual
             continue
 
-        # Verificar que el importe impreso coincida con la variación del saldo.
         if abs(abs(diferencia) - importe_linea) > Decimal("0.01"):
+
             errores.append(
-                "El importe de la línea no coincide con la variación "
-                f"del saldo. Línea: {linea}. "
+                "El importe de la línea no coincide con la "
+                "variación del saldo. "
+                f"Línea: {linea}. "
                 f"Importe leído: $ {importe_linea:,.2f}; "
                 f"variación del saldo: $ {abs(diferencia):,.2f}."
             )
-            sin_clasificar.append((linea, float(importe_linea)))
+
+            sin_clasificar.append((
+                linea,
+                float(importe_linea)
+            ))
+
             destacados.append(linea)
             saldo_previo = saldo_actual
             continue
 
         monto = abs(diferencia)
-        tipo = "Ingreso" if diferencia > 0 else "Egreso"
+
+        tipo = (
+            "Ingreso"
+            if diferencia > 0
+            else "Egreso"
+        )
+
         d = descripcion.upper()
 
-        # Reconocer el concepto sin afirmar algo que el extracto no prueba.
-        if "ACREDITACION CHEQUE REMESAS" in d or "ACREDITACIÓN CHEQUE REMESAS" in d:
-            concepto = "Acreditación de cheque; origen por confirmar"
+        if (
+            "ACREDITACION CHEQUE REMESAS" in d
+            or "ACREDITACIÓN CHEQUE REMESAS" in d
+        ):
 
-        elif "COMISION ADM.VALORES" in d or "COMISIÓN ADM.VALORES" in d:
-            concepto = "Comisión bancaria por valores al cobro"
+            concepto = (
+                "Acreditación de cheque; origen por confirmar"
+            )
 
-        elif "RETENCION IVA" in d or "RETENCIÓN IVA" in d or "PERCEPCION" in d or "PERCEPCIÓN" in d:
-            concepto = "Retención/percepción impositiva; revisar tratamiento contable"
+        elif (
+            "COMISION ADM.VALORES" in d
+            or "COMISIÓN ADM.VALORES" in d
+        ):
+
+            concepto = (
+                "Comisión bancaria por valores al cobro"
+            )
+
+        elif (
+            "RETENCION IVA" in d
+            or "RETENCIÓN IVA" in d
+            or "PERCEPCION" in d
+            or "PERCEPCIÓN" in d
+        ):
+
+            concepto = (
+                "Retención/percepción impositiva; "
+                "revisar tratamiento contable"
+            )
 
         elif "DBCR" in d and "S/DB" in d:
-            concepto = "Débito por tasa/impuesto; verificar concepto bancario"
+
+            concepto = (
+                "Débito por tasa/impuesto; "
+                "verificar concepto bancario"
+            )
 
         elif "DBCR" in d and "S/CR" in d:
-            concepto = "Crédito o reversión de tasa/impuesto; verificar origen"
 
-        elif "TRANSF" in d or "TRPRO" in d or "DEBTRF" in d:
+            concepto = (
+                "Crédito o reversión de tasa/impuesto; "
+                "verificar origen"
+            )
+
+        elif (
+            "TRANSF" in d
+            or "TRPRO" in d
+            or "DEBTRF" in d
+        ):
+
             concepto = (
                 "Transferencia entrante; contraparte y motivo por confirmar"
                 if tipo == "Ingreso"
@@ -1006,30 +1282,52 @@ def generar_analisis_resumen(texto):
             )
 
         elif "CHEQUE" in d:
-            concepto = "Movimiento relacionado con cheque; revisar origen"
+
+            concepto = (
+                "Movimiento relacionado con cheque; revisar origen"
+            )
 
         else:
-            concepto = "Concepto detectado; verificar clasificación comercial"
 
-        conceptos_reconocidos.append((linea, concepto, float(monto)))
+            concepto = (
+                "Concepto detectado; verificar clasificación comercial"
+            )
+
+        conceptos_reconocidos.append((
+            linea,
+            concepto,
+            float(monto)
+        ))
 
         if tipo == "Ingreso":
+
             total_ingresos += monto
-            ingresos.append((linea, float(monto)))
+            ingresos.append((
+                linea,
+                float(monto)
+            ))
+
         else:
+
             total_egresos += monto
-            egresos.append((linea, float(monto)))
+            egresos.append((
+                linea,
+                float(monto)
+            ))
 
         saldo_previo = saldo_actual
 
     variacion = total_ingresos - total_egresos
+
     conciliacion_calculada = None
     diferencia_conciliacion = None
     conciliado = False
 
-    if saldo_inicial is not None and saldo_final is not None:
-        # Se concilia con todos los cambios de saldo, incluso los que quedaron
-        # pendientes de revisión, para no ocultar diferencias.
+    if (
+        saldo_inicial is not None
+        and saldo_final is not None
+    ):
+
         conciliacion_calculada = (
             saldo_inicial + variacion_bancaria
         ).quantize(Decimal("0.01"))
@@ -1038,23 +1336,29 @@ def generar_analisis_resumen(texto):
             saldo_final - conciliacion_calculada
         ).quantize(Decimal("0.01"))
 
-        conciliado = diferencia_conciliacion == Decimal("0.00")
-
-        if not conciliado:
-            errores.append(
-                "La conciliación de saldos no coincide. Revisá movimientos "
-                "omitidos, páginas faltantes, orden de las líneas o saldos."
-            )
-    else:
-        errores.append(
-            "No se encontraron los saldos inicial y final de la cuenta. "
-            "La conciliación completa no puede verificarse."
+        conciliado = (
+            diferencia_conciliacion == Decimal("0.00")
         )
 
-    # Quitar repeticiones sin alterar el orden.
+        if not conciliado:
+
+            errores.append(
+                "La conciliación de saldos no coincide. "
+                "Revisá movimientos omitidos, páginas faltantes, "
+                "orden de las líneas o saldos."
+            )
+
+    else:
+
+        errores.append(
+            "No se encontraron los saldos inicial y final "
+            "de la cuenta. La conciliación completa no puede verificarse."
+        )
+
     destacados = list(dict.fromkeys(destacados))
 
     return {
+
         "lineas": lineas,
         "ingresos": ingresos,
         "egresos": egresos,
@@ -1062,33 +1366,69 @@ def generar_analisis_resumen(texto):
         "saldos": saldos,
         "destacados": destacados,
         "conceptos_reconocidos": conceptos_reconocidos,
+
         "total_ingresos": float(total_ingresos),
         "total_egresos": float(total_egresos),
         "variacion_identificada": float(variacion),
-        "saldo_inicial": float(saldo_inicial) if saldo_inicial is not None else None,
-        "saldo_final": float(saldo_final) if saldo_final is not None else None,
+
+        "saldo_inicial": (
+            float(saldo_inicial)
+            if saldo_inicial is not None
+            else None
+        ),
+
+        "saldo_final": (
+            float(saldo_final)
+            if saldo_final is not None
+            else None
+        ),
+
         "conciliacion_calculada": (
             float(conciliacion_calculada)
-            if conciliacion_calculada is not None else None
+            if conciliacion_calculada is not None
+            else None
         ),
+
         "diferencia_conciliacion": (
             float(diferencia_conciliacion)
-            if diferencia_conciliacion is not None else None
+            if diferencia_conciliacion is not None
+            else None
         ),
+
         "conciliado": conciliado,
         "errores": errores,
         "cantidad_movimientos": len(movimientos),
+
     }
 
+
+# ==========================================================
+# PANTALLA PRINCIPAL
+# ==========================================================
+
 def pantalla_movimientos_bancarios():
+
     st.header("🏦 Movimientos bancarios")
-    st.caption("Importación del extracto a Neon. Los movimientos quedan pendientes de revisión; nada se contabiliza sin confirmación.")
 
+    st.caption(
+        "Importación del extracto a Neon. "
+        "Los movimientos quedan pendientes de revisión; "
+        "nada se contabiliza sin confirmación."
+    )
 
-    with st.expander("📊 Analizar resumen bancario (sin contabilizar)", expanded=False):
+    # ------------------------------------------------------
+    # ANALIZADOR INDEPENDIENTE
+    # ------------------------------------------------------
+
+    with st.expander(
+        "📊 Analizar resumen bancario (sin contabilizar)",
+        expanded=False
+    ):
+
         st.write(
-            "Pegá el texto del resumen o cargá un PDF para obtener un "
-            "informe independiente. Este análisis no guarda movimientos "
+            "Pegá el texto del resumen o cargá un PDF para "
+            "obtener un informe independiente. "
+            "Este análisis no guarda movimientos "
             "ni modifica la contabilidad."
         )
 
@@ -1110,313 +1450,411 @@ def pantalla_movimientos_bancarios():
             type="primary",
             key="btn_analizar_resumen_bancario"
         ):
+
             texto_a_analizar = texto_resumen.strip()
 
             if pdf_resumen is not None:
+
                 try:
-                    import io
 
                     with pdfplumber.open(
                         io.BytesIO(pdf_resumen.getvalue())
                     ) as pdf:
+
                         texto_a_analizar = "\n".join(
                             pagina.extract_text() or ""
                             for pagina in pdf.pages
                         ).strip()
+
                 except Exception as e:
-                    st.error(f"No se pudo leer el PDF: {e}")
+
+                    st.error(
+                        f"No se pudo leer el PDF: {e}"
+                    )
+
                     texto_a_analizar = ""
 
             if not texto_a_analizar:
-                st.warning("Pegá un texto o seleccioná un PDF antes de analizar.")
+
+                st.warning(
+                    "Pegá un texto o seleccioná un PDF antes de analizar."
+                )
+
             else:
-                resultado = generar_analisis_resumen(texto_a_analizar)
+
+                resultado = generar_analisis_resumen(
+                    texto_a_analizar
+                )
 
                 if resultado is None:
-                    st.warning("No se encontró texto para analizar.")
+
+                    st.warning(
+                        "No se encontró texto para analizar."
+                    )
+
                 else:
+
                     st.subheader("📋 Resultado del análisis")
 
                     c1, c2, c3 = st.columns(3)
+
                     c1.metric(
                         "Ingresos identificados",
                         f"$ {resultado['total_ingresos']:,.2f}"
                     )
+
                     c2.metric(
                         "Egresos identificados",
                         f"$ {resultado['total_egresos']:,.2f}"
                     )
+
                     c3.metric(
                         "Diferencia identificada",
                         f"$ {resultado['variacion_identificada']:,.2f}"
                     )
 
                     st.info(
-                        "La diferencia es la resta entre los ingresos y "
-                        "egresos que se pudieron identificar. No representa "
-                        "necesariamente la variación real del saldo bancario."
+                        "La diferencia es la resta entre los ingresos "
+                        "y egresos que se pudieron identificar. "
+                        "No representa necesariamente la variación "
+                        "real del saldo bancario."
                     )
 
                     st.markdown("#### 🧾 ¿Qué pasó en el resumen?")
 
                     st.write(
-                        f"Se analizaron {len(resultado['lineas'])} líneas "
-                        "de texto. Se identificaron "
-                        f"{len(resultado['ingresos'])} posibles ingresos y "
-                        f"{len(resultado['egresos'])} posibles egresos."
+                        f"Se analizaron {len(resultado['lineas'])} "
+                        "líneas de texto. Se identificaron "
+                        f"{len(resultado['ingresos'])} posibles ingresos "
+                        "y {len(resultado['egresos'])} posibles egresos."
                     )
 
                     if resultado["ingresos"]:
+
                         with st.expander("Ver ingresos identificados"):
+
                             for descripcion, monto in resultado["ingresos"]:
-                                st.write(f"- {descripcion} · $ {monto:,.2f}")
+                                st.write(
+                                    f"- {descripcion} · $ {monto:,.2f}"
+                                )
 
                     if resultado["egresos"]:
+
                         with st.expander("Ver egresos identificados"):
+
                             for descripcion, monto in resultado["egresos"]:
-                                st.write(f"- {descripcion} · $ {monto:,.2f}")
+                                st.write(
+                                    f"- {descripcion} · $ {monto:,.2f}"
+                                )
 
                     if resultado["saldos"]:
+
                         st.markdown("#### 💰 Saldos encontrados")
+
                         for descripcion, saldo in resultado["saldos"]:
-                            st.write(f"- {descripcion}: $ {saldo:,.2f}")
+                            st.write(
+                                f"- {descripcion}: $ {saldo:,.2f}"
+                            )
 
                     if resultado.get("conceptos_reconocidos"):
+
                         with st.expander(
-                            f"Conceptos reconocidos ({len(resultado['conceptos_reconocidos'])})"
+                            "Conceptos reconocidos "
+                            f"({len(resultado['conceptos_reconocidos'])})"
                         ):
-                            for descripcion, concepto, monto in resultado["conceptos_reconocidos"]:
-                                st.write(f"- **{concepto}** · $ {monto:,.2f}")
+
+                            for descripcion, concepto, monto in resultado[
+                                "conceptos_reconocidos"
+                            ]:
+
+                                st.write(
+                                    f"- **{concepto}** · $ {monto:,.2f}"
+                                )
+
                                 st.caption(descripcion)
 
                     if resultado["errores"]:
+
                         with st.expander(
-                            f"Validaciones y advertencias ({len(resultado['errores'])})"
+                            "Validaciones y advertencias "
+                            f"({len(resultado['errores'])})"
                         ):
+
                             for error in resultado["errores"]:
                                 st.warning(error)
 
                     if resultado["sin_clasificar"]:
+
                         with st.expander(
-                            f"Movimientos sin clasificar "
+                            "Movimientos sin clasificar "
                             f"({len(resultado['sin_clasificar'])})"
                         ):
+
                             st.caption(
-                                "No se suman a ingresos ni egresos porque "
-                                "el texto no permite determinar su sentido."
+                                "No se suman a ingresos ni egresos "
+                                "porque el texto no permite "
+                                "determinar su sentido."
                             )
-                            for descripcion, monto in resultado["sin_clasificar"]:
-                                st.write(f"- {descripcion} · $ {monto:,.2f}")
+
+                            for descripcion, monto in resultado[
+                                "sin_clasificar"
+                            ]:
+
+                                st.write(
+                                    f"- {descripcion} · $ {monto:,.2f}"
+                                )
 
                     st.caption(
-                        "Análisis automático por palabras clave. Revisá los "
-                        "importes y las clasificaciones antes de usar el "
-                        "resultado para tomar decisiones contables."
+                        "Análisis automático. Revisá los importes "
+                        "y las clasificaciones antes de utilizar "
+                        "el resultado para tomar decisiones contables."
                     )
 
+    # ------------------------------------------------------
+    # PREPARAR TABLA
+    # ------------------------------------------------------
+
     try:
+
         asegurar_tabla()
+
     except Exception as e:
-        st.error(f"No se pudo preparar la tabla en Neon: {e}")
-        st.info("Verificá que la conexión de Neon esté configurada en Secrets como `db`.")
+
+        st.error(
+            f"No se pudo preparar la tabla en Neon: {e}"
+        )
+
+        st.info(
+            "Verificá que la conexión de Neon esté configurada "
+            "en Secrets como `db`."
+        )
+
         return
 
-    with st.expander("📄 Importar extracto bancario PDF", expanded=True):
-        archivo = st.file_uploader("Seleccioná el extracto PDF", type=["pdf"], key="pdf_mov_bancarios")
+    # ------------------------------------------------------
+    # IMPORTAR PDF
+    # ------------------------------------------------------
+
+    with st.expander(
+        "📄 Importar extracto bancario PDF",
+        expanded=True
+    ):
+
+        archivo = st.file_uploader(
+            "Seleccioná el extracto PDF",
+            type=["pdf"],
+            key="pdf_mov_bancarios"
+        )
+
         if archivo is not None:
-            st.caption(f"Archivo seleccionado: {archivo.name} · {archivo.size:,} bytes")
-            if st.button("Importar y guardar en Neon", type="primary", key="btn_importar_mov_bancarios"):
+
+            st.caption(
+                f"Archivo seleccionado: {archivo.name} · "
+                f"{archivo.size:,} bytes"
+            )
+
+            if st.button(
+                "Importar y guardar en Neon",
+                type="primary",
+                key="btn_importar_mov_bancarios"
+            ):
+
                 try:
-                    movimientos = extraer_movimientos_pdf(archivo.getvalue(), archivo.name)
+
+                    movimientos = extraer_movimientos_pdf(
+                        archivo.getvalue(),
+                        archivo.name
+                    )
+
                     if not movimientos:
-                        st.warning("No se detectaron movimientos con un formato compatible. No se guardó nada.")
+
+                        st.warning(
+                            "No se detectaron movimientos compatibles. "
+                            "No se guardó nada."
+                        )
+
                     else:
-                        nuevos, repetidos = importar_movimientos(movimientos)
-                        st.success(f"Importación terminada: {nuevos} nuevos y {repetidos} duplicados omitidos.")
+
+                        nuevos, repetidos = importar_movimientos(
+                            movimientos
+                        )
+
+                        st.success(
+                            f"Importación terminada: {nuevos} nuevos "
+                            f"y {repetidos} duplicados omitidos."
+                        )
+
                         st.rerun()
+
                 except Exception as e:
-                    st.error(f"No se pudo importar el PDF: {e}")
+
+                    st.error(
+                        f"No se pudo importar el PDF: {e}"
+                    )
+
+    # ------------------------------------------------------
+    # CARGAR MOVIMIENTOS
+    # ------------------------------------------------------
 
     try:
+
         df = cargar_movimientos()
+
     except Exception as e:
-        st.error(f"No se pudieron cargar los movimientos desde Neon: {e}")
+
+        st.error(
+            f"No se pudieron cargar los movimientos desde Neon: {e}"
+        )
+
         return
 
     if df.empty:
-        st.info("Todavía no hay movimientos importados.")
+
+        st.info(
+            "Todavía no hay movimientos importados."
+        )
+
         return
 
-    df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
-    mes_options = sorted(df["fecha"].dropna().dt.strftime("%Y-%m").unique(), reverse=True)
-    mes = st.selectbox("Mes", ["Todos"] + mes_options)
-    filtrado = df if mes == "Todos" else df[df["fecha"].dt.strftime("%Y-%m") == mes]
-    diagnostico_movimientos(filtrado)
-    total_ingresos = filtrado.loc[filtrado["tipo"] == "Ingreso", "monto"].sum()
-    total_egresos = filtrado.loc[filtrado["tipo"] == "Egreso", "monto"].sum()
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Movimientos", len(filtrado))
-    c2.metric("Ingresos identificados", f"$ {total_ingresos:,.2f}")
-    c3.metric("Egresos identificados", f"$ {total_egresos:,.2f}")
+    df["fecha"] = pd.to_datetime(
+        df["fecha"],
+        errors="coerce"
+    )
 
-    # ==========================================================
-    # PANEL DE CONTABILIZACIÓN MASIVA
-    # ==========================================================
+    mes_options = sorted(
+        df["fecha"]
+        .dropna()
+        .dt.strftime("%Y-%m")
+        .unique(),
+        reverse=True
+    )
+
+    mes = st.selectbox(
+        "Mes",
+        ["Todos"] + mes_options
+    )
+
+    filtrado = (
+        df
+        if mes == "Todos"
+        else df[
+            df["fecha"].dt.strftime("%Y-%m") == mes
+        ]
+    )
+
+    diagnostico_movimientos(filtrado)
+
+    total_ingresos = filtrado.loc[
+        filtrado["tipo"] == "Ingreso",
+        "monto"
+    ].sum()
+
+    total_egresos = filtrado.loc[
+        filtrado["tipo"] == "Egreso",
+        "monto"
+    ].sum()
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric(
+        "Movimientos",
+        len(filtrado)
+    )
+
+    c2.metric(
+        "Ingresos identificados",
+        f"$ {total_ingresos:,.2f}"
+    )
+
+    c3.metric(
+        "Egresos identificados",
+        f"$ {total_egresos:,.2f}"
+    )
+
+    # ======================================================
+    # CONTABILIZACIÓN MASIVA
+    # ======================================================
 
     st.divider()
 
-    st.subheader("🚀 Contabilización masiva")
+    st.subheader(
+        "🚀 Pasar movimientos a Ingresos y Gastos"
+    )
+
+    st.caption(
+        "Este proceso utiliza el tipo y la categoría que "
+        "ya están guardados en Neon. No vuelve a clasificar "
+        "ni modifica las descripciones."
+    )
+
     st.warning(
-        "Esta acción clasificará y marcará como revisados "
-        "todos los movimientos bancarios pendientes. "
-        "No realizará ninguna contabilización."
+        "Los ingresos se incorporarán a Ingresos y los egresos "
+        "a Gastos comerciales. Los movimientos personales, "
+        "transferencias y categorías pendientes quedarán afuera."
     )
 
     if st.button(
-        "⚡ CLASIFICAR Y MARCAR TODOS COMO REVISADOS",
+        "🚀 PASAR INGRESOS Y EGRESOS A LA CONTABILIDAD",
         type="primary",
         use_container_width=True,
-        key="btn_clasificar_todos"
+        key="btn_contabilizar_clasificados"
     ):
+
         try:
-            procesados, excluidos, pendientes = clasificar_y_revisar_todos()
 
-            st.success(
-                f"Proceso terminado: {procesados} movimientos revisados."
+            # Se procesa todo lo guardado, no solamente
+            # el mes que se está visualizando en pantalla.
+            exitosos, excluidos, errores = (
+                contabilizar_clasificados_existentes(df)
             )
 
-            st.info(
-                f"Personales y transferencias excluidos: {excluidos} | "
-                f"Pendientes de clasificación: {pendientes}"
-            )
+            st.session_state["resultado_lote_bancario"] = {
+                "exitosos": exitosos,
+                "excluidos": excluidos,
+                "errores": errores,
+            }
 
             st.rerun()
 
         except Exception as e:
-            st.error(f"No se pudo completar la clasificación: {e}")
 
-    st.caption(
-        "Se contabilizan únicamente los movimientos revisados "
-        "y aprobados. Los personales, transferencias y dudosos "
-        "permanecen fuera de la contabilidad."
-    )
+            st.error(
+                f"Error durante la contabilización: {e}"
+            )
 
-    mascara_candidatos = (
-        filtrado.apply(
-            movimiento_apto_para_contabilizar,
-            axis=1
-        )
-        .fillna(False)
-        .astype(bool)
-    )
-
-    candidatos = filtrado.loc[mascara_candidatos].copy()
-
-    cantidad_ingresos = int(
-        (candidatos["tipo"] == "Ingreso").sum()
-    )
-
-    cantidad_egresos = int(
-        (candidatos["tipo"] == "Egreso").sum()
-    )
-
-    total_ingresos_lote = pd.to_numeric(
-        candidatos.loc[
-            candidatos["tipo"] == "Ingreso",
-            "monto"
-        ],
-        errors="coerce"
-    ).fillna(0).sum()
-
-    total_egresos_lote = pd.to_numeric(
-        candidatos.loc[
-            candidatos["tipo"] == "Egreso",
-            "monto"
-        ],
-        errors="coerce"
-    ).fillna(0).sum()
-
-    pendientes_revision = int(
-        (filtrado["estado_revision"] == "Pendiente de revisión contable").sum()
-    )
-
-    ya_contabilizados = int(
-        (filtrado["estado_revision"] == "Contabilizado").sum()
-    )
-
-    personal_y_excluidos = int(
-        (filtrado["tipo"].isin(["Personal", "Transferencia", "Otro"])).sum()
-    )
-
-    m1, m2, m3 = st.columns(3)
-
-    m1.metric("Listos para contabilizar", len(candidatos))
-    m2.metric("Ingresos aprobados", cantidad_ingresos)
-    m3.metric("Egresos aprobados", cantidad_egresos)
-
-    st.write(
-        f"**Total de ingresos:** $ {total_ingresos_lote:,.2f}"
-    )
-
-    st.write(
-        f"**Total de egresos:** $ {total_egresos_lote:,.2f}"
-    )
-
-    with st.expander("Ver movimientos que quedan fuera del lote"):
-
-        st.write(f"Pendientes de revisión: {pendientes_revision}")
-        st.write(f"Ya contabilizados: {ya_contabilizados}")
-        st.write(f"Personales, transferencias y otros tipos: {personal_y_excluidos}")
-
-    st.warning(
-        "La contabilización utilizará el filtro de mes seleccionado "
-        "arriba. Revisá los importes antes de confirmar."
-    )
-
-    if st.button(
-        "🚀 CONTABILIZAR TODO",
-        type="primary",
-        disabled=(len(candidatos) == 0),
-        key="btn_contabilizar_lote_bancario"
-    ):
-
-        movimientos_lote = candidatos[
-            ["id", "tipo", "categoria"]
-        ].to_dict("records")
-
-        exitosos, errores = contabilizar_lote_bancario(
-            movimientos_lote
-        )
-
-        st.session_state["resultado_lote_bancario"] = {
-            "exitosos": exitosos,
-            "errores": errores,
-        }
-
-        st.rerun()
-
-
-    # Mostrar resultado de la última ejecución.
+    # ------------------------------------------------------
+    # RESULTADO DE LA CONTABILIZACIÓN
+    # ------------------------------------------------------
 
     if "resultado_lote_bancario" in st.session_state:
 
-        resultado_lote = st.session_state["resultado_lote_bancario"]
+        resultado = st.session_state[
+            "resultado_lote_bancario"
+        ]
 
         st.success(
-            f"Contabilización terminada: "
-            f"{resultado_lote['exitosos']} movimientos contabilizados."
+            "Movimientos enviados a la contabilidad: "
+            f"{resultado['exitosos']}"
         )
 
-        if resultado_lote["errores"]:
+        st.info(
+            "Movimientos excluidos por tipo, categoría, "
+            "moneda o vínculo existente: "
+            f"{resultado['excluidos']}"
+        )
+
+        if resultado["errores"]:
 
             with st.expander(
-                f"Movimientos con errores ({len(resultado_lote['errores'])})"
+                f"Movimientos con errores "
+                f"({len(resultado['errores'])})"
             ):
 
-                for error in resultado_lote["errores"]:
+                for error in resultado["errores"]:
 
                     st.error(
-                        f"Movimiento {error['id']}: {error['error']}"
+                        f"Movimiento {error['id']}: "
+                        f"{error['error']}"
                     )
 
         if st.button(
@@ -1424,71 +1862,246 @@ def pantalla_movimientos_bancarios():
             key="cerrar_resultado_lote"
         ):
 
-            del st.session_state["resultado_lote_bancario"]
+            del st.session_state[
+                "resultado_lote_bancario"
+            ]
+
             st.rerun()
 
+    # ======================================================
+    # MOVIMIENTOS GUARDADOS
+    # ======================================================
 
     st.divider()
 
     st.subheader("Movimientos guardados")
-    st.caption("Revisá tipo y categoría. Los movimientos personales o transferencias no se contabilizan en Ingresos/Gastos.")
-    for _, fila in filtrado.iterrows():
-        mid = str(fila["id"])
-        fecha_txt = fila["fecha"].strftime("%d/%m/%Y") if pd.notna(fila["fecha"]) else "Sin fecha"
-        with st.expander(f"{fecha_txt} · $ {float(fila['monto']):,.2f} · {str(fila['descripcion'])[:90]}"):
-            st.write(f"**Descripción:** {fila['descripcion']}")
-            st.write(f"**Saldo posterior:** $ {float(fila['saldo']):,.2f}" if pd.notna(fila["saldo"]) else "Saldo no disponible")
-            if fila.get("id_ingreso"):
-                st.caption(f"Vinculado a ingreso: {fila['id_ingreso']}")
-            if fila.get("id_gasto"):
-                st.caption(f"Vinculado a gasto: {fila['id_gasto']}")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                tipo_actual = fila["tipo"] if fila["tipo"] in TIPOS else "Otro"
-                tipo = st.selectbox("Tipo", TIPOS, index=TIPOS.index(tipo_actual), key=f"tipo_{mid}")
-            with col2:
-                cat_actual = fila["categoria"] if fila["categoria"] in CATEGORIAS else CATEGORIAS[0]
-                categoria = st.selectbox("Categoría", CATEGORIAS, index=CATEGORIAS.index(cat_actual), key=f"cat_{mid}")
-            with col3:
-                if fila["estado_revision"] == "Contabilizado":
-                    st.text_input("Estado", value="Contabilizado", disabled=True, key=f"estado_{mid}")
-                    estado = "Contabilizado"
-                else:
-                    estado_actual = fila["estado_revision"] if fila["estado_revision"] in ESTADOS else ESTADOS[0]
-                    estado = st.selectbox("Estado", ESTADOS, index=ESTADOS.index(estado_actual), key=f"estado_{mid}")
-            if fila["estado_revision"] != "Contabilizado":
-                if st.button("Guardar revisión", key=f"guardar_rev_{mid}"):
-                    try:
-                        actualizar_movimiento(mid, tipo, categoria, estado)
-                        st.success("Revisión guardada.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"No se pudo guardar la revisión: {e}")
 
-            comprobante = st.file_uploader("Adjuntar comprobante (PDF o imagen)", type=["pdf", "png", "jpg", "jpeg", "webp"], key=f"comprobante_{mid}")
-            if comprobante is not None and st.button("Guardar comprobante", key=f"guardar_comp_{mid}"):
+    st.caption(
+        "Revisá tipo y categoría. Los movimientos personales "
+        "o transferencias no se contabilizan en Ingresos/Gastos."
+    )
+
+    for _, fila in filtrado.iterrows():
+
+        mid = str(fila["id"])
+
+        fecha_txt = (
+            fila["fecha"].strftime("%d/%m/%Y")
+            if pd.notna(fila["fecha"])
+            else "Sin fecha"
+        )
+
+        monto_fila = float(fila["monto"] or 0)
+
+        descripcion_fila = str(
+            fila["descripcion"] or ""
+        )
+
+        with st.expander(
+            f"{fecha_txt} · $ {monto_fila:,.2f} · "
+            f"{descripcion_fila[:90]}"
+        ):
+
+            st.write(
+                f"**Descripción:** {descripcion_fila}"
+            )
+
+            if pd.notna(fila["saldo"]):
+
+                st.write(
+                    f"**Saldo posterior:** "
+                    f"$ {float(fila['saldo']):,.2f}"
+                )
+
+            else:
+
+                st.write("Saldo no disponible")
+
+            if fila.get("id_ingreso"):
+
+                st.caption(
+                    f"Vinculado a ingreso: {fila['id_ingreso']}"
+                )
+
+            if fila.get("id_gasto"):
+
+                st.caption(
+                    f"Vinculado a gasto: {fila['id_gasto']}"
+                )
+
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+
+                tipo_actual = (
+                    fila["tipo"]
+                    if fila["tipo"] in TIPOS
+                    else "Otro"
+                )
+
+                tipo = st.selectbox(
+                    "Tipo",
+                    TIPOS,
+                    index=TIPOS.index(tipo_actual),
+                    key=f"tipo_{mid}"
+                )
+
+            with col2:
+
+                cat_actual = (
+                    fila["categoria"]
+                    if fila["categoria"] in CATEGORIAS
+                    else CATEGORIAS[0]
+                )
+
+                categoria = st.selectbox(
+                    "Categoría",
+                    CATEGORIAS,
+                    index=CATEGORIAS.index(cat_actual),
+                    key=f"cat_{mid}"
+                )
+
+            with col3:
+
+                if fila["estado_revision"] == "Contabilizado":
+
+                    st.text_input(
+                        "Estado",
+                        value="Contabilizado",
+                        disabled=True,
+                        key=f"estado_{mid}"
+                    )
+
+                    estado = "Contabilizado"
+
+                else:
+
+                    estado_actual = (
+                        fila["estado_revision"]
+                        if fila["estado_revision"] in ESTADOS
+                        else ESTADOS[0]
+                    )
+
+                    estado = st.selectbox(
+                        "Estado",
+                        ESTADOS,
+                        index=ESTADOS.index(estado_actual),
+                        key=f"estado_{mid}"
+                    )
+
+            if fila["estado_revision"] != "Contabilizado":
+
+                if st.button(
+                    "Guardar revisión",
+                    key=f"guardar_rev_{mid}"
+                ):
+
+                    try:
+
+                        actualizar_movimiento(
+                            mid,
+                            tipo,
+                            categoria,
+                            estado
+                        )
+
+                        st.success(
+                            "Revisión guardada."
+                        )
+
+                        st.rerun()
+
+                    except Exception as e:
+
+                        st.error(
+                            f"No se pudo guardar la revisión: {e}"
+                        )
+
+            comprobante = st.file_uploader(
+                "Adjuntar comprobante (PDF o imagen)",
+                type=[
+                    "pdf",
+                    "png",
+                    "jpg",
+                    "jpeg",
+                    "webp",
+                ],
+                key=f"comprobante_{mid}"
+            )
+
+            if (
+                comprobante is not None
+                and st.button(
+                    "Guardar comprobante",
+                    key=f"guardar_comp_{mid}"
+                )
+            ):
+
                 try:
-                    guardar_comprobante(mid, comprobante)
-                    st.success("Comprobante guardado en Neon.")
+
+                    guardar_comprobante(
+                        mid,
+                        comprobante
+                    )
+
+                    st.success(
+                        "Comprobante guardado en Neon."
+                    )
+
                     st.rerun()
+
                 except Exception as e:
-                    st.error(f"No se pudo guardar el comprobante: {e}")
+
+                    st.error(
+                        f"No se pudo guardar el comprobante: {e}"
+                    )
+
             if fila.get("comprobante_data") is not None:
+
                 st.download_button(
                     "Descargar comprobante guardado",
                     data=bytes(fila["comprobante_data"]),
-                    file_name=str(fila["comprobante_nombre"] or "comprobante"),
-                    mime=str(fila["comprobante_mime"] or "application/octet-stream"),
+                    file_name=str(
+                        fila["comprobante_nombre"] or "comprobante"
+                    ),
+                    mime=str(
+                        fila["comprobante_mime"]
+                        or "application/octet-stream"
+                    ),
                     key=f"descargar_comp_{mid}",
                 )
 
-            if fila["estado_revision"] != "Contabilizado" and estado != "No contabilizar":
-                if st.button("Confirmar y contabilizar", type="primary", key=f"contabilizar_{mid}"):
+            if (
+                fila["estado_revision"] != "Contabilizado"
+                and estado != "No contabilizar"
+            ):
+
+                if st.button(
+                    "Confirmar y contabilizar",
+                    type="primary",
+                    key=f"contabilizar_{mid}"
+                ):
+
                     try:
-                        # Persistir la revisión elegida antes de contabilizar.
-                        actualizar_movimiento(mid, tipo, categoria, "Revisado")
+
+                        actualizar_movimiento(
+                            mid,
+                            tipo,
+                            categoria,
+                            "Revisado"
+                        )
+
                         contabilizar(mid)
-                        st.success("Movimiento contabilizado y vinculado al módulo existente.")
+
+                        st.success(
+                            "Movimiento contabilizado y vinculado "
+                            "al módulo existente."
+                        )
+
                         st.rerun()
+
                     except Exception as e:
-                        st.error(f"No se pudo contabilizar: {e}")
+
+                        st.error(
+                            f"No se pudo contabilizar: {e}"
+                        )
