@@ -1663,61 +1663,162 @@ def pantalla_movimientos_bancarios():
         )
         return
 
+    
     # ------------------------------------------------------
-    # IMPORTAR PDF
+    # IMPORTACIÓN MASIVA DE RESÚMENES BANCARIOS
     # ------------------------------------------------------
 
     with st.expander(
-        "📄 Importar extracto bancario PDF",
+        "📄 Importar uno o varios extractos bancarios PDF",
         expanded=True
     ):
 
-        archivo = st.file_uploader(
-            "Seleccioná el extracto PDF",
+        archivos = st.file_uploader(
+            "Seleccioná todos los resúmenes bancarios que quieras importar",
             type=["pdf"],
+            accept_multiple_files=True,
             key="pdf_mov_bancarios"
         )
 
-        if archivo is not None:
+        if archivos:
 
-            st.caption(
-                f"Archivo seleccionado: {archivo.name} · "
-                f"{archivo.size:,} bytes"
+            st.success(
+                f"Seleccionaste {len(archivos)} archivo(s)."
             )
 
+            for archivo in archivos:
+                st.write(
+                    f"📄 {archivo.name} · {archivo.size:,} bytes"
+                )
+
             if st.button(
-                "Importar y guardar en Neon",
+                "🚀 IMPORTAR TODOS Y GUARDAR EN NEON",
                 type="primary",
+                use_container_width=True,
                 key="btn_importar_mov_bancarios"
             ):
 
-                try:
-                    movimientos = extraer_movimientos_pdf(
-                        archivo.getvalue(),
-                        archivo.name
-                    )
+                movimientos_totales = []
+                archivos_correctos = []
+                archivos_sin_movimientos = []
+                errores_archivos = []
 
-                    if not movimientos:
-                        st.warning(
-                            "No se detectaron movimientos compatibles. "
-                            "No se guardó nada."
+                barra = st.progress(0)
+
+                # Leer cada PDF por separado.
+                for i, archivo in enumerate(archivos):
+
+                    try:
+
+                        movimientos = extraer_movimientos_pdf(
+                            archivo.getvalue(),
+                            archivo.name
                         )
 
-                    else:
+                        if movimientos:
+
+                            movimientos_totales.extend(
+                                movimientos
+                            )
+
+                            archivos_correctos.append(
+                                archivo.name
+                            )
+
+                        else:
+
+                            archivos_sin_movimientos.append(
+                                archivo.name
+                            )
+
+                    except Exception as e:
+
+                        errores_archivos.append({
+                            "archivo": archivo.name,
+                            "error": str(e)
+                        })
+
+                    barra.progress(
+                        (i + 1) / len(archivos)
+                    )
+
+                # Guardar todos los movimientos válidos
+                # en una sola transacción.
+                if movimientos_totales:
+
+                    try:
 
                         nuevos, actualizados = importar_movimientos(
-                            movimientos
+                            movimientos_totales
                         )
 
                         st.success(
-                            f"Importación terminada: {nuevos} nuevos "
-                            f"y {actualizados} actualizados."
+                            "¡Importación masiva terminada!"
                         )
 
-                        st.rerun()
+                        c1, c2, c3 = st.columns(3)
 
-                except Exception as e:
-                    st.error(f"No se pudo importar el PDF: {e}")
+                        c1.metric(
+                            "Archivos procesados",
+                            len(archivos_correctos)
+                        )
+
+                        c2.metric(
+                            "Movimientos nuevos",
+                            nuevos
+                        )
+
+                        c3.metric(
+                            "Movimientos actualizados",
+                            actualizados
+                        )
+
+                        st.info(
+                            f"Se procesaron {len(movimientos_totales)} "
+                            "movimientos detectados. "
+                            "Los existentes se actualizaron por su huella "
+                            "sin borrar su clasificación manual ni sus "
+                            "vínculos contables."
+                        )
+
+                    except Exception as e:
+
+                        st.error(
+                            "No se pudieron guardar los movimientos. "
+                            "La transacción fue cancelada y no se "
+                            f"guardó parcialmente: {e}"
+                        )
+
+                else:
+
+                    st.warning(
+                        "No se encontraron movimientos válidos. "
+                        "No se guardó ningún archivo."
+                    )
+
+                if archivos_sin_movimientos:
+
+                    with st.expander(
+                        "Archivos sin movimientos detectados"
+                    ):
+
+                        for nombre in archivos_sin_movimientos:
+                            st.warning(nombre)
+
+                if errores_archivos:
+
+                    with st.expander(
+                        f"Archivos con errores ({len(errores_archivos)})"
+                    ):
+
+                        for error in errores_archivos:
+
+                            st.error(
+                                f"**{error['archivo']}**: "
+                                f"{error['error']}"
+                            )
+
+                st.rerun()
 
     # ------------------------------------------------------
     # CARGAR MOVIMIENTOS
