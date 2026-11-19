@@ -599,7 +599,7 @@ def guardar_comprobante(mid, archivo):
 # CONTABILIZACIÓN INDIVIDUAL SEGURA
 # ==========================================================
 
-def contabilizar(mid):
+def contabilizar(mid, permitir_pendiente=False):
 
     conn = None
 
@@ -706,11 +706,14 @@ def contabilizar(mid):
                     "Requiere revisión manual."
                 )
 
-            if estado_revision != "Revisado":
+            estados_permitidos = {"Revisado"}
+            if permitir_pendiente:
+                estados_permitidos.add("Pendiente de revisión contable")
 
+            if estado_revision not in estados_permitidos:
                 raise ValueError(
-                    "El movimiento debe estar revisado antes "
-                    "de contabilizarse."
+                    "El movimiento debe estar revisado o ser procesado "
+                    "por la contabilización masiva."
                 )
 
             tipo = str(tipo or "").strip()
@@ -826,6 +829,21 @@ def contabilizar(mid):
 
             else:
 
+                # Comprobar el identificador antes de insertar. Esto evita
+                # depender de que id_gasto tenga un índice UNIQUE en Neon.
+                cur.execute("""
+                    SELECT 1
+                    FROM gastos_comerciales
+                    WHERE id_gasto = %s
+                    LIMIT 1
+                """, (registro_id,))
+
+                if cur.fetchone():
+                    raise ValueError(
+                        f"Ya existe el gasto {registro_id}. "
+                        "Se detuvo para evitar un duplicado."
+                    )
+
                 cur.execute("""
                     INSERT INTO gastos_comerciales (
                         id_gasto,
@@ -841,7 +859,6 @@ def contabilizar(mid):
                         comprobante_data
                     )
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (id_gasto) DO NOTHING
                     RETURNING id_gasto
                 """, (
                     registro_id,
@@ -984,16 +1001,7 @@ def contabilizar_clasificados_existentes(df):
 
         try:
 
-            if estado == "Pendiente de revisión contable":
-
-                actualizar_movimiento(
-                    mid,
-                    tipo,
-                    categoria,
-                    "Revisado",
-                )
-
-            contabilizar(mid)
+            contabilizar(mid, permitir_pendiente=True)
 
             exitosos += 1
 
