@@ -2237,17 +2237,44 @@ def pantalla_movimientos_bancarios():
         reverse=True
     )
 
-    mes = st.selectbox(
-        "Mes",
-        ["Todos"] + mes_options
-    )
+    col_filtro_mes, col_filtro_estado = st.columns(2)
 
-    filtrado = (
-        df
-        if mes == "Todos"
-        else df[
-            df["fecha"].dt.strftime("%Y-%m") == mes
+    with col_filtro_mes:
+        mes = st.selectbox(
+            "Mes",
+            ["Todos"] + mes_options,
+            key="filtro_mes_mov_bancarios"
+        )
+
+    estados_filtro = [
+        "Todos",
+        "Pendiente de revisión contable",
+        "Revisado",
+        "Contabilizado",
+        "No contabilizar",
+    ]
+
+    with col_filtro_estado:
+        estado_filtro = st.selectbox(
+            "Filtrar por estado",
+            estados_filtro,
+            key="filtro_estado_mov_bancarios"
+        )
+
+    filtrado = df.copy()
+
+    if mes != "Todos":
+        filtrado = filtrado[
+            filtrado["fecha"].dt.strftime("%Y-%m") == mes
         ]
+
+    if estado_filtro != "Todos":
+        filtrado = filtrado[
+            filtrado["estado_revision"].fillna("") == estado_filtro
+        ]
+
+    st.caption(
+        f"Mostrando {len(filtrado)} de {len(df)} movimientos."
     )
 
     diagnostico_movimientos(filtrado)
