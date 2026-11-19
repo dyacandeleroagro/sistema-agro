@@ -40,6 +40,7 @@ from operaciones_db import (
     actualizar_labor_neon,
     eliminar_labor_neon,
     cargar_combustible_desde_neon,
+    cargar_ingresos_desde_neon,
 )
 from notificaciones import (
     mostrar_notificaciones,
@@ -2989,6 +2990,13 @@ if menu == "📈 ANALÍTICAS CENTRALES":
 
     st.header("Resumen General del Negocio")
 
+    # Los ingresos de Analíticas se consultan directamente desde Neon.
+    try:
+        df_ingresos_analiticas = cargar_ingresos_desde_neon()
+    except Exception as e:
+        df_ingresos_analiticas = pd.DataFrame()
+        st.error(f"No se pudieron cargar los ingresos desde Neon: {e}")
+
     total_gasto_facturas = (
         df_facturas["Monto (ARS)"].sum()
         if not df_facturas.empty else 0.0
@@ -3010,18 +3018,18 @@ if menu == "📈 ANALÍTICAS CENTRALES":
         if not df_pagos_empleados.empty else 0.0
     )
 
-    if not df_ingresos.empty:
+    if not df_ingresos_analiticas.empty:
         columna_monto_ingresos = (
-            "Monto Total (ARS)"
-            if "Monto Total (ARS)" in df_ingresos.columns
-            else "Monto"
+            "Monto"
+            if "Monto" in df_ingresos_analiticas.columns
+            else "Monto Total (ARS)"
         )
         total_ingresos_global = (
             pd.to_numeric(
-                df_ingresos[columna_monto_ingresos],
+                df_ingresos_analiticas[columna_monto_ingresos],
                 errors="coerce"
             ).fillna(0).sum()
-            if columna_monto_ingresos in df_ingresos.columns
+            if columna_monto_ingresos in df_ingresos_analiticas.columns
             else 0.0
         )
     else:
@@ -3160,6 +3168,148 @@ if menu == "📈 ANALÍTICAS CENTRALES":
             </div>
             """,
             unsafe_allow_html=True
+        )
+
+
+    # ======================================================
+    # EVOLUCIÓN MENSUAL: INGRESOS, GASTOS Y RESULTADO
+    # ======================================================
+
+    st.divider()
+    st.subheader("📈 Evolución mensual del negocio")
+    st.caption(
+        "Comparación de ingresos y gastos comerciales registrados en Neon. "
+        "El resultado mensual es ingresos menos gastos comerciales."
+    )
+
+    df_ing_graf = df_ingresos_analiticas.copy()
+    df_gas_graf = df_facturas.copy()
+
+    if not df_ing_graf.empty and "Fecha" in df_ing_graf.columns:
+        df_ing_graf["_fecha_grafica"] = pd.to_datetime(
+            df_ing_graf["Fecha"], errors="coerce"
+        )
+        df_ing_graf["_monto_grafica"] = pd.to_numeric(
+            df_ing_graf["Monto"], errors="coerce"
+        ).fillna(0)
+    else:
+        df_ing_graf = pd.DataFrame(
+            columns=["_fecha_grafica", "_monto_grafica"]
+        )
+
+    if not df_gas_graf.empty and "Fecha Registro" in df_gas_graf.columns:
+        df_gas_graf["_fecha_grafica"] = pd.to_datetime(
+            df_gas_graf["Fecha Registro"], errors="coerce"
+        )
+        df_gas_graf["_monto_grafica"] = pd.to_numeric(
+            df_gas_graf["Monto (ARS)"], errors="coerce"
+        ).fillna(0)
+    else:
+        df_gas_graf = pd.DataFrame(
+            columns=["_fecha_grafica", "_monto_grafica"]
+        )
+
+    fechas_validas = []
+
+    if not df_ing_graf.empty:
+        fechas_validas.extend(
+            df_ing_graf["_fecha_grafica"].dropna().dt.year.tolist()
+        )
+
+    if not df_gas_graf.empty:
+        fechas_validas.extend(
+            df_gas_graf["_fecha_grafica"].dropna().dt.year.tolist()
+        )
+
+    if fechas_validas:
+        anios_disponibles = sorted(set(fechas_validas), reverse=True)
+
+        anio_seleccionado = st.selectbox(
+            "Seleccionar ejercicio",
+            options=anios_disponibles,
+            index=0,
+            key="analiticas_anio_mensual"
+        )
+
+        nombres_meses = [
+            "Enero", "Febrero", "Marzo", "Abril",
+            "Mayo", "Junio", "Julio", "Agosto",
+            "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ]
+
+        ingresos_mes = [0.0] * 12
+        gastos_mes = [0.0] * 12
+
+        if not df_ing_graf.empty:
+            ingresos_filtrados = df_ing_graf[
+                df_ing_graf["_fecha_grafica"].dt.year == anio_seleccionado
+            ]
+
+            sumas_ingresos = ingresos_filtrados.groupby(
+                ingresos_filtrados["_fecha_grafica"].dt.month
+            )["_monto_grafica"].sum()
+
+            for mes, monto in sumas_ingresos.items():
+                ingresos_mes[int(mes) - 1] = float(monto)
+
+        if not df_gas_graf.empty:
+            gastos_filtrados = df_gas_graf[
+                df_gas_graf["_fecha_grafica"].dt.year == anio_seleccionado
+            ]
+
+            sumas_gastos = gastos_filtrados.groupby(
+                gastos_filtrados["_fecha_grafica"].dt.month
+            )["_monto_grafica"].sum()
+
+            for mes, monto in sumas_gastos.items():
+                gastos_mes[int(mes) - 1] = float(monto)
+
+        df_evolucion = pd.DataFrame(
+            {
+                "Ingresos": ingresos_mes,
+                "Gastos comerciales": gastos_mes,
+            },
+            index=nombres_meses
+        )
+
+        df_evolucion["Resultado"] = (
+            df_evolucion["Ingresos"] -
+            df_evolucion["Gastos comerciales"]
+        )
+
+        total_ingresos_anio = float(df_evolucion["Ingresos"].sum())
+        total_gastos_anio = float(df_evolucion["Gastos comerciales"].sum())
+        resultado_anio = total_ingresos_anio - total_gastos_anio
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Ingresos del año", f"$ {total_ingresos_anio:,.2f}")
+        m2.metric("Gastos comerciales del año", f"$ {total_gastos_anio:,.2f}")
+        m3.metric("Resultado del año", f"$ {resultado_anio:,.2f}")
+
+        st.markdown("#### Ingresos y gastos por mes")
+        st.bar_chart(
+            df_evolucion[["Ingresos", "Gastos comerciales"]],
+            use_container_width=True
+        )
+
+        st.markdown("#### Resultado mensual")
+        st.line_chart(
+            df_evolucion[["Resultado"]],
+            use_container_width=True
+        )
+
+        with st.expander("Ver detalle mensual en tabla"):
+            df_tabla_evolucion = df_evolucion.copy()
+            df_tabla_evolucion.index.name = "Mes"
+            st.dataframe(
+                df_tabla_evolucion.style.format("$ {:,.2f}"),
+                use_container_width=True
+            )
+
+    else:
+        st.info(
+            "Todavía no hay ingresos o gastos con fechas válidas en Neon "
+            "para construir la evolución mensual."
         )
 
 # ----------------------------------------------------
