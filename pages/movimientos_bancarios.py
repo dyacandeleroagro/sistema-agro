@@ -428,14 +428,12 @@ def importar_movimientos(movimientos):
     actualizados = 0
 
     try:
-
         with conn.cursor() as cur:
 
             for m in movimientos:
 
                 cur.execute("""
-                    INSERT INTO movimientos_bancarios
-                    (
+                    INSERT INTO movimientos_bancarios (
                         id,
                         huella,
                         fecha,
@@ -452,16 +450,14 @@ def importar_movimientos(movimientos):
                         archivo_origen
                     )
                     VALUES (
-                        %s,%s,%s,%s,%s,%s,%s,
-                        %s,%s,%s,%s,%s,%s
+                        %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s, %s
                     )
-
                     ON CONFLICT (huella)
                     DO UPDATE SET
                         sentido_bancario = EXCLUDED.sentido_bancario,
                         saldo = EXCLUDED.saldo,
                         actualizado_en = NOW()
-
                     RETURNING (xmax = 0) AS fue_insertado
                 """, (
                     m["id"],
@@ -492,7 +488,6 @@ def importar_movimientos(movimientos):
         return insertados, actualizados
 
     except Exception:
-
         conn.rollback()
         raise
 
@@ -1424,6 +1419,257 @@ def generar_analisis_resumen(texto):
         "cantidad_movimientos": len(movimientos),
     }
 
+# ==========================================================
+# CONTROL Y RESPALDO SEGURO DEL REINICIO BANCARIO
+# ==========================================================
+
+def obtener_estado_reinicio_bancario():
+    """
+    Consulta los movimientos bancarios y verifica sus vínculos.
+    Esta función NO modifica ni elimina información.
+    """
+
+    conn = get_conn()
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                SELECT id, id_ingreso, id_gasto
+                FROM movimientos_bancarios
+                ORDER BY id
+            """)
+
+            movimientos = cur.fetchall()
+
+            ids_ingresos = []
+            ids_gastos = []
+            errores = []
+
+            for mid, id_ingreso, id_gasto in movimientos:
+
+                esperado = "BAN-" + str(mid)[:12]
+
+                if id_ingreso and id_gasto:
+                    errores.append(
+                        f"Movimiento {mid}: tiene ingreso y gasto vinculados."
+                    )
+                    continue
+
+                if id_ingreso:
+                    if str(id_ingreso) != esperado:
+                        errores.append(
+                            f"Movimiento {mid}: vínculo de ingreso inesperado."
+                        )
+                    else:
+                        ids_ingresos.append(str(id_ingreso))
+
+                if id_gasto:
+                    if str(id_gasto) != esperado:
+                        errores.append(
+                            f"Movimiento {mid}: vínculo de gasto inesperado."
+                        )
+                    else:
+                        ids_gastos.append(str(id_gasto))
+
+            if len(ids_ingresos) != len(set(ids_ingresos)):
+                errores.append("Hay ingresos vinculados más de una vez.")
+
+            if len(ids_gastos) != len(set(ids_gastos)):
+                errores.append("Hay gastos vinculados más de una vez.")
+
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM ingresos_trabajos
+                WHERE id = ANY(%s)
+            """, (ids_ingresos,))
+
+            ingresos_existentes = cur.fetchone()[0]
+
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM gastos_comerciales
+                WHERE id_gasto = ANY(%s)
+            """, (ids_gastos,))
+
+            gastos_existentes = cur.fetchone()[0]
+
+            if ingresos_existentes != len(ids_ingresos):
+                errores.append(
+                    "Hay ingresos vinculados que no existen en la tabla contable."
+                )
+
+            if gastos_existentes != len(ids_gastos):
+                errores.append(
+                    "Hay gastos vinculados que no existen en la tabla contable."
+                )
+
+            return {
+                "movimientos": len(movimientos),
+                "ingresos": len(ids_ingresos),
+                "gastos": len(ids_gastos),
+                "errores": errores,
+                "ids_ingresos": ids_ingresos,
+                "ids_gastos": ids_gastos,
+            }
+
+    finally:
+        conn.close()
+
+
+def reiniciar_movimientos_bancarios(cantidad_esperada):
+    """
+    Respalda y elimina exclusivamente los registros contables
+    vinculados de forma verificada a movimientos bancarios.
+    Todo se ejecuta en una única transacción.
+    """
+
+    conn = get_conn()
+
+    try:
+        with conn.cursor() as cur:
+
+            # Bloquear los movimientos durante la operación.
+            cur.execute("""
+                SELECT id, id_ingreso, id_gasto
+                FROM movimientos_bancarios
+                ORDER BY id
+                FOR UPDATE
+            """)
+
+            movimientos = cur.fetchall()
+
+            if len(movimientos) != cantidad_esperada:
+                raise ValueError(
+                    "La cantidad de movimientos cambió. "
+                    "Volvé a revisar el resumen antes de continuar."
+                )
+
+            ids_ingresos = []
+            ids_gastos = []
+
+            for mid, id_ingreso, id_gasto in movimientos:
+
+                esperado = "BAN-" + str(mid)[:12]
+
+                if id_ingreso and id_gasto:
+                    raise ValueError(
+                        f"El movimiento {mid} tiene dos vínculos contables."
+                    )
+
+                if id_ingreso:
+                    if str(id_ingreso) != esperado:
+                        raise ValueError(
+                            f"Vínculo de ingreso inesperado en {mid}."
+                        )
+                    ids_ingresos.append(str(id_ingreso))
+
+                if id_gasto:
+                    if str(id_gasto) != esperado:
+                        raise ValueError(
+                            f"Vínculo de gasto inesperado en {mid}."
+                        )
+                    ids_gastos.append(str(id_gasto))
+
+            if (
+                len(ids_ingresos) != len(set(ids_ingresos))
+                or len(ids_gastos) != len(set(ids_gastos))
+            ):
+                raise ValueError(
+                    "Hay vínculos contables repetidos. Se canceló el reinicio."
+                )
+
+            # Verificar que todos los registros vinculados existan.
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM ingresos_trabajos
+                WHERE id = ANY(%s)
+            """, (ids_ingresos,))
+
+            if cur.fetchone()[0] != len(ids_ingresos):
+                raise ValueError(
+                    "No coinciden los ingresos vinculados. "
+                    "Se canceló el reinicio."
+                )
+
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM gastos_comerciales
+                WHERE id_gasto = ANY(%s)
+            """, (ids_gastos,))
+
+            if cur.fetchone()[0] != len(ids_gastos):
+                raise ValueError(
+                    "No coinciden los gastos vinculados. "
+                    "Se canceló el reinicio."
+                )
+
+            # Crear tabla de respaldo sin sobrescribir respaldos anteriores.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS respaldo_reset_bancario (
+                    backup_id TEXT NOT NULL,
+                    tabla_origen TEXT NOT NULL,
+                    registro_id TEXT NOT NULL,
+                    datos JSONB NOT NULL,
+                    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    PRIMARY KEY (backup_id, tabla_origen, registro_id)
+                )
+            """)
+
+            backup_id = str(uuid.uuid4())
+
+            # Respaldar movimientos bancarios.
+            cur.execute("""
+                INSERT INTO respaldo_reset_bancario
+                    (backup_id, tabla_origen, registro_id, datos)
+                SELECT %s, 'movimientos_bancarios', id, to_jsonb(t)
+                FROM movimientos_bancarios t
+            """, (backup_id,))
+
+            # Respaldar exclusivamente los ingresos vinculados.
+            cur.execute("""
+                INSERT INTO respaldo_reset_bancario
+                    (backup_id, tabla_origen, registro_id, datos)
+                SELECT %s, 'ingresos_trabajos', id, to_jsonb(t)
+                FROM ingresos_trabajos t
+                WHERE id = ANY(%s)
+            """, (backup_id, ids_ingresos))
+
+            # Respaldar exclusivamente los gastos vinculados.
+            cur.execute("""
+                INSERT INTO respaldo_reset_bancario
+                    (backup_id, tabla_origen, registro_id, datos)
+                SELECT %s, 'gastos_comerciales', id_gasto, to_jsonb(t)
+                FROM gastos_comerciales t
+                WHERE id_gasto = ANY(%s)
+            """, (backup_id, ids_gastos))
+
+            # Eliminar únicamente los registros vinculados.
+            cur.execute("""
+                DELETE FROM ingresos_trabajos
+                WHERE id = ANY(%s)
+            """, (ids_ingresos,))
+
+            cur.execute("""
+                DELETE FROM gastos_comerciales
+                WHERE id_gasto = ANY(%s)
+            """, (ids_gastos,))
+
+            # Eliminar los movimientos bancarios al final.
+            cur.execute("""
+                DELETE FROM movimientos_bancarios
+            """)
+
+        conn.commit()
+
+        return backup_id
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
 
 # ==========================================================
 # PANTALLA PRINCIPAL
@@ -1438,6 +1684,139 @@ def pantalla_movimientos_bancarios():
         "Los movimientos quedan pendientes de revisión; "
         "nada se contabiliza sin confirmación."
     )
+        # ======================================================
+    # REINICIO SEGURO DE MOVIMIENTOS BANCARIOS
+    # ======================================================
+
+    with st.expander(
+        "🛡️ Reinicio seguro de movimientos bancarios",
+        expanded=False
+    ):
+
+        st.warning(
+            "Esta herramienta permite respaldar y eliminar "
+            "los movimientos bancarios para volver a importarlos. "
+            "También elimina exclusivamente los ingresos y gastos "
+            "vinculados a esos movimientos."
+        )
+
+        if st.button(
+            "🔎 VERIFICAR QUÉ SE VA A ELIMINAR",
+            key="btn_previsualizar_reset_bancario"
+        ):
+
+            try:
+                estado = obtener_estado_reinicio_bancario()
+
+                st.session_state["preview_reset_bancario"] = estado
+
+            except Exception as e:
+                st.error(f"No se pudo verificar la información: {e}")
+
+        estado = st.session_state.get("preview_reset_bancario")
+
+        if estado:
+
+            st.divider()
+
+            st.subheader("📋 Vista previa")
+
+            c1, c2, c3 = st.columns(3)
+
+            c1.metric(
+                "Movimientos bancarios",
+                estado["movimientos"]
+            )
+
+            c2.metric(
+                "Ingresos vinculados",
+                estado["ingresos"]
+            )
+
+            c3.metric(
+                "Gastos vinculados",
+                estado["gastos"]
+            )
+
+            if estado["errores"]:
+
+                st.error(
+                    "Se encontraron inconsistencias. "
+                    "El reinicio está bloqueado."
+                )
+
+                for error in estado["errores"]:
+                    st.write(f"• {error}")
+
+            else:
+
+                st.success(
+                    "Verificación correcta. "
+                    "No se detectaron vínculos inconsistentes."
+                )
+
+                st.info(
+                    "Se generará un respaldo en Neon antes de eliminar "
+                    "los registros. Los demás ingresos, gastos y datos "
+                    "de la aplicación permanecerán intactos."
+                )
+
+                confirmacion = st.text_input(
+                    f"Para confirmar, escribí: BORRAR "
+                    f"{estado['movimientos']} MOVIMIENTOS",
+                    key="confirmacion_reset_bancario"
+                )
+
+                if st.button(
+                    "🗑️ CONFIRMAR REINICIO DEFINITIVO",
+                    type="primary",
+                    key="btn_confirmar_reset_bancario"
+                ):
+
+                    texto_esperado = (
+                        f"BORRAR {estado['movimientos']} MOVIMIENTOS"
+                    )
+
+                    if confirmacion.strip() != texto_esperado:
+
+                        st.error(
+                            "La confirmación no coincide. "
+                            "No se eliminó ningún dato."
+                        )
+
+                    else:
+
+                        try:
+
+                            backup_id = reiniciar_movimientos_bancarios(
+                                estado["movimientos"]
+                            )
+
+                            st.session_state.pop(
+                                "preview_reset_bancario",
+                                None
+                            )
+
+                            st.session_state.pop(
+                                "confirmacion_reset_bancario",
+                                None
+                            )
+
+                            st.success(
+                                "Reinicio completado. "
+                                "El respaldo quedó guardado en Neon."
+                            )
+
+                            st.code(backup_id)
+
+                            st.rerun()
+
+                        except Exception as e:
+
+                            st.error(
+                                "El reinicio fue cancelado. "
+                                f"La transacción se revirtió: {e}"
+                            )
 
     # ------------------------------------------------------
     # ANALIZADOR INDEPENDIENTE
