@@ -44,6 +44,13 @@ ESTADOS = [
     "No contabilizar",
 ]
 
+# Si pasás plata entre cuentas propias (por ejemplo a tu caja de ahorro),
+# poné acá fragmentos del texto que aparece en el extracto, en mayúsculas:
+# tu apellido, tu CUIT, el nombre de la otra cuenta, etc.
+# Los movimientos que los contengan NO se cargan como ingreso ni gasto.
+# Ejemplo: TRANSFERENCIAS_PROPIAS = ["GARCIA JUAN", "20123456789"]
+TRANSFERENCIAS_PROPIAS = []
+
 
 # ==========================================================
 # BASE DE DATOS
@@ -110,7 +117,7 @@ def numero_ar(valor):
 # CLASIFICACIÓN CONTABLE
 # ==========================================================
 
-def clasificar(descripcion, sentido_bancario):
+def _clasificar_base(descripcion, sentido_bancario):
 
     d = re.sub(
         r"\s+",
@@ -252,6 +259,68 @@ def clasificar(descripcion, sentido_bancario):
         return "Proveedor / compra", "Egreso"
 
     return "Pendiente de clasificar", sentido_bancario
+
+
+def clasificar(descripcion, sentido_bancario):
+    """
+    Regla automática:
+      - Lo que SALE del banco  -> Egreso  -> gastos comerciales.
+      - Lo que ENTRA al banco  -> Ingreso -> ingresos por trabajos.
+    Salvedades:
+      - Extracciones de cajero y compras personales siguen afuera.
+      - Transferencias entre cuentas propias (TRANSFERENCIAS_PROPIAS)
+        quedan afuera.
+      - Reversiones (un crédito que el texto marca como gasto, o al revés)
+        quedan afuera para no inflar gastos con plata que entró.
+    """
+
+    d = re.sub(
+        r"\s+", " ", str(descripcion or "").upper()
+    ).strip()
+
+    sentido = str(sentido_bancario or "Otro").strip()
+
+    es_extraccion = any(x in d for x in (
+        "EXTRACCION", "EXTRACCIÓN", "CAJERO",
+    ))
+
+    es_transferencia = any(x in d for x in (
+        "TRANSF", "TRPRO", "DEBTRF", "TRANSFERENCIA",
+    ))
+
+    if es_transferencia and not es_extraccion:
+
+        if any(
+            str(p).strip().upper() in d
+            for p in TRANSFERENCIAS_PROPIAS
+            if str(p).strip()
+        ):
+            return "Transferencia entre cuentas", "Transferencia"
+
+        if sentido == "Ingreso":
+            return "Servicio / trabajo", "Ingreso"
+
+        if sentido == "Egreso":
+            return "Proveedor / compra", "Egreso"
+
+    categoria, tipo = _clasificar_base(descripcion, sentido)
+
+    # Reversión: el texto dice gasto pero entró plata (o al revés).
+    if tipo in ("Ingreso", "Egreso") and sentido in ("Ingreso", "Egreso"):
+        if tipo != sentido:
+            return "Otro", "Otro"
+
+    # Lo que antes quedaba "Pendiente de clasificar" ahora sigue
+    # el sentido bancario.
+    if categoria == "Pendiente de clasificar":
+
+        if sentido == "Ingreso":
+            return "Servicio / trabajo", "Ingreso"
+
+        if sentido == "Egreso":
+            return "Proveedor / compra", "Egreso"
+
+    return categoria, tipo
 
 
 # ==========================================================
@@ -426,6 +495,7 @@ def importar_movimientos(movimientos):
 
     insertados = 0
     actualizados = 0
+    ids_nuevos = []
 
     try:
         with conn.cursor() as cur:
@@ -480,12 +550,13 @@ def importar_movimientos(movimientos):
 
                 if resultado and resultado[0]:
                     insertados += 1
+                    ids_nuevos.append(m["id"])
                 else:
                     actualizados += 1
 
         conn.commit()
 
-        return insertados, actualizados
+        return insertados, actualizados, ids_nuevos
 
     except Exception:
         conn.rollback()
@@ -1013,6 +1084,107 @@ def contabilizar_clasificados_existentes(df):
             })
 
     return exitosos, excluidos, errores
+
+
+def procesar_movimientos_nuevos(ids_nuevos):
+    """
+    Pasa a Ingresos / Gastos comerciales los movimientos recién
+    importados, usando la misma validación de siempre.
+    Devuelve (contabilizados, excluidos, errores).
+    """
+
+    if not ids_nuevos:
+        return 0, 0, []
+
+    df_total = cargar_movimientos()
+
+    df_nuevos = df_total[
+        df_total["id"].astype(str).isin([str(i) for i in ids_nuevos])
+    ]
+
+    return contabilizar_clasificados_existentes(df_nuevos)
+
+
+def _pendientes_reclasificables(cur):
+
+    cur.execute("""
+        SELECT id, descripcion, sentido_bancario
+        FROM movimientos_bancarios
+        WHERE estado_revision = 'Pendiente de revisión contable'
+          AND categoria IN (
+              'Pendiente de clasificar',
+              'Transferencia entre cuentas'
+          )
+          AND COALESCE(id_ingreso, '') = ''
+          AND COALESCE(id_gasto, '') = ''
+        FOR UPDATE
+    """)
+
+    return cur.fetchall()
+
+
+def contar_pendientes_reclasificables():
+
+    conn = get_conn()
+
+    try:
+        with conn.cursor() as cur:
+
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM movimientos_bancarios
+                WHERE estado_revision = 'Pendiente de revisión contable'
+                  AND categoria IN (
+                      'Pendiente de clasificar',
+                      'Transferencia entre cuentas'
+                  )
+                  AND COALESCE(id_ingreso, '') = ''
+                  AND COALESCE(id_gasto, '') = ''
+            """)
+
+            return cur.fetchone()[0]
+
+    finally:
+        conn.close()
+
+
+def reclasificar_pendientes():
+    """
+    Aplica la regla automática vigente a movimientos que quedaron sin
+    clasificar o como transferencia y todavía no se contabilizaron.
+    No toca los Revisado, No contabilizar ni Contabilizado.
+    Devuelve los ids reclasificados.
+    """
+
+    conn = get_conn()
+    ids = []
+
+    try:
+        with conn.cursor() as cur:
+
+            for mid, descripcion, sentido in _pendientes_reclasificables(cur):
+
+                categoria, tipo = clasificar(descripcion, sentido)
+
+                cur.execute("""
+                    UPDATE movimientos_bancarios
+                    SET tipo = %s,
+                        categoria = %s,
+                        actualizado_en = NOW()
+                    WHERE id = %s
+                """, (tipo, categoria, mid))
+
+                ids.append(mid)
+
+        conn.commit()
+        return ids
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
 
 
 # ==========================================================
@@ -1688,9 +1860,8 @@ def pantalla_movimientos_bancarios():
     st.header("🏦 Movimientos bancarios")
 
     st.caption(
-        "Importación del extracto a Neon. "
-        "Los movimientos quedan pendientes de revisión; "
-        "nada se contabiliza sin confirmación."
+        "Subí el resumen del banco: lo que entró se carga en Ingresos "
+        "y lo que salió en Gastos comerciales, sin cargar nada a mano."
     )
         # ======================================================
     # REINICIO SEGURO DE MOVIMIENTOS BANCARIOS
@@ -2135,8 +2306,8 @@ def pantalla_movimientos_bancarios():
 
                     try:
 
-                        nuevos, actualizados = importar_movimientos(
-                            movimientos_totales
+                        nuevos, actualizados, ids_nuevos = (
+                            importar_movimientos(movimientos_totales)
                         )
 
                         st.success(
@@ -2167,6 +2338,38 @@ def pantalla_movimientos_bancarios():
                             "sin borrar su clasificación manual ni sus "
                             "vínculos contables."
                         )
+
+                        # Paso automático: lo que entró va a Ingresos y
+                        # lo que salió va a Gastos comerciales.
+                        try:
+                            ok, excluidos, errores_auto = (
+                                procesar_movimientos_nuevos(ids_nuevos)
+                            )
+
+                            a1, a2, a3 = st.columns(3)
+
+                            a1.metric("Pasados a contabilidad", ok)
+                            a2.metric("Quedaron afuera", excluidos)
+                            a3.metric("Con error", len(errores_auto))
+
+                            if excluidos:
+                                st.caption(
+                                    "Quedan afuera las extracciones, "
+                                    "compras personales, transferencias "
+                                    "entre cuentas propias y reversiones. "
+                                    "Los ves abajo, en 'Movimientos guardados'."
+                                )
+
+                            for e in errores_auto:
+                                st.error(
+                                    f"Movimiento {e['id']}: {e['error']}"
+                                )
+
+                        except Exception as e:
+                            st.error(
+                                "Los movimientos se importaron, pero falló "
+                                f"el paso a contabilidad: {e}"
+                            )
 
                     except Exception as e:
 
@@ -2204,8 +2407,6 @@ def pantalla_movimientos_bancarios():
                                 f"**{error['archivo']}**: "
                                 f"{error['error']}"
                             )
-
-                st.rerun()
 
     # ------------------------------------------------------
     # CARGAR MOVIMIENTOS
@@ -2409,6 +2610,61 @@ def pantalla_movimientos_bancarios():
             ]
 
             st.rerun()
+
+    # ======================================================
+    # REGLA AUTOMÁTICA SOBRE MOVIMIENTOS ANTERIORES
+    # ======================================================
+
+    st.divider()
+
+    st.subheader("♻️ Aplicar la regla automática a lo ya importado")
+
+    try:
+        cantidad_reclasificable = contar_pendientes_reclasificables()
+    except Exception as e:
+        cantidad_reclasificable = 0
+        st.error(f"No se pudo consultar los pendientes: {e}")
+
+    st.caption(
+        "Toma los movimientos que quedaron 'Pendiente de clasificar' o "
+        "como 'Transferencia entre cuentas' sin revisar, los clasifica "
+        "con la regla actual (entró = ingreso, salió = gasto) y los pasa "
+        "a contabilidad. No toca los que ya están Contabilizado, Revisado "
+        "o No contabilizar."
+    )
+
+    st.write(f"Movimientos alcanzados: **{cantidad_reclasificable}**")
+
+    if cantidad_reclasificable:
+
+        confirma = st.checkbox(
+            "Entiendo que se van a cargar como ingresos y gastos",
+            key="chk_reclasificar_pendientes"
+        )
+
+        if st.button(
+            "♻️ RECLASIFICAR Y PASAR A CONTABILIDAD",
+            disabled=not confirma,
+            key="btn_reclasificar_pendientes"
+        ):
+
+            try:
+                ids_reclasificados = reclasificar_pendientes()
+
+                ok, excluidos, errores_rec = (
+                    procesar_movimientos_nuevos(ids_reclasificados)
+                )
+
+                st.session_state["resultado_lote_bancario"] = {
+                    "exitosos": ok,
+                    "excluidos": excluidos,
+                    "errores": errores_rec,
+                }
+
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Error al reclasificar: {e}")
 
     # ======================================================
     # MOVIMIENTOS GUARDADOS

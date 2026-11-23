@@ -21,6 +21,7 @@ from reportlab.platypus import (
     Spacer
 )
 from pwa.pwa import activar_pwa
+from analitica_gastos import calcular_escala_gastos
 from pages.ingresos import pantalla_ingresos
 from pages.movimientos_bancarios import pantalla_movimientos_bancarios
 from pages.clientes import pantalla_clientes
@@ -3311,6 +3312,144 @@ if menu == "📈 ANALÍTICAS CENTRALES":
             "Todavía no hay ingresos o gastos con fechas válidas en Neon "
             "para construir la evolución mensual."
         )
+
+    # ======================================================
+    # ESCALA DE GASTOS POR MES Y PLAN DEL AÑO PRÓXIMO
+    # Se actualiza sola con cada resumen bancario importado,
+    # porque los egresos del banco van a Gastos comerciales.
+    # ======================================================
+
+    st.divider()
+    st.subheader("📊 Escala de gastos por mes y plan del año próximo")
+    st.caption(
+        "Compara en qué meses se gasta más o menos, usando todo el "
+        "historial de gastos comerciales. El índice 1,00 es un mes típico: "
+        "1,30 significa 30 % más gasto que un mes típico y 0,70 significa "
+        "30 % menos. El mes en curso no se cuenta hasta que termina."
+    )
+
+    inflacion_mensual_pct = st.number_input(
+        "Inflación mensual estimada (%)",
+        min_value=0.0,
+        max_value=50.0,
+        value=0.0,
+        step=0.5,
+        key="escala_inflacion_mensual",
+        help=(
+            "Con 0 los pesos de todos los meses se comparan tal cual. "
+            "Si ponés un valor, los gastos viejos se llevan a pesos de "
+            "hoy antes de comparar (así un mes no parece caro solo porque "
+            "el peso valía menos) y la proyección se ajusta mes a mes."
+        ),
+    )
+
+    resultado_escala = calcular_escala_gastos(
+        df_gas_graf,
+        inflacion_mensual=inflacion_mensual_pct / 100.0,
+    )
+
+    if resultado_escala is None:
+        st.info(
+            "Todavía no hay al menos 3 meses completos de gastos con fecha "
+            "válida. Cuando importes más resúmenes bancarios, la escala "
+            "aparece sola."
+        )
+
+    else:
+        escala = resultado_escala["escala"]
+        con_datos = escala.dropna(subset=["indice"])
+
+        if resultado_escala["provisoria"]:
+            st.warning(
+                f"Hay {resultado_escala['meses_completos']} meses completos "
+                "de historia: la escala es provisoria y los meses sin datos "
+                "se proyectan como un mes típico. Mejora a medida que "
+                "importás más resúmenes (lo ideal es un año completo o más)."
+            )
+
+        mes_caro = con_datos["indice"].idxmax()
+        mes_barato = con_datos["indice"].idxmin()
+
+        k1, k2, k3, k4 = st.columns(4)
+
+        k1.metric(
+            "Mes de más gasto",
+            escala.loc[mes_caro, "nombre"],
+            f"índice {escala.loc[mes_caro, 'indice']:.2f}",
+            delta_color="off",
+            delta_arrow="off",
+        )
+        k2.metric(
+            "Mes de menos gasto",
+            escala.loc[mes_barato, "nombre"],
+            f"índice {escala.loc[mes_barato, 'indice']:.2f}",
+            delta_color="off",
+            delta_arrow="off",
+        )
+        k3.metric(
+            "Gasto mensual típico hoy",
+            f"$ {resultado_escala['base_mensual_actual']:,.0f}",
+        )
+        k4.metric(
+            f"Gasto proyectado {resultado_escala['anio_proyectado']}",
+            f"$ {resultado_escala['proyeccion_anual']:,.0f}",
+        )
+
+        st.markdown("#### Escala por mes (1,00 = mes típico)")
+
+        grafico_indice = escala[["nombre", "indice"]].copy()
+        grafico_indice["indice"] = grafico_indice["indice"].fillna(0.0)
+        grafico_indice = grafico_indice.set_index("nombre")
+        grafico_indice.columns = ["Índice de gasto"]
+
+        st.bar_chart(grafico_indice, use_container_width=True)
+
+        st.markdown(
+            f"#### Cómo preparar {resultado_escala['anio_proyectado']}"
+        )
+
+        tabla_plan = pd.DataFrame({
+            "Mes": escala["nombre"],
+            "Nivel": escala["nivel"],
+            "Índice": escala["indice"],
+            "Años con datos": escala["anios_con_datos"],
+            "Promedio histórico": escala["promedio"],
+            f"Proyección {resultado_escala['anio_proyectado']}":
+                escala["proyeccion"],
+            "Acumulado proyectado": escala["proyeccion_acumulada"],
+        }).reset_index(drop=True)
+
+        st.dataframe(
+            tabla_plan.style.format(
+                {
+                    "Índice": "{:.2f}",
+                    "Años con datos": "{:.0f}",
+                    "Promedio histórico": "$ {:,.0f}",
+                    f"Proyección {resultado_escala['anio_proyectado']}":
+                        "$ {:,.0f}",
+                    "Acumulado proyectado": "$ {:,.0f}",
+                },
+                na_rep="—",
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "🔴 Alto: 15 % o más sobre un mes típico. "
+            "🟢 Bajo: 15 % o más por debajo. "
+            "La proyección toma el gasto mensual típico de los últimos "
+            "meses y lo reparte según este índice. Es una guía para "
+            "reservar plata en los meses fuertes, no una predicción exacta."
+        )
+
+        with st.expander("Ver gastos mes a mes, año por año"):
+            st.dataframe(
+                resultado_escala["historico"].style.format(
+                    "$ {:,.0f}", na_rep="—"
+                ),
+                use_container_width=True,
+            )
 
 # ----------------------------------------------------
 # PESTAÑA: LABORES Y LOTES
