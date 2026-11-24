@@ -263,15 +263,13 @@ def _clasificar_base(descripcion, sentido_bancario):
 
 def clasificar(descripcion, sentido_bancario):
     """
-    Regla automática:
-      - Lo que SALE del banco  -> Egreso  -> gastos comerciales.
-      - Lo que ENTRA al banco  -> Ingreso -> ingresos por trabajos.
-    Salvedades:
-      - Extracciones de cajero y compras personales siguen afuera.
-      - Transferencias entre cuentas propias (TRANSFERENCIAS_PROPIAS)
-        quedan afuera.
-      - Reversiones (un crédito que el texto marca como gasto, o al revés)
-        quedan afuera para no inflar gastos con plata que entró.
+    Regla automática, sin excepciones:
+      - Lo que ENTRA al banco -> Ingreso -> ingresos por trabajos.
+      - Lo que SALE del banco -> Egreso  -> gastos comerciales.
+    Las palabras clave (combustible, seguro, impuestos, comisiones, etc.)
+    solo sirven para ponerle una categoría más descriptiva al gasto.
+    Lo que no se reconoce queda como 'Servicio / trabajo' (ingreso) o
+    'Proveedor / compra' (gasto).
     """
 
     d = re.sub(
@@ -280,45 +278,43 @@ def clasificar(descripcion, sentido_bancario):
 
     sentido = str(sentido_bancario or "Otro").strip()
 
-    es_extraccion = any(x in d for x in (
-        "EXTRACCION", "EXTRACCIÓN", "CAJERO",
-    ))
-
-    es_transferencia = any(x in d for x in (
-        "TRANSF", "TRPRO", "DEBTRF", "TRANSFERENCIA",
-    ))
-
-    if es_transferencia and not es_extraccion:
-
-        if any(
-            str(p).strip().upper() in d
-            for p in TRANSFERENCIAS_PROPIAS
-            if str(p).strip()
-        ):
-            return "Transferencia entre cuentas", "Transferencia"
-
-        if sentido == "Ingreso":
-            return "Servicio / trabajo", "Ingreso"
-
-        if sentido == "Egreso":
-            return "Proveedor / compra", "Egreso"
+    # Opcional: cuentas propias que NO querés cargar. Vacío = se carga todo.
+    if any(
+        str(p).strip().upper() in d
+        for p in TRANSFERENCIAS_PROPIAS
+        if str(p).strip()
+    ):
+        return "Transferencia entre cuentas", "Transferencia"
 
     categoria, tipo = _clasificar_base(descripcion, sentido)
 
-    # Reversión: el texto dice gasto pero entró plata (o al revés).
-    if tipo in ("Ingreso", "Egreso") and sentido in ("Ingreso", "Egreso"):
-        if tipo != sentido:
-            return "Otro", "Otro"
+    if sentido == "Ingreso":
 
-    # Lo que antes quedaba "Pendiente de clasificar" ahora sigue
-    # el sentido bancario.
-    if categoria == "Pendiente de clasificar":
+        if categoria in (
+            "Cobro de cliente",
+            "Venta de cosecha",
+            "Servicio / trabajo",
+        ):
+            return categoria, "Ingreso"
 
-        if sentido == "Ingreso":
-            return "Servicio / trabajo", "Ingreso"
+        return "Servicio / trabajo", "Ingreso"
 
-        if sentido == "Egreso":
-            return "Proveedor / compra", "Egreso"
+    if sentido == "Egreso":
+
+        if categoria in (
+            "Combustible",
+            "Reparación / repuesto",
+            "Sueldos / jornales",
+            "Seguro",
+            "Impuestos",
+            "Comisiones bancarias",
+            "Proveedor / compra",
+            "Extracción / efectivo",
+            "Gasto personal",
+        ):
+            return categoria, "Egreso"
+
+        return "Proveedor / compra", "Egreso"
 
     return categoria, tipo
 
@@ -675,9 +671,7 @@ def contabilizar(mid, permitir_pendiente=False):
     conn = None
 
     categorias_personales_o_no_contables = {
-        "Gasto personal",
         "Transferencia entre cuentas",
-        "Extracción / efectivo",
         "Pendiente de clasificar",
         "Otro",
     }
@@ -696,6 +690,8 @@ def contabilizar(mid, permitir_pendiente=False):
         "Impuestos",
         "Comisiones bancarias",
         "Proveedor / compra",
+        "Extracción / efectivo",
+        "Gasto personal",
     }
 
     try:
@@ -1012,6 +1008,8 @@ def contabilizar_clasificados_existentes(df):
         "Impuestos",
         "Comisiones bancarias",
         "Proveedor / compra",
+        "Extracción / efectivo",
+        "Gasto personal",
     }
 
     for _, fila in df.iterrows():
@@ -1111,9 +1109,20 @@ def _pendientes_reclasificables(cur):
         SELECT id, descripcion, sentido_bancario
         FROM movimientos_bancarios
         WHERE estado_revision = 'Pendiente de revisión contable'
-          AND categoria IN (
-              'Pendiente de clasificar',
-              'Transferencia entre cuentas'
+          AND (
+              categoria IN (
+                  'Pendiente de clasificar',
+                  'Transferencia entre cuentas',
+                  'Extracción / efectivo',
+                  'Gasto personal',
+                  'Otro'
+              )
+              OR tipo IN ('Personal', 'Transferencia', 'Otro')
+              OR (
+                  tipo IN ('Ingreso', 'Egreso')
+                  AND sentido_bancario IN ('Ingreso', 'Egreso')
+                  AND tipo <> sentido_bancario
+              )
           )
           AND COALESCE(id_ingreso, '') = ''
           AND COALESCE(id_gasto, '') = ''
@@ -1134,9 +1143,20 @@ def contar_pendientes_reclasificables():
                 SELECT COUNT(*)
                 FROM movimientos_bancarios
                 WHERE estado_revision = 'Pendiente de revisión contable'
-                  AND categoria IN (
-                      'Pendiente de clasificar',
-                      'Transferencia entre cuentas'
+                  AND (
+                      categoria IN (
+                          'Pendiente de clasificar',
+                          'Transferencia entre cuentas',
+                          'Extracción / efectivo',
+                          'Gasto personal',
+                          'Otro'
+                      )
+                      OR tipo IN ('Personal', 'Transferencia', 'Otro')
+                      OR (
+                          tipo IN ('Ingreso', 'Egreso')
+                          AND sentido_bancario IN ('Ingreso', 'Egreso')
+                          AND tipo <> sentido_bancario
+                      )
                   )
                   AND COALESCE(id_ingreso, '') = ''
                   AND COALESCE(id_gasto, '') = ''
@@ -2354,9 +2374,8 @@ def pantalla_movimientos_bancarios():
 
                             if excluidos:
                                 st.caption(
-                                    "Quedan afuera las extracciones, "
-                                    "compras personales, transferencias "
-                                    "entre cuentas propias y reversiones. "
+                                    "Quedaron sin pasar los que no están "
+                                    "en pesos o que ya estaban cargados. "
                                     "Los ves abajo, en 'Movimientos guardados'."
                                 )
 
@@ -2537,8 +2556,7 @@ def pantalla_movimientos_bancarios():
 
     st.warning(
         "Los ingresos se incorporarán a Ingresos y los egresos "
-        "a Gastos comerciales. Los movimientos personales, "
-        "transferencias y categorías pendientes quedarán afuera."
+        "a Gastos comerciales."
     )
 
     if st.button(
@@ -2626,11 +2644,11 @@ def pantalla_movimientos_bancarios():
         st.error(f"No se pudo consultar los pendientes: {e}")
 
     st.caption(
-        "Toma los movimientos que quedaron 'Pendiente de clasificar' o "
-        "como 'Transferencia entre cuentas' sin revisar, los clasifica "
-        "con la regla actual (entró = ingreso, salió = gasto) y los pasa "
-        "a contabilidad. No toca los que ya están Contabilizado, Revisado "
-        "o No contabilizar."
+        "Toma los movimientos pendientes que no pasaron a contabilidad "
+        "(sin clasificar, transferencias, extracciones, compras personales "
+        "o mal clasificados), los clasifica con la regla actual (entró = "
+        "ingreso, salió = gasto) y los pasa a contabilidad. No toca los que "
+        "ya están Contabilizado, Revisado o No contabilizar."
     )
 
     st.write(f"Movimientos alcanzados: **{cantidad_reclasificable}**")
