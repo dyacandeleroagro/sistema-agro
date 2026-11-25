@@ -21,7 +21,12 @@ from reportlab.platypus import (
     Spacer
 )
 from pwa.pwa import activar_pwa
-from analitica_gastos import calcular_escala_gastos
+from analitica_gastos import (
+    calcular_escala_gastos,
+    fmt_pesos,
+    resumen_escala_texto,
+)
+from reporte_pdf import generar_informe_pdf
 from pages.ingresos import pantalla_ingresos
 from pages.movimientos_bancarios import pantalla_movimientos_bancarios
 from pages.clientes import pantalla_clientes
@@ -3061,6 +3066,752 @@ if menu == "📈 ANALÍTICAS CENTRALES":
         if total_has_global > 0 else 0.0
     )
 
+    # ======================================================
+    # ANALÍTICAS SIMPLIFICADAS
+    # Código de colores en toda la pantalla y en el PDF:
+    #   VERDE = ingresos | ROJO = gastos | AZUL = ganancia | NARANJA = pérdida
+    # ======================================================
+
+    C_VERDE = "#2E7D32"
+    C_VERDE_FONDO = "#E8F5E9"
+    C_ROJO = "#C62828"
+    C_ROJO_FONDO = "#FFEBEE"
+    C_AZUL = "#1565C0"
+    C_AZUL_FONDO = "#E3F2FD"
+    C_NARANJA = "#E65100"
+    C_NARANJA_FONDO = "#FFF3E0"
+    C_AMARILLO = "#F9A825"
+    C_OSCURO = "#1E4620"
+
+    MESES_CORTOS = [
+        "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+        "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+    ]
+
+    def banner_seccion(titulo, ayuda, color):
+        st.markdown(
+            f"""
+            <div style="background:{color};color:#FFFFFF;padding:10px 16px;
+                        border-radius:8px;margin:26px 0 4px 0;
+                        font-size:1.15rem;font-weight:800;">
+                {titulo}
+            </div>
+            <div style="opacity:0.75;font-size:0.9rem;margin-bottom:10px;">
+                {ayuda}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    def tarjeta_resumen(titulo, valor, nota, color, fondo):
+        return f"""
+            <div style="border:3px solid {color};background:{fondo};
+                        border-radius:12px;padding:16px 10px;
+                        text-align:center;margin-bottom:10px;">
+                <div style="color:{color};font-weight:800;font-size:0.95rem;
+                            letter-spacing:0.5px;">{titulo}</div>
+                <div style="color:{color};font-weight:900;font-size:1.8rem;
+                            margin:6px 0;">{valor}</div>
+                <div style="color:#555555;font-size:0.85rem;">{nota}</div>
+            </div>
+        """
+
+    df_ing_graf = df_ingresos_analiticas.copy()
+    df_gas_graf = df_facturas.copy()
+
+    if not df_ing_graf.empty and "Fecha" in df_ing_graf.columns:
+        df_ing_graf["_fecha_grafica"] = pd.to_datetime(
+            df_ing_graf["Fecha"], errors="coerce"
+        )
+        df_ing_graf["_monto_grafica"] = pd.to_numeric(
+            df_ing_graf["Monto"], errors="coerce"
+        ).fillna(0)
+    else:
+        df_ing_graf = pd.DataFrame(
+            columns=["_fecha_grafica", "_monto_grafica"]
+        )
+
+    if not df_gas_graf.empty and "Fecha Registro" in df_gas_graf.columns:
+        df_gas_graf["_fecha_grafica"] = pd.to_datetime(
+            df_gas_graf["Fecha Registro"], errors="coerce"
+        )
+        df_gas_graf["_monto_grafica"] = pd.to_numeric(
+            df_gas_graf["Monto (ARS)"], errors="coerce"
+        ).fillna(0)
+    else:
+        df_gas_graf = pd.DataFrame(
+            columns=["_fecha_grafica", "_monto_grafica"]
+        )
+
+    fechas_validas = []
+
+    if not df_ing_graf.empty:
+        fechas_validas.extend(
+            df_ing_graf["_fecha_grafica"].dropna().dt.year.tolist()
+        )
+
+    if not df_gas_graf.empty:
+        fechas_validas.extend(
+            df_gas_graf["_fecha_grafica"].dropna().dt.year.tolist()
+        )
+
+    if not fechas_validas:
+
+        st.info(
+            "Todavía no hay ingresos o gastos con fechas válidas en Neon "
+            "para armar los gráficos. Importá un resumen del banco y "
+            "aparecen solos."
+        )
+
+    else:
+
+        anios_disponibles = sorted(set(fechas_validas), reverse=True)
+
+        anio_seleccionado = st.selectbox(
+            "📅 ¿Qué año querés ver?",
+            options=anios_disponibles,
+            index=0,
+            key="analiticas_anio_mensual"
+        )
+
+        # Acá se coloca el botón del PDF cuando ya está todo calculado.
+        zona_pdf = st.container()
+
+        nombres_meses = [
+            "Enero", "Febrero", "Marzo", "Abril",
+            "Mayo", "Junio", "Julio", "Agosto",
+            "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ]
+
+        ingresos_mes = [0.0] * 12
+        gastos_mes = [0.0] * 12
+
+        if not df_ing_graf.empty:
+            ingresos_filtrados = df_ing_graf[
+                df_ing_graf["_fecha_grafica"].dt.year == anio_seleccionado
+            ]
+
+            sumas_ingresos = ingresos_filtrados.groupby(
+                ingresos_filtrados["_fecha_grafica"].dt.month
+            )["_monto_grafica"].sum()
+
+            for mes, monto in sumas_ingresos.items():
+                ingresos_mes[int(mes) - 1] = float(monto)
+
+        if not df_gas_graf.empty:
+            gastos_filtrados = df_gas_graf[
+                df_gas_graf["_fecha_grafica"].dt.year == anio_seleccionado
+            ]
+
+            sumas_gastos = gastos_filtrados.groupby(
+                gastos_filtrados["_fecha_grafica"].dt.month
+            )["_monto_grafica"].sum()
+
+            for mes, monto in sumas_gastos.items():
+                gastos_mes[int(mes) - 1] = float(monto)
+
+        df_evolucion = pd.DataFrame(
+            {
+                "Ingresos": ingresos_mes,
+                "Gastos comerciales": gastos_mes,
+            },
+            index=nombres_meses
+        )
+
+        df_evolucion["Resultado"] = (
+            df_evolucion["Ingresos"] -
+            df_evolucion["Gastos comerciales"]
+        )
+
+        total_ingresos_anio = float(df_evolucion["Ingresos"].sum())
+        total_gastos_anio = float(df_evolucion["Gastos comerciales"].sum())
+        resultado_anio = total_ingresos_anio - total_gastos_anio
+        hay_ganancia = resultado_anio >= 0
+
+        # ---------------------------------------------------
+        # A. RESUMEN DEL AÑO
+        # ---------------------------------------------------
+
+        banner_seccion(
+            f"📌 RESUMEN DEL AÑO {anio_seleccionado}",
+            "Lo más importante: cuánto entró, cuánto salió y cómo cerró.",
+            C_OSCURO
+        )
+
+        k1, k2, k3 = st.columns(3)
+
+        with k1:
+            st.markdown(
+                tarjeta_resumen(
+                    "💰 INGRESOS",
+                    fmt_pesos(total_ingresos_anio),
+                    f"Lo que entró en {anio_seleccionado}",
+                    C_VERDE, C_VERDE_FONDO
+                ),
+                unsafe_allow_html=True
+            )
+
+        with k2:
+            st.markdown(
+                tarjeta_resumen(
+                    "🧾 GASTOS",
+                    fmt_pesos(total_gastos_anio),
+                    f"Lo que salió en {anio_seleccionado}",
+                    C_ROJO, C_ROJO_FONDO
+                ),
+                unsafe_allow_html=True
+            )
+
+        with k3:
+            st.markdown(
+                tarjeta_resumen(
+                    "📊 RESULTADO: GANANCIA" if hay_ganancia
+                    else "📊 RESULTADO: PÉRDIDA",
+                    fmt_pesos(resultado_anio),
+                    "Ingresos menos gastos",
+                    C_AZUL if hay_ganancia else C_NARANJA,
+                    C_AZUL_FONDO if hay_ganancia else C_NARANJA_FONDO
+                ),
+                unsafe_allow_html=True
+            )
+
+        if hay_ganancia:
+            st.markdown(
+                f"En {anio_seleccionado} entraron "
+                f":green[**{fmt_pesos(total_ingresos_anio)}**] y salieron "
+                f":red[**{fmt_pesos(total_gastos_anio)}**]: el negocio "
+                f"cerró con una :blue[**ganancia de "
+                f"{fmt_pesos(resultado_anio)}**]."
+            )
+        else:
+            st.markdown(
+                f"En {anio_seleccionado} entraron "
+                f":green[**{fmt_pesos(total_ingresos_anio)}**] y salieron "
+                f":red[**{fmt_pesos(total_gastos_anio)}**]: el negocio "
+                f"cerró con una :orange[**pérdida de "
+                f"{fmt_pesos(abs(resultado_anio))}**]."
+            )
+
+        st.caption(
+            "Gastos = gastos comerciales (incluye todo lo que sale del "
+            "banco). Ingresos = trabajos y cobros registrados."
+        )
+
+        # ---------------------------------------------------
+        # B. MES A MES
+        # ---------------------------------------------------
+
+        banner_seccion(
+            "📅 MES A MES: INGRESOS Y GASTOS",
+            "🟢 Verde: lo que entró.  🔴 Rojo: lo que salió.",
+            C_VERDE
+        )
+
+        df_mes_largo = pd.DataFrame({
+            "Mes": MESES_CORTOS * 2,
+            "Tipo": (
+                ["Ingresos (lo que entró)"] * 12
+                + ["Gastos (lo que salió)"] * 12
+            ),
+            "Monto": ingresos_mes + gastos_mes,
+        })
+        df_mes_largo["Detalle"] = df_mes_largo["Monto"].apply(fmt_pesos)
+
+        spec_mes = {
+            "height": 300,
+            "mark": {
+                "type": "bar",
+                "cornerRadiusTopLeft": 3,
+                "cornerRadiusTopRight": 3,
+            },
+            "encoding": {
+                "x": {
+                    "field": "Mes", "type": "ordinal",
+                    "sort": MESES_CORTOS,
+                    "axis": {"title": None, "labelAngle": 0},
+                },
+                "xOffset": {"field": "Tipo"},
+                "y": {
+                    "field": "Monto", "type": "quantitative",
+                    "axis": {"title": "Pesos", "format": "~s"},
+                },
+                "color": {
+                    "field": "Tipo", "type": "nominal",
+                    "scale": {
+                        "domain": [
+                            "Ingresos (lo que entró)",
+                            "Gastos (lo que salió)",
+                        ],
+                        "range": [C_VERDE, C_ROJO],
+                    },
+                    "legend": {"orient": "top", "title": None},
+                },
+                "tooltip": [
+                    {"field": "Mes", "type": "nominal"},
+                    {"field": "Tipo", "type": "nominal"},
+                    {"field": "Detalle", "type": "nominal", "title": "Monto"},
+                ],
+            },
+        }
+
+        st.vega_lite_chart(
+            df_mes_largo, spec_mes, use_container_width=True
+        )
+
+        st.markdown(
+            "**Resultado de cada mes** (ingresos menos gastos): "
+            ":blue[azul = ganaste] · :orange[naranja = perdiste]"
+        )
+
+        df_res_graf = pd.DataFrame({
+            "Mes": MESES_CORTOS,
+            "Resultado": df_evolucion["Resultado"].values,
+        })
+        df_res_graf["Detalle"] = df_res_graf["Resultado"].apply(
+            lambda v: fmt_pesos(v, True)
+        )
+
+        spec_resultado = {
+            "height": 220,
+            "encoding": {
+                "x": {
+                    "field": "Mes", "type": "ordinal",
+                    "sort": MESES_CORTOS,
+                    "axis": {"title": None, "labelAngle": 0},
+                },
+            },
+            "layer": [
+                {
+                    "mark": {
+                        "type": "bar",
+                        "cornerRadiusTopLeft": 3,
+                        "cornerRadiusTopRight": 3,
+                    },
+                    "encoding": {
+                        "y": {
+                            "field": "Resultado", "type": "quantitative",
+                            "axis": {"title": "Pesos", "format": "~s"},
+                        },
+                        "color": {
+                            "condition": {
+                                "test": "datum.Resultado >= 0",
+                                "value": C_AZUL,
+                            },
+                            "value": C_NARANJA,
+                        },
+                        "tooltip": [
+                            {"field": "Mes", "type": "nominal"},
+                            {"field": "Detalle", "type": "nominal",
+                             "title": "Resultado"},
+                        ],
+                    },
+                },
+                {
+                    "mark": {"type": "rule", "color": "#888888"},
+                    "encoding": {"y": {"datum": 0}},
+                },
+            ],
+        }
+
+        st.vega_lite_chart(
+            df_res_graf, spec_resultado, use_container_width=True
+        )
+
+        with st.expander("Ver los números mes por mes"):
+
+            tabla_mes = df_evolucion.rename(
+                columns={"Gastos comerciales": "Gastos"}
+            ).copy()
+            tabla_mes.index.name = "Mes"
+
+            def _pintar_resultado(col):
+                return [
+                    f"color:{C_AZUL};font-weight:700" if v >= 0
+                    else f"color:{C_NARANJA};font-weight:700"
+                    for v in col
+                ]
+
+            st.dataframe(
+                tabla_mes.style
+                .format(fmt_pesos)
+                .apply(
+                    lambda c: [f"color:{C_VERDE};font-weight:700"] * len(c),
+                    subset=["Ingresos"]
+                )
+                .apply(
+                    lambda c: [f"color:{C_ROJO};font-weight:700"] * len(c),
+                    subset=["Gastos"]
+                )
+                .apply(_pintar_resultado, subset=["Resultado"]),
+                use_container_width=True
+            )
+
+        # ---------------------------------------------------
+        # C. EN QUÉ SE GASTA
+        # ---------------------------------------------------
+
+        df_cat = pd.DataFrame(columns=["Categoría", "Monto"])
+
+        if not df_gas_graf.empty and "Categoría" in df_gas_graf.columns:
+
+            g_cat = df_gas_graf[
+                df_gas_graf["_fecha_grafica"].dt.year == anio_seleccionado
+            ].copy()
+
+            if not g_cat.empty:
+
+                g_cat["Categoría"] = (
+                    g_cat["Categoría"].fillna("Sin categoría")
+                    .astype(str).str.strip()
+                    .replace("", "Sin categoría")
+                )
+
+                df_cat = (
+                    g_cat.groupby("Categoría", as_index=False)
+                    ["_monto_grafica"].sum()
+                    .rename(columns={"_monto_grafica": "Monto"})
+                )
+
+                df_cat = df_cat[df_cat["Monto"] > 0].sort_values(
+                    "Monto", ascending=False
+                )
+
+        if not df_cat.empty:
+
+            banner_seccion(
+                "🧾 EN QUÉ SE GASTA",
+                f"Los gastos de {anio_seleccionado} por categoría. "
+                "Las barras más largas son donde más se va la plata.",
+                C_ROJO
+            )
+
+            df_cat_graf = df_cat.head(8).copy()
+
+            if len(df_cat) > 8:
+                df_cat_graf = pd.concat([
+                    df_cat_graf,
+                    pd.DataFrame([{
+                        "Categoría": "Otras",
+                        "Monto": float(df_cat["Monto"].iloc[8:].sum()),
+                    }])
+                ], ignore_index=True)
+
+            df_cat_graf["Detalle"] = df_cat_graf["Monto"].apply(fmt_pesos)
+
+            spec_cat = {
+                "height": {"step": 30},
+                "mark": {"type": "bar", "color": C_ROJO,
+                         "cornerRadiusEnd": 3},
+                "encoding": {
+                    "y": {
+                        "field": "Categoría", "type": "nominal",
+                        "sort": "-x",
+                        "axis": {"title": None, "labelLimit": 170},
+                    },
+                    "x": {
+                        "field": "Monto", "type": "quantitative",
+                        "axis": {"title": "Pesos", "format": "~s"},
+                    },
+                    "tooltip": [
+                        {"field": "Categoría", "type": "nominal"},
+                        {"field": "Detalle", "type": "nominal",
+                         "title": "Gasto"},
+                    ],
+                },
+            }
+
+            st.vega_lite_chart(
+                df_cat_graf, spec_cat, use_container_width=True
+            )
+
+            with st.expander("Ver el detalle por categoría"):
+                total_cat = float(df_cat["Monto"].sum())
+                tabla_cat = df_cat.copy()
+                tabla_cat["% del total"] = (
+                    tabla_cat["Monto"] / total_cat * 100.0
+                    if total_cat else 0.0
+                )
+                tabla_cat = tabla_cat.rename(columns={"Monto": "Gasto"})
+
+                st.dataframe(
+                    tabla_cat.style
+                    .format({
+                        "Gasto": fmt_pesos,
+                        "% del total": "{:.1f} %",
+                    })
+                    .apply(
+                        lambda c: [f"color:{C_ROJO};font-weight:700"] * len(c),
+                        subset=["Gasto"]
+                    ),
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+        # ---------------------------------------------------
+        # D. ¿EN QUÉ MESES SE GASTA MÁS O MENOS?
+        # ---------------------------------------------------
+
+        banner_seccion(
+            "🔎 ¿EN QUÉ MESES SE GASTA MÁS O MENOS?",
+            "Compara todos los meses de todo el historial contra un mes "
+            "normal. Se actualiza sola con cada resumen del banco.",
+            C_ROJO
+        )
+
+        with st.expander("⚙️ Ajustar por inflación (opcional)"):
+            inflacion_mensual_pct = st.number_input(
+                "Inflación mensual estimada (%)",
+                min_value=0.0,
+                max_value=50.0,
+                value=0.0,
+                step=0.5,
+                key="escala_inflacion_mensual",
+                help=(
+                    "Con 0 se comparan los pesos tal cual. Si ponés un "
+                    "valor, los gastos viejos se llevan a pesos de hoy "
+                    "antes de comparar y la proyección se ajusta mes a mes."
+                ),
+            )
+
+        resultado_escala = calcular_escala_gastos(
+            df_gas_graf,
+            inflacion_mensual=inflacion_mensual_pct / 100.0,
+        )
+
+        if resultado_escala is None:
+
+            st.info(
+                "Todavía no hay al menos 3 meses completos de gastos con "
+                "fecha válida. Cuando importes más resúmenes del banco, "
+                "esta sección aparece sola."
+            )
+
+        else:
+
+            escala = resultado_escala["escala"]
+            anio_plan = resultado_escala["anio_proyectado"]
+
+            if resultado_escala["provisoria"]:
+                st.warning(
+                    f"Hay {resultado_escala['meses_completos']} meses "
+                    "completos de historia: la escala es provisoria y "
+                    "mejora a medida que importás más resúmenes (lo ideal "
+                    "es un año completo o más)."
+                )
+
+            textos_escala = resumen_escala_texto(escala)
+
+            if textos_escala["caros"]:
+                st.markdown(
+                    f":red[**Meses más pesados:**] {textos_escala['caros']}"
+                )
+
+            if textos_escala["baratos"]:
+                st.markdown(
+                    f":green[**Meses más livianos:**] "
+                    f"{textos_escala['baratos']}"
+                )
+
+            if not textos_escala["caros"] and not textos_escala["baratos"]:
+                st.markdown(
+                    "Por ahora ningún mes se destaca: el gasto es parecido "
+                    "todos los meses."
+                )
+
+            st.markdown(
+                ":red[**Rojo**] = se gasta más de lo normal · "
+                ":orange[**Amarillo**] = parecido · "
+                ":green[**Verde**] = se gasta menos. "
+                "Cada barra dice cuánto más o menos que un mes normal."
+            )
+
+            df_escala_graf = escala.dropna(subset=["indice"]).copy()
+            df_escala_graf["Mes"] = [
+                MESES_CORTOS[m - 1] for m in df_escala_graf.index
+            ]
+            df_escala_graf["Variación"] = df_escala_graf["variacion_pct"]
+            df_escala_graf["Nivel"] = df_escala_graf["etiqueta"]
+            df_escala_graf["Detalle"] = df_escala_graf["variacion_pct"].apply(
+                lambda v: f"{v:+.0f} % vs. un mes normal"
+            )
+            df_escala_graf = df_escala_graf[
+                ["Mes", "Variación", "Nivel", "Detalle"]
+            ].reset_index(drop=True)
+
+            spec_escala = {
+                "height": 260,
+                "encoding": {
+                    "x": {
+                        "field": "Mes", "type": "ordinal",
+                        "sort": MESES_CORTOS,
+                        "axis": {"title": None, "labelAngle": 0},
+                    },
+                },
+                "layer": [
+                    {
+                        "mark": {
+                            "type": "bar",
+                            "cornerRadiusTopLeft": 3,
+                            "cornerRadiusTopRight": 3,
+                        },
+                        "encoding": {
+                            "y": {
+                                "field": "Variación",
+                                "type": "quantitative",
+                                "axis": {
+                                    "title": "% sobre o bajo un mes normal",
+                                    "format": "+.0f",
+                                },
+                            },
+                            "color": {
+                                "field": "Nivel", "type": "nominal",
+                                "scale": {
+                                    "domain": [
+                                        "Mes caro", "Mes normal",
+                                        "Mes barato",
+                                    ],
+                                    "range": [C_ROJO, C_AMARILLO, C_VERDE],
+                                },
+                                "legend": {"orient": "top", "title": None},
+                            },
+                            "tooltip": [
+                                {"field": "Mes", "type": "nominal"},
+                                {"field": "Nivel", "type": "nominal"},
+                                {"field": "Detalle", "type": "nominal",
+                                 "title": "Diferencia"},
+                            ],
+                        },
+                    },
+                    {
+                        "mark": {"type": "rule", "color": "#888888"},
+                        "encoding": {"y": {"datum": 0}},
+                    },
+                ],
+            }
+
+            st.vega_lite_chart(
+                df_escala_graf, spec_escala, use_container_width=True
+            )
+
+            # -----------------------------------------------
+            # E. PLAN PARA EL AÑO PRÓXIMO
+            # -----------------------------------------------
+
+            banner_seccion(
+                f"🗓️ PLAN PARA {anio_plan}: CUÁNTO JUNTAR",
+                "Cuánto se espera gastar cada mes y cuánta plata conviene "
+                "tener reservada a medida que pasa el año.",
+                C_ROJO
+            )
+
+            p1, p2 = st.columns(2)
+
+            with p1:
+                st.markdown(
+                    tarjeta_resumen(
+                        f"🧾 GASTO ESTIMADO {anio_plan}",
+                        fmt_pesos(resultado_escala["proyeccion_anual"]),
+                        "Total del año",
+                        C_ROJO, C_ROJO_FONDO
+                    ),
+                    unsafe_allow_html=True
+                )
+
+            with p2:
+                st.markdown(
+                    tarjeta_resumen(
+                        "📆 GASTO MENSUAL TÍPICO HOY",
+                        fmt_pesos(resultado_escala["base_mensual_actual"]),
+                        "Promedio de los últimos meses",
+                        C_ROJO, C_ROJO_FONDO
+                    ),
+                    unsafe_allow_html=True
+                )
+
+            col_gasto_plan = f"Gasto estimado {anio_plan}"
+
+            tabla_plan = pd.DataFrame({
+                "Mes": escala["nombre"].values,
+                "Qué esperar": escala["etiqueta"].values,
+                col_gasto_plan: escala["proyeccion"].values,
+                "Juntar hasta ese mes": escala["proyeccion_acumulada"].values,
+            })
+
+            def _pintar_esperar(col):
+                estilos = {
+                    "Mes caro": (
+                        f"background-color:{C_ROJO_FONDO};"
+                        f"color:{C_ROJO};font-weight:700"
+                    ),
+                    "Mes normal": (
+                        "background-color:#FFF8E1;"
+                        "color:#8D6E00;font-weight:700"
+                    ),
+                    "Mes barato": (
+                        f"background-color:{C_VERDE_FONDO};"
+                        f"color:{C_VERDE};font-weight:700"
+                    ),
+                }
+                return [estilos.get(v, "") for v in col]
+
+            st.dataframe(
+                tabla_plan.style
+                .format({
+                    col_gasto_plan: fmt_pesos,
+                    "Juntar hasta ese mes": fmt_pesos,
+                })
+                .apply(_pintar_esperar, subset=["Qué esperar"]),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.caption(
+                "Es una guía para saber en qué meses conviene tener plata "
+                "reservada, no una predicción exacta."
+            )
+
+        # ---------------------------------------------------
+        # PDF: se arma con lo que ya se calculó arriba
+        # ---------------------------------------------------
+
+        with zona_pdf:
+            try:
+                pdf_informe = generar_informe_pdf(
+                    anio_seleccionado,
+                    df_evolucion,
+                    df_cat,
+                    resultado_escala,
+                    inflacion_mensual_pct=inflacion_mensual_pct,
+                    nombre_negocio="D&A Candelero Agro",
+                )
+
+                st.download_button(
+                    "📄 DESCARGAR INFORME EN PDF",
+                    data=pdf_informe,
+                    file_name=f"informe_negocio_{anio_seleccionado}.pdf",
+                    mime="application/pdf",
+                    type="primary",
+                    key=f"descargar_informe_{anio_seleccionado}",
+                )
+
+                st.caption(
+                    "Listo para imprimir o mandar por WhatsApp o mail. "
+                    "Incluye todo lo de esta pantalla, bien marcado."
+                )
+
+            except Exception as e:
+                st.warning(f"No se pudo armar el PDF: {e}")
+
+    # ======================================================
+    # TOTALES DE TODA LA HISTORIA Y OPERACIÓN DEL CAMPO
+    # ======================================================
+
+    banner_seccion(
+        "📚 TOTALES DE TODA LA HISTORIA Y OPERACIÓN DEL CAMPO",
+        "Suma de todos los años juntos y datos de trabajo del campo.",
+        "#455A64"
+    )
+
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
@@ -3171,285 +3922,6 @@ if menu == "📈 ANALÍTICAS CENTRALES":
             unsafe_allow_html=True
         )
 
-
-    # ======================================================
-    # EVOLUCIÓN MENSUAL: INGRESOS, GASTOS Y RESULTADO
-    # ======================================================
-
-    st.divider()
-    st.subheader("📈 Evolución mensual del negocio")
-    st.caption(
-        "Comparación de ingresos y gastos comerciales registrados en Neon. "
-        "El resultado mensual es ingresos menos gastos comerciales."
-    )
-
-    df_ing_graf = df_ingresos_analiticas.copy()
-    df_gas_graf = df_facturas.copy()
-
-    if not df_ing_graf.empty and "Fecha" in df_ing_graf.columns:
-        df_ing_graf["_fecha_grafica"] = pd.to_datetime(
-            df_ing_graf["Fecha"], errors="coerce"
-        )
-        df_ing_graf["_monto_grafica"] = pd.to_numeric(
-            df_ing_graf["Monto"], errors="coerce"
-        ).fillna(0)
-    else:
-        df_ing_graf = pd.DataFrame(
-            columns=["_fecha_grafica", "_monto_grafica"]
-        )
-
-    if not df_gas_graf.empty and "Fecha Registro" in df_gas_graf.columns:
-        df_gas_graf["_fecha_grafica"] = pd.to_datetime(
-            df_gas_graf["Fecha Registro"], errors="coerce"
-        )
-        df_gas_graf["_monto_grafica"] = pd.to_numeric(
-            df_gas_graf["Monto (ARS)"], errors="coerce"
-        ).fillna(0)
-    else:
-        df_gas_graf = pd.DataFrame(
-            columns=["_fecha_grafica", "_monto_grafica"]
-        )
-
-    fechas_validas = []
-
-    if not df_ing_graf.empty:
-        fechas_validas.extend(
-            df_ing_graf["_fecha_grafica"].dropna().dt.year.tolist()
-        )
-
-    if not df_gas_graf.empty:
-        fechas_validas.extend(
-            df_gas_graf["_fecha_grafica"].dropna().dt.year.tolist()
-        )
-
-    if fechas_validas:
-        anios_disponibles = sorted(set(fechas_validas), reverse=True)
-
-        anio_seleccionado = st.selectbox(
-            "Seleccionar ejercicio",
-            options=anios_disponibles,
-            index=0,
-            key="analiticas_anio_mensual"
-        )
-
-        nombres_meses = [
-            "Enero", "Febrero", "Marzo", "Abril",
-            "Mayo", "Junio", "Julio", "Agosto",
-            "Septiembre", "Octubre", "Noviembre", "Diciembre"
-        ]
-
-        ingresos_mes = [0.0] * 12
-        gastos_mes = [0.0] * 12
-
-        if not df_ing_graf.empty:
-            ingresos_filtrados = df_ing_graf[
-                df_ing_graf["_fecha_grafica"].dt.year == anio_seleccionado
-            ]
-
-            sumas_ingresos = ingresos_filtrados.groupby(
-                ingresos_filtrados["_fecha_grafica"].dt.month
-            )["_monto_grafica"].sum()
-
-            for mes, monto in sumas_ingresos.items():
-                ingresos_mes[int(mes) - 1] = float(monto)
-
-        if not df_gas_graf.empty:
-            gastos_filtrados = df_gas_graf[
-                df_gas_graf["_fecha_grafica"].dt.year == anio_seleccionado
-            ]
-
-            sumas_gastos = gastos_filtrados.groupby(
-                gastos_filtrados["_fecha_grafica"].dt.month
-            )["_monto_grafica"].sum()
-
-            for mes, monto in sumas_gastos.items():
-                gastos_mes[int(mes) - 1] = float(monto)
-
-        df_evolucion = pd.DataFrame(
-            {
-                "Ingresos": ingresos_mes,
-                "Gastos comerciales": gastos_mes,
-            },
-            index=nombres_meses
-        )
-
-        df_evolucion["Resultado"] = (
-            df_evolucion["Ingresos"] -
-            df_evolucion["Gastos comerciales"]
-        )
-
-        total_ingresos_anio = float(df_evolucion["Ingresos"].sum())
-        total_gastos_anio = float(df_evolucion["Gastos comerciales"].sum())
-        resultado_anio = total_ingresos_anio - total_gastos_anio
-
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Ingresos del año", f"$ {total_ingresos_anio:,.2f}")
-        m2.metric("Gastos comerciales del año", f"$ {total_gastos_anio:,.2f}")
-        m3.metric("Resultado del año", f"$ {resultado_anio:,.2f}")
-
-        st.markdown("#### Ingresos y gastos por mes")
-        st.bar_chart(
-            df_evolucion[["Ingresos", "Gastos comerciales"]],
-            use_container_width=True
-        )
-
-        st.markdown("#### Resultado mensual")
-        st.line_chart(
-            df_evolucion[["Resultado"]],
-            use_container_width=True
-        )
-
-        with st.expander("Ver detalle mensual en tabla"):
-            df_tabla_evolucion = df_evolucion.copy()
-            df_tabla_evolucion.index.name = "Mes"
-            st.dataframe(
-                df_tabla_evolucion.style.format("$ {:,.2f}"),
-                use_container_width=True
-            )
-
-    else:
-        st.info(
-            "Todavía no hay ingresos o gastos con fechas válidas en Neon "
-            "para construir la evolución mensual."
-        )
-
-    # ======================================================
-    # ESCALA DE GASTOS POR MES Y PLAN DEL AÑO PRÓXIMO
-    # Se actualiza sola con cada resumen bancario importado,
-    # porque los egresos del banco van a Gastos comerciales.
-    # ======================================================
-
-    st.divider()
-    st.subheader("📊 Escala de gastos por mes y plan del año próximo")
-    st.caption(
-        "Compara en qué meses se gasta más o menos, usando todo el "
-        "historial de gastos comerciales. El índice 1,00 es un mes típico: "
-        "1,30 significa 30 % más gasto que un mes típico y 0,70 significa "
-        "30 % menos. El mes en curso no se cuenta hasta que termina."
-    )
-
-    inflacion_mensual_pct = st.number_input(
-        "Inflación mensual estimada (%)",
-        min_value=0.0,
-        max_value=50.0,
-        value=0.0,
-        step=0.5,
-        key="escala_inflacion_mensual",
-        help=(
-            "Con 0 los pesos de todos los meses se comparan tal cual. "
-            "Si ponés un valor, los gastos viejos se llevan a pesos de "
-            "hoy antes de comparar (así un mes no parece caro solo porque "
-            "el peso valía menos) y la proyección se ajusta mes a mes."
-        ),
-    )
-
-    resultado_escala = calcular_escala_gastos(
-        df_gas_graf,
-        inflacion_mensual=inflacion_mensual_pct / 100.0,
-    )
-
-    if resultado_escala is None:
-        st.info(
-            "Todavía no hay al menos 3 meses completos de gastos con fecha "
-            "válida. Cuando importes más resúmenes bancarios, la escala "
-            "aparece sola."
-        )
-
-    else:
-        escala = resultado_escala["escala"]
-        con_datos = escala.dropna(subset=["indice"])
-
-        if resultado_escala["provisoria"]:
-            st.warning(
-                f"Hay {resultado_escala['meses_completos']} meses completos "
-                "de historia: la escala es provisoria y los meses sin datos "
-                "se proyectan como un mes típico. Mejora a medida que "
-                "importás más resúmenes (lo ideal es un año completo o más)."
-            )
-
-        mes_caro = con_datos["indice"].idxmax()
-        mes_barato = con_datos["indice"].idxmin()
-
-        k1, k2, k3, k4 = st.columns(4)
-
-        k1.metric(
-            "Mes de más gasto",
-            escala.loc[mes_caro, "nombre"],
-            f"índice {escala.loc[mes_caro, 'indice']:.2f}",
-            delta_color="off",
-            delta_arrow="off",
-        )
-        k2.metric(
-            "Mes de menos gasto",
-            escala.loc[mes_barato, "nombre"],
-            f"índice {escala.loc[mes_barato, 'indice']:.2f}",
-            delta_color="off",
-            delta_arrow="off",
-        )
-        k3.metric(
-            "Gasto mensual típico hoy",
-            f"$ {resultado_escala['base_mensual_actual']:,.0f}",
-        )
-        k4.metric(
-            f"Gasto proyectado {resultado_escala['anio_proyectado']}",
-            f"$ {resultado_escala['proyeccion_anual']:,.0f}",
-        )
-
-        st.markdown("#### Escala por mes (1,00 = mes típico)")
-
-        grafico_indice = escala[["nombre", "indice"]].copy()
-        grafico_indice["indice"] = grafico_indice["indice"].fillna(0.0)
-        grafico_indice = grafico_indice.set_index("nombre")
-        grafico_indice.columns = ["Índice de gasto"]
-
-        st.bar_chart(grafico_indice, use_container_width=True)
-
-        st.markdown(
-            f"#### Cómo preparar {resultado_escala['anio_proyectado']}"
-        )
-
-        tabla_plan = pd.DataFrame({
-            "Mes": escala["nombre"],
-            "Nivel": escala["nivel"],
-            "Índice": escala["indice"],
-            "Años con datos": escala["anios_con_datos"],
-            "Promedio histórico": escala["promedio"],
-            f"Proyección {resultado_escala['anio_proyectado']}":
-                escala["proyeccion"],
-            "Acumulado proyectado": escala["proyeccion_acumulada"],
-        }).reset_index(drop=True)
-
-        st.dataframe(
-            tabla_plan.style.format(
-                {
-                    "Índice": "{:.2f}",
-                    "Años con datos": "{:.0f}",
-                    "Promedio histórico": "$ {:,.0f}",
-                    f"Proyección {resultado_escala['anio_proyectado']}":
-                        "$ {:,.0f}",
-                    "Acumulado proyectado": "$ {:,.0f}",
-                },
-                na_rep="—",
-            ),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-        st.caption(
-            "🔴 Alto: 15 % o más sobre un mes típico. "
-            "🟢 Bajo: 15 % o más por debajo. "
-            "La proyección toma el gasto mensual típico de los últimos "
-            "meses y lo reparte según este índice. Es una guía para "
-            "reservar plata en los meses fuertes, no una predicción exacta."
-        )
-
-        with st.expander("Ver gastos mes a mes, año por año"):
-            st.dataframe(
-                resultado_escala["historico"].style.format(
-                    "$ {:,.0f}", na_rep="—"
-                ),
-                use_container_width=True,
-            )
 
 # ----------------------------------------------------
 # PESTAÑA: LABORES Y LOTES

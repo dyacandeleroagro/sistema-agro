@@ -39,6 +39,73 @@ def _nivel(indice):
     return "🟡 Normal"
 
 
+def _etiqueta(indice):
+    """Palabra simple para mostrarle a una persona."""
+    if pd.isna(indice):
+        return "Sin datos"
+    if indice >= UMBRAL_ALTO:
+        return "Mes caro"
+    if indice <= UMBRAL_BAJO:
+        return "Mes barato"
+    return "Mes normal"
+
+
+def fmt_pesos(valor, con_signo=False):
+    """Formato argentino sin decimales: $ 1.234.567 (negativos: -$ 1.234)."""
+    try:
+        v = float(valor)
+    except (TypeError, ValueError):
+        return "-"
+    if pd.isna(v):
+        return "-"
+    r = int(round(v))
+    texto = f"{abs(r):,}".replace(",", ".")
+    if r < 0:
+        return f"-$ {texto}"
+    if con_signo and r > 0:
+        return f"+$ {texto}"
+    return f"$ {texto}"
+
+
+def fmt_corto(valor):
+    """Para ejes de gráficos: 1,5 M / 800 mil."""
+    try:
+        v = float(valor)
+    except (TypeError, ValueError):
+        return ""
+    signo = "-" if v < 0 else ""
+    a = abs(v)
+    if a >= 1_000_000:
+        return f"{signo}{a / 1_000_000:.1f} M".replace(".", ",")
+    if a >= 1_000:
+        return f"{signo}{a / 1_000:.0f} mil"
+    return f"{signo}{a:.0f}"
+
+
+def resumen_escala_texto(escala, max_meses=3):
+    """
+    Devuelve {'caros': 'Marzo (+46 %), ...', 'baratos': 'Julio (-41 %)'}
+    con los meses más pesados y más livianos. Vacío si no hay ninguno.
+    """
+    con = escala.dropna(subset=["indice"])
+
+    caros = con[con["etiqueta"] == "Mes caro"].sort_values(
+        "indice", ascending=False
+    ).head(max_meses)
+
+    baratos = con[con["etiqueta"] == "Mes barato"].sort_values(
+        "indice"
+    ).head(max_meses)
+
+    def lista(d):
+        return ", ".join(
+            f"{r['nombre']} ({r['variacion_pct']:+.0f} %)"
+            for _, r in d.iterrows()
+        )
+
+    return {"caros": lista(caros), "baratos": lista(baratos)}
+
+
 def calcular_escala_gastos(
     df,
     col_fecha="_fecha_grafica",
@@ -151,6 +218,8 @@ def calcular_escala_gastos(
         proyeccion, index=escala.index
     ).cumsum()
     escala["nivel"] = escala["indice"].apply(_nivel)
+    escala["etiqueta"] = escala["indice"].apply(_etiqueta)
+    escala["variacion_pct"] = (escala["indice"] - 1.0) * 100.0
     escala["nombre"] = [NOMBRES_MESES[m - 1] for m in escala.index]
 
     historico = tabla.pivot_table(
